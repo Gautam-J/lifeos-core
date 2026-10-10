@@ -1,0 +1,7 @@
+[Unit]
+Description=Send the result of %i to ntfy
+
+[Service]
+Type=oneshot
+User=gautam
+ExecStart=/home/gautam/lifeos-core/deploy/notify.sh %i
