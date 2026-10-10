@@ -1,23 +1,22 @@
 #!/bin/bash
-# Send the result of a systemd unit to ntfy: quiet on success, urgent with
-# the last log lines on failure. Called by lifeos-notify@.service.
+# Send a message to an ntfy topic. Title, priority and tags default by topic;
+# the optional arguments override them. Installed as /usr/local/bin/notify.
 # Needs NTFY_TOKEN in deploy/.env.
-# Usage: notify.sh <unit>
+# Usage: notify.sh <topic> <message> [title] [priority] [tags]
 set -euo pipefail
 
-cd "$(dirname "$0")"
-set -a; . ./.env; set +a
+cd "$(dirname "$(readlink -f "$0")")"
+. ./.env
 
-unit=$1
-result=$(systemctl show "$unit" -p Result --value)
-if [ "$result" = success ]; then
-    title="$unit succeeded"; priority=low; tags=white_check_mark; lines=5
-else
-    title="$unit failed ($result)"; priority=high; tags=rotating_light; lines=15
-fi
+topic=$1
+case "$topic" in
+    pi-alerts) title="Pi alert"; priority=high; tags=warning ;;
+    pi-health) title="Pi health check"; priority=low; tags=white_check_mark ;;
+    *) title="$topic"; priority=default; tags= ;;
+esac
 
-journalctl -u "$unit" -n "$lines" -o cat --no-pager |
+printf '%s' "$2" |
     curl -fsS --max-time 20 -o /dev/null \
         -H "Authorization: Bearer $NTFY_TOKEN" \
-        -H "Title: $title" -H "Priority: $priority" -H "Tags: $tags" \
-        --data-binary @- http://127.0.0.1:2586/lifeos
+        -H "Title: ${3:-$title}" -H "Priority: ${4:-$priority}" -H "Tags: ${5:-$tags}" \
+        --data-binary @- "http://127.0.0.1:2586/$topic"
