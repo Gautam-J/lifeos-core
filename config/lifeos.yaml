@@ -1,0 +1,11 @@
+# The one LifeOS configuration file.
+
+# Listen addresses. Each must be on 127.0.0.1: the Cloudflare Tunnel is the
+# only way in. The design doc gives the API port 8000, but another service on
+# this Pi uses 8000.
+http_addr: 127.0.0.1:8200
+mcp_addr: 127.0.0.1:8100
+
+# Postgres URL without a password. The password comes from POSTGRES_PASSWORD
+# in the environment (deploy/.env).
+database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable
