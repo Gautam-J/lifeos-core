@@ -20,5 +20,29 @@ services:
       timeout: 5s
       retries: 5
 
+  ntfy:
+    image: binwiederhier/ntfy:v2
+    restart: unless-stopped
+    command: serve
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:?set NTFY_BASE_URL in deploy/.env}
+      # Wakes the iOS app through ntfy.sh; the message itself stays on the Pi.
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_ENABLE_LOGIN: "true"
+    ports:
+      - "127.0.0.1:2586:80"
+    volumes:
+      - ntfydata:/var/lib/ntfy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -q '\"healthy\":true'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   pgdata:
+  ntfydata:
