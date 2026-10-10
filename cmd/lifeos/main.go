@@ -53,6 +53,5 @@ func usage() {
 }
 
 func serve(args []string) error     { return errNotImplemented }
-func migrate(args []string) error   { return errNotImplemented }
 func job(args []string) error       { return errNotImplemented }
 func importCSV(args []string) error { return errNotImplemented }
