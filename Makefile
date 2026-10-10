@@ -8,12 +8,23 @@ export LIFEOS_TEST_DATABASE_URL = postgres://lifeos:$(POSTGRES_PASSWORD)@127.0.0
 PKG ?= ./...
 ARGS ?=
 
-.PHONY: build test migrate
+SQLC_VERSION = 1.31.1
+SQLC = $(shell go env GOPATH)/bin/sqlc
 
-build:
+.PHONY: tools generate build test migrate
+
+# Installs the code generators that are not Go modules of this repo.
+tools:
+	curl -fsSL https://github.com/sqlc-dev/sqlc/releases/download/v$(SQLC_VERSION)/sqlc_$(SQLC_VERSION)_linux_arm64.tar.gz | tar -xz -C $(dir $(SQLC)) sqlc
+
+# Generated code is not in git. Each target that compiles runs this first.
+generate:
+	$(SQLC) generate
+
+build: generate
 	go build -o bin/lifeos ./cmd/lifeos
 
-test:
+test: generate
 	go vet ./...
 	go test $(PKG) $(ARGS)
 
