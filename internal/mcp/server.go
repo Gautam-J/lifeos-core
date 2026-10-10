@@ -20,10 +20,15 @@ func NewServer(svc *service.Service) *sdk.Server {
 	return server
 }
 
-// Handler serves the lifeos MCP server over streamable HTTP.
+// Handler serves the lifeos MCP server over streamable HTTP. It keeps no
+// session: each tool call is one request. A session would hold a stream
+// open, and that stream would block the shutdown of the HTTP server.
 func Handler(svc *service.Service) http.Handler {
 	server := NewServer(svc)
-	return sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return server }, nil)
+	return sdk.NewStreamableHTTPHandler(
+		func(*http.Request) *sdk.Server { return server },
+		&sdk.StreamableHTTPOptions{Stateless: true},
+	)
 }
 
 // toToolError turns a service error into the error text that the model

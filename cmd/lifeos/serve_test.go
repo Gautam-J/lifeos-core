@@ -70,6 +70,9 @@ func TestServeRunsOneFlowThroughEveryAdapter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MCP connect: %v", err)
 	}
+	// The session stays open until the test ends: an MCP client is still
+	// connected when the servers stop.
+	defer session.Close()
 	got, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "get", Arguments: map[string]any{"type": "item", "id": added.ID}})
 	if err != nil || got.IsError {
 		t.Fatalf("MCP get: err %v, result %+v", err, got)
@@ -83,7 +86,6 @@ func TestServeRunsOneFlowThroughEveryAdapter(t *testing.T) {
 	if err != nil || second.IsError {
 		t.Fatalf("MCP add_item: err %v, result %+v", err, second)
 	}
-	session.Close()
 
 	// 3. Admin page: the two items show.
 	page, err := http.Get("http://" + cfg.HTTPAddr + "/admin/items")
