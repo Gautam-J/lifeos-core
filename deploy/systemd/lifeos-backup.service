@@ -1,0 +1,9 @@
+[Unit]
+Description=LifeOS Postgres backup (pg_dump into restic)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=gautam
+ExecStart=/home/gautam/lifeos-core/deploy/backup.sh
