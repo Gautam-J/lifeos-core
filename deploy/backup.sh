@@ -1,6 +1,7 @@
 #!/bin/bash
-# Nightly backup: pg_dump of the lifeos database into the local restic repository.
-# Needs RESTIC_PASSWORD in deploy/.env.
+# Nightly backup: pg_dump of the lifeos database into two restic repositories,
+# one on the Pi and one in Backblaze B2.
+# Needs RESTIC_PASSWORD and the B2 settings in deploy/.env.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -17,3 +18,5 @@ docker compose exec -T postgres pg_dump -U lifeos -Fc lifeos > "$dump_dir/lifeos
 docker compose exec -T postgres pg_dumpall -U lifeos --globals-only > "$dump_dir/globals.sql"
 
 restic backup --tag postgres "$dump_dir"
+# Second copy off the Pi, through the S3-compatible API of B2.
+restic -r "s3:https://$B2_ENDPOINT/$B2_BUCKET/restic" backup --tag postgres "$dump_dir"
