@@ -1,3 +1,4 @@
 /bin/
 /deploy/.env
 /internal/store/
+*_templ.go

@@ -20,6 +20,7 @@ tools:
 # Generated code is not in git. Each target that compiles runs this first.
 generate:
 	$(SQLC) generate
+	go tool templ generate
 
 build: generate
 	go build -o bin/lifeos ./cmd/lifeos

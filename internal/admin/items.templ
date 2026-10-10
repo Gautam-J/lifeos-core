@@ -1,0 +1,116 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ page(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } · LifeOS</title>
+			<script src="/admin/static/htmx.min.js"></script>
+			<style>
+				body { font-family: system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; }
+				form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; margin-bottom: 1.5rem; }
+				label { display: flex; flex-direction: column; font-size: 0.85rem; }
+				table { border-collapse: collapse; width: 100%; }
+				th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
+				.error { color: #b00020; }
+				.muted { color: #666; }
+			</style>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ itemsPage(items []service.Item) {
+	@page("Items") {
+		<h1>Items</h1>
+		<form hx-post="/admin/items" hx-target="#list" hx-swap="outerHTML" hx-on:item-added="this.reset()">
+			<label>
+				Kind
+				<select name="kind" required>
+					for _, kind := range service.ItemKinds {
+						<option value={ kind }>{ kind }</option>
+					}
+				</select>
+			</label>
+			<label>
+				Title
+				<input type="text" name="title" required maxlength="300" size="40"/>
+			</label>
+			<label>
+				Rating
+				<input type="number" name="rating" min="0" max="5" step="0.5"/>
+			</label>
+			<label>
+				Date
+				<input type="date" name="occurred_on"/>
+			</label>
+			<button type="submit">Add</button>
+		</form>
+		@itemsList(items, "")
+	}
+}
+
+// itemsList is the part of the page that a form post replaces.
+templ itemsList(items []service.Item, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(items) == 0 {
+			<p class="muted">No items yet.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Kind</th>
+						<th>Title</th>
+						<th>Rating</th>
+						<th>Date</th>
+						<th>Source</th>
+						<th>Verified</th>
+						<th>Added (IST)</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, item := range items {
+						<tr>
+							<td>{ strconv.FormatInt(item.ID, 10) }</td>
+							<td>{ item.Kind }</td>
+							<td>{ item.Title }</td>
+							<td>{ formatRating(item.Rating) }</td>
+							<td>{ item.OccurredOn }</td>
+							<td>{ string(item.Source) }</td>
+							<td>{ formatVerified(item.Verified) }</td>
+							<td>{ item.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+func formatRating(rating *float64) string {
+	if rating == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*rating, 'f', -1, 64)
+}
+
+func formatVerified(verified bool) string {
+	if verified {
+		return "yes"
+	}
+	return "no"
+}
