@@ -11,7 +11,7 @@ ARGS ?=
 SQLC_VERSION = 1.31.1
 SQLC = $(shell go env GOPATH)/bin/sqlc
 
-.PHONY: tools generate build test migrate
+.PHONY: tools generate build test migrate run
 
 # Installs the code generators that are not Go modules of this repo.
 tools:
@@ -31,3 +31,6 @@ test: generate
 
 migrate: build
 	bin/lifeos migrate
+
+run: build
+	bin/lifeos serve
