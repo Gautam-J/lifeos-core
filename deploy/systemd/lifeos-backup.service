@@ -2,6 +2,8 @@
 Description=LifeOS Postgres backup (pg_dump into restic)
 Requires=docker.service
 After=docker.service
+OnSuccess=lifeos-notify@%n.service
+OnFailure=lifeos-notify@%n.service
 
 [Service]
 Type=oneshot
