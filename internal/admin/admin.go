@@ -62,13 +62,13 @@ func (h *handlers) addItem(w http.ResponseWriter, r *http.Request) {
 	case errors.As(err, &invalid):
 		message = invalid.Error()
 	default:
-		internalError(w, err)
+		listFailure(w, r, err, "The item was not stored: internal error. Try again.")
 		return
 	}
 
 	items, err := h.svc.ListItems(r.Context(), service.ListItemsParams{})
 	if err != nil {
-		internalError(w, err)
+		listFailure(w, r, err, "The list did not load: internal error. Reload the page.")
 		return
 	}
 	render(w, r, itemsList(items, message))
@@ -102,6 +102,13 @@ func render(w http.ResponseWriter, r *http.Request, c component) {
 	if err := c.Render(r.Context(), w); err != nil {
 		slog.Error("admin: render failed", "error", err)
 	}
+}
+
+// listFailure logs err and shows message in place of the list. The status
+// is 200, because htmx does not show the body of a 5xx response.
+func listFailure(w http.ResponseWriter, r *http.Request, err error, message string) {
+	slog.Error("admin: request failed", "error", err)
+	render(w, r, itemsFailure(message))
 }
 
 func internalError(w http.ResponseWriter, err error) {

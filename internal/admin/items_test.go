@@ -166,15 +166,33 @@ func TestDatabaseFailureGivesAPlain500(t *testing.T) {
 	h, pool := newTestAdmin(t)
 	pool.Close()
 
-	for name, rec := range map[string]*httptest.ResponseRecorder{
-		"page": get(h, "/admin/items"),
-		"post": postForm(h, "/admin/items", url.Values{"kind": {"movie"}, "title": {"Dune"}}),
-	} {
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("%s: status = %d, want 500", name, rec.Code)
-		}
-		if got := strings.TrimSpace(rec.Body.String()); got != "internal error" {
-			t.Errorf("%s: body = %q, want only \"internal error\"", name, got)
-		}
+	rec := get(h, "/admin/items")
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", rec.Code)
+	}
+	if got := strings.TrimSpace(rec.Body.String()); got != "internal error" {
+		t.Errorf("body = %q, want only \"internal error\"", got)
+	}
+}
+
+// htmx does not show the body of a 5xx response. The form post must put
+// the failure in the list, or Gautam sees nothing after a click on Add.
+func TestAddItemShowsADatabaseFailureInTheList(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	pool.Close()
+
+	rec := postForm(h, "/admin/items", url.Values{"kind": {"movie"}, "title": {"Dune"}})
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200: htmx does not show a 5xx response", rec.Code)
+	}
+	body := rec.Body.String()
+	want := `<div id="list"><p class="error" role="alert">The item was not stored: internal error. Try again.</p></div>`
+	if got := strings.TrimSpace(body); got != want {
+		t.Errorf("body = %q, want only the list with the error:\n%s", got, want)
+	}
+	if got := rec.Header().Get("HX-Trigger"); got != "" {
+		t.Errorf("HX-Trigger = %q, want none so that the form keeps its input", got)
 	}
 }

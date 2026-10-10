@@ -101,6 +101,14 @@ templ itemsList(items []service.Item, errorMessage string) {
 	</div>
 }
 
+// itemsFailure takes the place of the list when a form post fails on the
+// server.
+templ itemsFailure(message string) {
+	<div id="list">
+		<p class="error" role="alert">{ message }</p>
+	</div>
+}
+
 func formatRating(rating *float64) string {
 	if rating == nil {
 		return ""
