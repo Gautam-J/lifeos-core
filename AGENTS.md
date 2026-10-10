@@ -23,15 +23,19 @@ One Go binary, `lifeos`, runs on a Raspberry Pi 4 (linux/arm64) against Postgres
 ```
 cmd/lifeos/            main package: serve, migrate, job, import-csv
 internal/service/      all logic: validation, provenance, events
-internal/store/        sqlc-generated queries, from queries/*.sql
+internal/store/        sqlc-generated queries, from queries/*.sql (not in git)
+internal/config/       loads config/lifeos.yaml
+internal/testdb/       test helper: one migrated database for each test
 internal/api/          chi + Huma handlers
 internal/mcp/          tools on the official MCP Go SDK
 internal/admin/        templ + htmx admin pages
 internal/connectors/   health, caldav, imap, owntracks, csv: one plugin each
 internal/jobs/         briefs, inbox processing, lint
 queries/               SQL that sqlc compiles
-migrations/            goose SQL migrations
-config/lifeos.yaml     models, schedules, connectors, wiki and prompt paths, notifications
+migrations/            goose SQL migrations and the Go code that applies them
+config/lifeos.yaml     listen addresses, database URL; later models, schedules, connectors, notifications
+sqlc.yaml              sqlc settings
+Makefile               tools, generate, build, test, migrate, run
 dashboards/            Grafana definitions, versioned with the schema they query
 deploy/                docker-compose.yml, systemd units and timers, deploy.sh
 docs/design.md         the design doc, exported
@@ -44,7 +48,7 @@ Create a folder when its first file lands; do not add empty packages.
 1. **All logic lives in `internal/service`.** Validation, provenance and event logging happen there and nowhere else.
 2. **Adapters are thin.** API handlers, MCP tools and CLI subcommands parse input, call one service function and format the result. No adapter calls another adapter. Handlers deal with HTTP; tools carry the model-facing descriptions.
 3. **SQL only through sqlc.** Write queries in `queries/*.sql` and call the generated code in `internal/store`. No SQL strings in Go, and only `internal/service` calls `internal/store`.
-4. **Every write records provenance.** Each record row carries `source` (`manual`, `import`, `connector` or `agent`), `source_ref`, `verified`, `created_at` and `updated_at`. Rows an agent infers start with `verified = false`; rows Gautam dictates directly are verified.
+4. **Every write records provenance.** Each record row carries `source` (`manual`, `import`, `connector` or `agent`), `source_ref`, `verified`, `created_at` and `updated_at`. Rows an agent infers start with `verified = false`; rows Gautam dictates directly are verified. The adapter sets this: the REST API and the admin pages write `manual`, verified rows; an MCP tool writes `agent` rows that are verified only when the tool input says the user dictated the row.
 5. **Every write appends to `events`.** One row per write, with the old value on updates and deletes. `events` is append-only.
 6. **Deletes are soft.** Set `deleted_at`; permanent removal happens only in the admin pages.
 7. **Never store** passwords, card or bank account numbers, or government ID numbers. The service layer rejects them.
@@ -53,13 +57,19 @@ Create a folder when its first file lands; do not add empty packages.
 ## Commands
 
 ```sh
-go build -o bin/lifeos ./cmd/lifeos   # build the binary (bin/ is gitignored)
-go vet ./...              # static checks
-go test ./...             # tests
-go run ./cmd/lifeos       # list subcommands
+make tools      # one time: install sqlc into ~/go/bin
+make generate   # run sqlc and templ: writes internal/store/ and *_templ.go
+make build      # generate, then build bin/lifeos
+make test       # generate, go vet, then all tests
+make migrate    # build, then apply migrations to the database in config/lifeos.yaml
+make run        # build, then run lifeos serve
 ```
 
-`lifeos serve` runs the API, admin pages and MCP server. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers.
+- **Generated code is not in git.** After a fresh clone, run `make generate` before `go build` or `go vet`.
+- **Tests need Postgres.** Start the container from `deploy/docker-compose.yml`; the Makefile reads `deploy/.env`. Each test creates its own database and drops it. `go test` without `make` fails, because `LIFEOS_TEST_DATABASE_URL` is not set.
+- **Narrow a test run** with `make test PKG=./internal/api ARGS="-run TestName -v"`.
+
+`lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.
 
 ## Migrations
 
