@@ -1,11 +1,16 @@
 #!/bin/bash
 # Restore test: load the latest backup into a scratch database and compare
 # row counts with production. Exits non-zero on any mismatch.
+# Usage: restore-test.sh [local|b2]
 set -euo pipefail
 
 cd "$(dirname "$0")"
 set -a; . ./.env; set +a
-export RESTIC_REPOSITORY=/var/backups/lifeos/restic
+case "${1:-local}" in
+    local) export RESTIC_REPOSITORY=/var/backups/lifeos/restic ;;
+    b2)    export RESTIC_REPOSITORY="s3:https://$B2_ENDPOINT/$B2_BUCKET/restic" ;;
+    *)     echo "usage: $0 [local|b2]" >&2; exit 2 ;;
+esac
 
 scratch=lifeos_restore_test
 pg() { docker compose exec -T postgres psql -U lifeos -v ON_ERROR_STOP=1 -At "$@"; }
