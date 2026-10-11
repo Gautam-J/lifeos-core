@@ -22,6 +22,7 @@ templ page(title string) {
 				th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
 				td form { display: inline; margin: 0; }
 				nav { display: flex; gap: 1rem; margin-bottom: 1rem; }
+				td.text { white-space: pre-wrap; }
 				.error { color: #b00020; }
 				.muted { color: #666; }
 			</style>
@@ -29,6 +30,7 @@ templ page(title string) {
 		<body>
 			<nav>
 				<a href="/admin/items">Items</a>
+				<a href="/admin/journal">Journal</a>
 				<a href="/admin/review">Review</a>
 			</nav>
 			{ children... }

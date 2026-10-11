@@ -1,0 +1,108 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ journalPage(entries []service.JournalEntry) {
+	@page("Journal") {
+		<h1>Journal</h1>
+		<form hx-post="/admin/journal" hx-target="#list" hx-swap="outerHTML" hx-on:entry-added="this.reset()">
+			<label>
+				Entry
+				<textarea name="body" required cols="60" rows="6"></textarea>
+			</label>
+			<label>
+				Day (empty means today)
+				<input type="date" name="entry_date"/>
+			</label>
+			<button type="submit">Add</button>
+		</form>
+		@journalList(entries, "")
+	}
+}
+
+// journalList is the part of the page that a form post replaces.
+templ journalList(entries []service.JournalEntry, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(entries) == 0 {
+			<p class="muted">No entries yet.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Day</th>
+						<th>Entry</th>
+						<th>Source</th>
+						<th>Verified</th>
+						<th>Written (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, entry := range entries {
+						<tr>
+							<td>{ strconv.FormatInt(entry.ID, 10) }</td>
+							<td>{ entry.EntryDate }</td>
+							<td class="text">{ entry.Body }</td>
+							<td>{ string(entry.Source) }</td>
+							<td>{ formatVerified(entry.Verified) }</td>
+							<td>{ entry.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								<a href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
+								<button
+									hx-post={ journalPath(entry.ID) + "/delete" }
+									hx-target="#list"
+									hx-swap="outerHTML"
+									hx-confirm={ "Delete the entry of " + entry.EntryDate + "?" }
+								>Delete</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+// journalForm holds the values of the edit form as text. When the service
+// refuses a value, the form shows again what Gautam typed.
+type journalForm struct {
+	ID        int64
+	Body      string
+	EntryDate string
+}
+
+// The text area starts with a line break, because a browser drops one line
+// break after the start tag. Without it, an entry that starts with a line
+// break loses that line break on Save.
+templ editJournalPage(form journalForm, errorMessage string) {
+	@page("Edit journal entry") {
+		<h1>Edit journal entry { strconv.FormatInt(form.ID, 10) }</h1>
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		<form method="post" action={ templ.URL(journalPath(form.ID)) }>
+			<label>
+				Entry
+				<textarea name="body" required cols="60" rows="12">{ "\n" + form.Body }</textarea>
+			</label>
+			<label>
+				Day
+				<input type="date" name="entry_date" required value={ form.EntryDate }/>
+			</label>
+			<button type="submit">Save</button>
+			<a href="/admin/journal">Cancel</a>
+		</form>
+	}
+}
+
+func journalPath(id int64) string {
+	return "/admin/journal/" + strconv.FormatInt(id, 10)
+}

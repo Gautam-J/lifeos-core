@@ -48,7 +48,12 @@ templ reviewList(entries []service.ReviewEntry, errorMessage string) {
 									<input type="hidden" name="id" value={ strconv.FormatInt(entry.ID, 10) }/>
 									<button type="submit">Approve</button>
 								</form>
-								<a href={ templ.URL(itemPath(entry.ID) + "/edit") }>Edit</a>
+								switch entry.Type {
+									case "item":
+										<a href={ templ.URL(itemPath(entry.ID) + "/edit") }>Edit</a>
+									case "journal":
+										<a href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
+								}
 							</td>
 						</tr>
 					}
