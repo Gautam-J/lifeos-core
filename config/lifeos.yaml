@@ -21,3 +21,8 @@ files_dir: /var/lib/lifeos/files
 inbox_dir: /var/lib/lifeos/inbox
 # The largest file that a capture accepts, in megabytes.
 max_file_mb: 50
+
+# The folder of the wiki pages. It must exist, and it must be in a git
+# repository: each write of a page is a commit there. The repository is
+# below /var/lib/lifeos, the one folder that the service unit can write.
+wiki_dir: /var/lib/lifeos/lifeos-wiki/wiki

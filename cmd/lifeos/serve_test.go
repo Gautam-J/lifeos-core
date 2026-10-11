@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -192,6 +193,43 @@ func TestFileStoreNeedsTheTwoFolders(t *testing.T) {
 		_, err := fileStore(cfg)
 		if err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("error = %v, want an error that names %s", err, key)
+		}
+	}
+}
+
+// gitRepo makes a new git repository in a temporary folder and returns the
+// folder wiki in it.
+func gitRepo(t *testing.T) string {
+	t.Helper()
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	wiki := filepath.Join(repo, "wiki")
+	if err := os.Mkdir(wiki, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return wiki
+}
+
+func TestWikiStoreNeedsAFolderInAGitRepository(t *testing.T) {
+	dir := gitRepo(t)
+
+	wiki, err := wikiStore(config.Config{WikiDir: dir})
+	if err != nil {
+		t.Fatalf("wikiStore: %v", err)
+	}
+	if wiki.Dir != dir {
+		t.Errorf("wiki.Dir = %q, want %q", wiki.Dir, dir)
+	}
+
+	for name, dir := range map[string]string{
+		"a folder that is absent":                  filepath.Join(dir, "absent"),
+		"a folder that is not in a git repository": t.TempDir(),
+	} {
+		_, err := wikiStore(config.Config{WikiDir: dir})
+		if err == nil || !strings.Contains(err.Error(), "wiki_dir") {
+			t.Errorf("%s: error = %v, want an error that names wiki_dir", name, err)
 		}
 	}
 }

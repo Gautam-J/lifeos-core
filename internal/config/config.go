@@ -30,6 +30,9 @@ type Config struct {
 	InboxDir string `yaml:"inbox_dir"`
 	// MaxFileMB is the largest file that a capture accepts, in megabytes.
 	MaxFileMB int64 `yaml:"max_file_mb"`
+	// WikiDir is the folder of the wiki pages. It is in a git repository:
+	// each write of a page is a commit.
+	WikiDir string `yaml:"wiki_dir"`
 }
 
 // Load reads and checks the file at path. It rejects unknown keys, a missing
@@ -55,7 +58,7 @@ func Load(path string) (Config, error) {
 			return Config{}, fmt.Errorf("config: %s: %s: %w", path, key, err)
 		}
 	}
-	for key, dir := range map[string]string{"files_dir": cfg.FilesDir, "inbox_dir": cfg.InboxDir} {
+	for key, dir := range map[string]string{"files_dir": cfg.FilesDir, "inbox_dir": cfg.InboxDir, "wiki_dir": cfg.WikiDir} {
 		if !filepath.IsAbs(dir) {
 			return Config{}, fmt.Errorf("config: %s: %s: %q is not a full path such as /var/lib/lifeos/files", path, key, dir)
 		}

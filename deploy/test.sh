@@ -84,5 +84,17 @@ for key in $(sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' .env.example); do
     fi
 done
 
+# The server writes the wiki pages and makes a commit for each write. The
+# unit lets it write only below the paths of ReadWritePaths.
+wiki_dir=$(sed -n 's/^wiki_dir: *//p' ../config/lifeos.yaml)
+writable=0
+for path in $(sed -n 's/^ReadWritePaths=//p' systemd/lifeos.service); do
+    case $wiki_dir/ in "$path"/*) writable=1 ;; esac
+done
+if [ "$writable" = 0 ]; then
+    echo "FAIL  lifeos.service: wiki_dir ($wiki_dir) is not below a path of ReadWritePaths"
+    failed=1
+fi
+
 [ "$failed" = 0 ] && echo "ok    deploy/test.sh"
 exit "$failed"

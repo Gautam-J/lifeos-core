@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -45,6 +46,10 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	wiki, err := wikiStore(cfg)
+	if err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -63,7 +68,7 @@ func serve(args []string) error {
 		return fmt.Errorf("query_database_url: %w", err)
 	}
 	defer queryPool.Close()
-	svc := service.New(pool).WithFiles(files)
+	svc := service.New(pool).WithFiles(files).WithWiki(wiki)
 	if err := svc.UseQueryPool(ctx, queryPool); err != nil {
 		return fmt.Errorf("query_database_url: %w", err)
 	}
@@ -89,6 +94,23 @@ func fileStore(cfg config.Config) (service.Files, error) {
 		}
 	}
 	return service.Files{Dir: cfg.FilesDir, Inbox: cfg.InboxDir, MaxBytes: cfg.MaxFileMB << 20}, nil
+}
+
+// wikiStore returns the settings of the wiki. It checks that the folder
+// exists and that it is in a git repository, so that a wrong path stops the
+// start and not the first write of a page.
+func wikiStore(cfg config.Config) (service.Wiki, error) {
+	info, err := os.Stat(cfg.WikiDir)
+	if err != nil {
+		return service.Wiki{}, fmt.Errorf("wiki_dir: %w", err)
+	}
+	if !info.IsDir() {
+		return service.Wiki{}, fmt.Errorf("wiki_dir: %s is not a folder", cfg.WikiDir)
+	}
+	if err := exec.Command("git", "-C", cfg.WikiDir, "rev-parse", "--is-inside-work-tree").Run(); err != nil {
+		return service.Wiki{}, fmt.Errorf("wiki_dir: %s is not in a git repository: %w", cfg.WikiDir, err)
+	}
+	return service.Wiki{Dir: cfg.WikiDir}, nil
 }
 
 // listen opens the two listeners before any request is served, so that a

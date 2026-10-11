@@ -17,6 +17,7 @@ type Service struct {
 	pool  *pgxpool.Pool
 	now   func() time.Time
 	files Files
+	wiki  Wiki
 	// queryPool connects as the read-only user. Only Query uses it.
 	queryPool    *pgxpool.Pool
 	queryTimeout time.Duration

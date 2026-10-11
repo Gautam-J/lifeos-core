@@ -24,6 +24,7 @@ query_database_url: postgres://lifeos_query@127.0.0.1:5432/lifeos?sslmode=disabl
 files_dir: /var/lib/lifeos/files
 inbox_dir: /var/lib/lifeos/inbox
 max_file_mb: 50
+wiki_dir: /var/lib/lifeos/lifeos-wiki/wiki
 `
 
 func TestLoadReadsAllKeys(t *testing.T) {
@@ -39,6 +40,7 @@ func TestLoadReadsAllKeys(t *testing.T) {
 		FilesDir:         "/var/lib/lifeos/files",
 		InboxDir:         "/var/lib/lifeos/inbox",
 		MaxFileMB:        50,
+		WikiDir:          "/var/lib/lifeos/lifeos-wiki/wiki",
 	}
 	if cfg != want {
 		t.Errorf("Load = %+v, want %+v", cfg, want)
@@ -100,6 +102,16 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 			name:    "file limit below 1",
 			content: strings.Replace(valid, "max_file_mb: 50", "max_file_mb: -1", 1),
 			wantErr: "max_file_mb",
+		},
+		{
+			name:    "missing wiki",
+			content: strings.Replace(valid, "wiki_dir: /var/lib/lifeos/lifeos-wiki/wiki", "", 1),
+			wantErr: "wiki_dir",
+		},
+		{
+			name:    "wiki that is not a full path",
+			content: strings.Replace(valid, "wiki_dir: /var/lib/lifeos/lifeos-wiki/wiki", "wiki_dir: wiki", 1),
+			wantErr: "wiki_dir",
 		},
 		{
 			name:    "unknown key",
