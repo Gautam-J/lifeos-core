@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -48,15 +49,24 @@ type Capture struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// CaptureParams is the input of Capture. Exactly one of Text and URL is
-// set.
+// CaptureParams is the input of Capture. Exactly one of Text, URL,
+// InboxPath and Upload is set.
 type CaptureParams struct {
 	// Text is stored as it is. The service does not trim it.
 	Text string
 	// URL is a link with the scheme http or https. The service stores the
 	// link; it does not get the page.
 	URL string
-	// Title is optional: a label for the capture.
+	// InboxPath names a file in the inbox folder: a path below the inbox,
+	// or a full path that is in the inbox. Capture moves the file into the
+	// file store.
+	InboxPath string
+	// Upload is the bytes of a file that came with the request.
+	Upload io.Reader
+	// FileName is optional: the name of the upload.
+	FileName string
+	// Title is optional: a label for the capture. A file with no title
+	// gets its file name.
 	Title string
 	// Source says who captures: manual for Gautam, agent for an MCP tool.
 	Source Source
@@ -67,6 +77,18 @@ type CaptureParams struct {
 // second call returns the stored source and writes nothing. A source is
 // always verified, because it holds what came in and no agent inferred it.
 func (s *Service) Capture(ctx context.Context, p CaptureParams) (Capture, error) {
+	given := 0
+	for _, isGiven := range []bool{p.Text != "", strings.TrimSpace(p.URL) != "", p.InboxPath != "", p.Upload != nil} {
+		if isGiven {
+			given++
+		}
+	}
+	if given != 1 {
+		return Capture{}, invalid("text", "give one of these, and only one: a text, a url, a file")
+	}
+	if p.InboxPath != "" || p.Upload != nil {
+		return s.captureFile(ctx, p)
+	}
 	row, err := p.toRow()
 	if err != nil {
 		return Capture{}, err
@@ -105,14 +127,12 @@ func (s *Service) storeSource(ctx context.Context, row store.InsertSourceParams)
 	return capture, nil
 }
 
-// toRow checks every field and returns the row to insert.
+// toRow checks every field of a text or a link and returns the row to
+// insert.
 func (p CaptureParams) toRow() (store.InsertSourceParams, error) {
 	row := store.InsertSourceParams{Source: string(p.Source), Verified: true}
 
 	link := strings.TrimSpace(p.URL)
-	if (p.Text == "") == (link == "") {
-		return row, invalid("text", "give a text or a url, and not the two together")
-	}
 	title, err := captureTitle(p.Title)
 	if err != nil {
 		return row, err

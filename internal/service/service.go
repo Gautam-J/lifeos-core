@@ -14,8 +14,9 @@ var IST = time.FixedZone("IST", 5*60*60+30*60)
 
 // Service is the single write path to the database.
 type Service struct {
-	pool *pgxpool.Pool
-	now  func() time.Time
+	pool  *pgxpool.Pool
+	now   func() time.Time
+	files Files
 }
 
 // New returns a Service that uses pool.
