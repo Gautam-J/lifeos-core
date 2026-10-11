@@ -26,7 +26,14 @@ var (
 	// A run is groups of digits with one space or one hyphen between them.
 	digitRunPattern = regexp.MustCompile(`[0-9]+(?:[ -][0-9]+)*`)
 	groupSeparator  = regexp.MustCompile(`[ -]`)
+	// The names that people write next to an Aadhaar number: Aadhaar and
+	// its common spellings, UID, UIDAI, and the word in Hindi.
+	aadhaarWordPattern = regexp.MustCompile(`(?i)\ba{1,2}dha{1,2}r\b|\buid(?:ai)?\b|आधार`)
 )
+
+// aadhaarWordDistance is how far from a number, in bytes, the name of
+// Aadhaar can be.
+const aadhaarWordDistance = 40
 
 // The ways that a card number and an Aadhaar number are written in groups.
 var (
@@ -50,8 +57,10 @@ func secretKind(text string) string {
 			return "an access key or a token"
 		}
 	}
-	for _, run := range digitRunPattern.FindAllString(text, -1) {
-		if kind := numberKind(groupSeparator.Split(run, -1)); kind != "" {
+	for _, at := range digitRunPattern.FindAllStringIndex(text, -1) {
+		around := text[max(0, at[0]-aadhaarWordDistance):min(len(text), at[1]+aadhaarWordDistance)]
+		named := aadhaarWordPattern.MatchString(around)
+		if kind := numberKind(groupSeparator.Split(text[at[0]:at[1]], -1), named); kind != "" {
 			return kind
 		}
 	}
@@ -63,12 +72,18 @@ func secretKind(text string) string {
 
 // numberKind looks at one run of digit groups. A number is one group, or
 // neighbouring groups in one of the known ways to write it.
-func numberKind(groups []string) string {
+//
+// 12 digits in one piece are an Aadhaar number only when named is true:
+// the name of Aadhaar is near the run. A phone number with its country
+// code and the reference number of a UPI payment have 12 digits too, and 1
+// of 10 has a correct check digit. The form 1234 5678 9012 is how an
+// Aadhaar number is printed, so it needs no name.
+func numberKind(groups []string, named bool) string {
 	for i, group := range groups {
 		if isCardNumber(group) {
 			return "a card number"
 		}
-		if isAadhaarNumber(group) {
+		if named && isAadhaarNumber(group) {
 			return "an Aadhaar number"
 		}
 		for _, grouping := range cardGroupings {
