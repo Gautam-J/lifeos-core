@@ -17,9 +17,12 @@ type Service struct {
 	pool  *pgxpool.Pool
 	now   func() time.Time
 	files Files
+	// queryPool connects as the read-only user. Only Query uses it.
+	queryPool    *pgxpool.Pool
+	queryTimeout time.Duration
 }
 
 // New returns a Service that uses pool.
 func New(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, now: time.Now}
+	return &Service{pool: pool, now: time.Now, queryTimeout: defaultQueryTimeout}
 }
