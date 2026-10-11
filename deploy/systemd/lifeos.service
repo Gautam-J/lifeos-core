@@ -1,29 +1,44 @@
 [Unit]
 Description=LifeOS server (REST API, admin pages, MCP server)
-Requires=docker.service
+# Wants, not Requires: a restart of Docker must not stop the server for
+# good. The server connects to Postgres again by itself.
+Wants=docker.service network-online.target
 After=docker.service network-online.target
-Wants=network-online.target
-# Postgres starts slowly after a boot: ten starts in five minutes, then
-# the unit fails and ntfy gets a message.
-StartLimitIntervalSec=300
-StartLimitBurst=10
+# Postgres starts slowly after a boot: thirty starts, one each ten
+# seconds, then the unit fails and ntfy gets a message.
+StartLimitIntervalSec=600
+StartLimitBurst=30
 OnFailure=lifeos-notify@%n.service
 
 [Service]
 User=gautam
 WorkingDirectory=/home/gautam/lifeos-core
-# The two database passwords. systemd reads KEY=value lines; it does not
-# run the file as a shell does.
+# systemd reads KEY=value lines; it does not run the file as a shell does.
+# The server needs only the two database passwords. Each other key of
+# deploy/.env is in UnsetEnvironment; deploy/test.sh checks the list
+# against deploy/.env.example.
 EnvironmentFile=/home/gautam/lifeos-core/deploy/.env
+UnsetEnvironment=RESTIC_PASSWORD B2_BUCKET B2_ENDPOINT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+UnsetEnvironment=CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN NTFY_BASE_URL NTFY_TOKEN
+UnsetEnvironment=LIFEOS_ADMIN_HOST LIFEOS_API_HOST CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 ExecStart=/home/gautam/lifeos-core/bin/lifeos serve
 Restart=on-failure
 RestartSec=10
-# The server writes only to the file store and the inbox.
+# This is the one process that the internet reaches. It sees the binary
+# and the config, and it writes only to the file store and the inbox. It
+# does not see the rest of the home folder (deploy/.env, SSH keys, the
+# tunnel certificate) or the Docker socket.
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectHome=tmpfs
+BindReadOnlyPaths=/home/gautam/lifeos-core/bin /home/gautam/lifeos-core/config
+InaccessiblePaths=/run/docker.sock
 ReadWritePaths=/var/lib/lifeos
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
