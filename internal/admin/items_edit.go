@@ -11,15 +11,15 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/service"
 )
 
-// itemID reads the {id} part of the path. ok is false when it is not a
+// pathID reads the {id} part of the path. ok is false when it is not a
 // number; the handler then answers 404.
-func itemID(r *http.Request) (id int64, ok bool) {
+func pathID(r *http.Request) (id int64, ok bool) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	return id, err == nil
 }
 
 func (h *handlers) editItemPage(w http.ResponseWriter, r *http.Request) {
-	id, ok := itemID(r)
+	id, ok := pathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -46,7 +46,7 @@ func (h *handlers) editItemPage(w http.ResponseWriter, r *http.Request) {
 // service refuses a value, the form shows again with the reason. An empty
 // rating or date removes the stored value. The attrs stay as they are.
 func (h *handlers) saveItem(w http.ResponseWriter, r *http.Request) {
-	id, ok := itemID(r)
+	id, ok := pathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -102,7 +102,7 @@ func (f itemForm) params() (service.UpdateItemParams, error) {
 
 // deleteItem deletes one item and renders the list again.
 func (h *handlers) deleteItem(w http.ResponseWriter, r *http.Request) {
-	id, ok := itemID(r)
+	id, ok := pathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return
