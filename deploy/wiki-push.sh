@@ -15,6 +15,9 @@
 # the failure to ntfy. wiki-push-repair.sh is the fix for a commit that only
 # GitHub has.
 #
+# It pushes only commits that change wiki pages. A commit that changes a
+# different file stops it.
+#
 # One time, make the mirror:
 #   git init --bare /var/backups/lifeos/wiki.git
 #   git -C /var/backups/lifeos/wiki.git remote add origin <URL of the wiki repository>
@@ -41,6 +44,17 @@ fi
 if [ "$(git --git-dir="$mirror" rev-parse main)" = "$(git --git-dir="$mirror" rev-parse --quiet --verify refs/remotes/origin/main)" ]; then
     echo "GitHub has each commit of the wiki"
     exit 0
+fi
+# The server writes only wiki pages. A commit that changes a different file
+# did not come from the code of the server, and a clone of the wiki can hold
+# settings that a program reads. Such a commit stays in the mirror until a
+# person looks at it.
+outside=$(git --git-dir="$mirror" log --format= --name-only refs/remotes/origin/main..main -- . ':(exclude)wiki' | sort -u | head -5 | tr '\n' ' ')
+if [ -n "$outside" ]; then
+    echo "wiki-push: a new commit changes a file that is not a wiki page: $outside" >&2
+    echo "wiki-push: nothing was pushed. Read the change: git --git-dir=$mirror log -p origin/main..main -- . ':(exclude)wiki'" >&2
+    echo "wiki-push: when the change is yours, push it by hand: git --git-dir=$mirror push origin main" >&2
+    exit 1
 fi
 if ! git --git-dir="$mirror" push --quiet origin main; then
     echo "wiki-push: GitHub refused the push. When GitHub has a commit that the wiki does not have, run deploy/wiki-push-repair.sh: it keeps that commit on a branch and puts the history of the wiki on main." >&2

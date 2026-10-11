@@ -125,8 +125,9 @@ wgit() { git -c user.name=test -c user.email=test@example.com -c init.defaultBra
 # wiki_commit <text>: one more commit in the live repository, as the server
 # makes one for each write of a page.
 wiki_commit() {
-    echo "$1" >> "$w/live/page.md"
-    wgit -C "$w/live" add page.md
+    mkdir -p "$w/live/wiki"
+    echo "$1" >> "$w/live/wiki/page.md"
+    wgit -C "$w/live" add wiki/page.md
     wgit -C "$w/live" commit -q -m "$1"
 }
 # wiki_repos: the remote with one commit, the live repository with that
@@ -219,6 +220,21 @@ if [ ! -e "$w/ran" ]; then
     echo "FAIL  wiki-push: the trap of the partial clone does not work: a fetch with no guard did not run it"
     failed=1
 fi
+
+# The server writes only wiki pages. A commit that changes a different file
+# did not come from the code of the server. It must not get to GitHub: a
+# clone of the wiki can hold settings that a program reads, such as
+# .claude/settings.json.
+wiki_repos
+mkdir "$w/live/.claude"
+echo '{}' > "$w/live/.claude/settings.json"
+wgit -C "$w/live" add .claude/settings.json
+wgit -C "$w/live" commit -q -m "a file that is not a wiki page"
+wiki_commit two
+before=$(git -C "$w/remote.git" rev-parse main)
+push_check "a commit with a file that is not a wiki page" 1 "not a wiki page: .claude/settings.json"
+remote_is "a commit with a file that is not a wiki page" "$before"
+push_check "the same commit in the next hour" 1 "not a wiki page: .claude/settings.json"
 
 # The script never forces. A history that does not continue the last one
 # stops it, and the remote keeps what it has.
