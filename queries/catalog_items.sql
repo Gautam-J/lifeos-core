@@ -48,3 +48,9 @@ RETURNING *;
 DELETE FROM catalog_items
 WHERE id = $1 AND deleted_at IS NOT NULL
 RETURNING id;
+
+-- name: ListDeletedCatalogItems :many
+SELECT * FROM catalog_items
+WHERE deleted_at IS NOT NULL
+ORDER BY deleted_at DESC, id DESC
+LIMIT $1;

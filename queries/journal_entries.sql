@@ -47,3 +47,9 @@ RETURNING *;
 DELETE FROM journal_entries
 WHERE id = $1 AND deleted_at IS NOT NULL
 RETURNING id;
+
+-- name: ListDeletedJournalEntries :many
+SELECT * FROM journal_entries
+WHERE deleted_at IS NOT NULL
+ORDER BY deleted_at DESC, id DESC
+LIMIT $1;

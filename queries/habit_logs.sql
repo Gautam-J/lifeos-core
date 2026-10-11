@@ -74,3 +74,11 @@ LIMIT $1;
 DELETE FROM habit_logs
 WHERE id = $1 AND deleted_at IS NOT NULL
 RETURNING id;
+
+-- name: ListDeletedHabitLogs :many
+SELECT sqlc.embed(habit_logs), habits.name AS habit
+FROM habit_logs
+JOIN habits ON habits.id = habit_logs.habit_id
+WHERE habit_logs.deleted_at IS NOT NULL
+ORDER BY habit_logs.deleted_at DESC, habit_logs.id DESC
+LIMIT $1;

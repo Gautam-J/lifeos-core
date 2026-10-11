@@ -35,3 +35,9 @@ RETURNING *;
 -- Counts the rows, live and deleted, that use one file of the file store.
 SELECT count(*) FROM sources
 WHERE file_path = $1;
+
+-- name: ListDeletedSources :many
+SELECT * FROM sources
+WHERE deleted_at IS NOT NULL
+ORDER BY deleted_at DESC, id DESC
+LIMIT $1;

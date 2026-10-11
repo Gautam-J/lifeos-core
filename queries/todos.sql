@@ -48,3 +48,9 @@ RETURNING *;
 DELETE FROM todos
 WHERE id = $1 AND deleted_at IS NOT NULL
 RETURNING id;
+
+-- name: ListDeletedTodos :many
+SELECT * FROM todos
+WHERE deleted_at IS NOT NULL
+ORDER BY deleted_at DESC, id DESC
+LIMIT $1;
