@@ -63,3 +63,25 @@ func New(t *testing.T) *pgxpool.Pool {
 	t.Cleanup(pool.Close)
 	return pool
 }
+
+// QueryPool returns a pool for the database of pool that connects as the
+// read-only user lifeos_query. The password comes from the
+// LIFEOS_QUERY_PASSWORD environment variable; `make query-user` makes the
+// user.
+func QueryPool(t *testing.T, pool *pgxpool.Pool) *pgxpool.Pool {
+	t.Helper()
+	password := os.Getenv("LIFEOS_QUERY_PASSWORD")
+	if password == "" {
+		t.Fatal("LIFEOS_QUERY_PASSWORD is not set; run the tests with `make test`")
+	}
+	cfg := pool.Config().Copy()
+	cfg.ConnConfig.User = "lifeos_query"
+	cfg.ConnConfig.Password = password
+
+	queryPool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("testdb: open the query pool: %v", err)
+	}
+	t.Cleanup(queryPool.Close)
+	return queryPool
+}

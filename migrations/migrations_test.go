@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/Gautam-J/lifeos-core/internal/testdb"
@@ -205,5 +206,68 @@ func TestSourceRefMustNameASource(t *testing.T) {
 		if _, err := pool.Exec(ctx, insert, source); err != nil {
 			t.Errorf("%s: a row with the source_ref of a source: %v", table, err)
 		}
+	}
+}
+
+// The query tool connects as lifeos_query. That user reads every table and
+// changes none: the database refuses the change, not the Go code.
+func TestTheQueryUserCanReadAndCannotWrite(t *testing.T) {
+	pool := testdb.New(t)
+	queryPool := testdb.QueryPool(t, pool)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, "INSERT INTO todos (title, source) VALUES ('Buy a domain', 'manual')"); err != nil {
+		t.Fatalf("add a todo: %v", err)
+	}
+
+	var user string
+	if err := queryPool.QueryRow(ctx, "SELECT current_user").Scan(&user); err != nil || user != "lifeos_query" {
+		t.Fatalf("current_user = %q, %v, want lifeos_query", user, err)
+	}
+	tables, err := pool.Query(ctx, "SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+	if err != nil {
+		t.Fatalf("list the tables: %v", err)
+	}
+	names, err := pgx.CollectRows(tables, pgx.RowTo[string])
+	if err != nil || len(names) < 8 {
+		t.Fatalf("tables = %v, %v, want 8 or more", names, err)
+	}
+	for _, table := range names {
+		var n int
+		if err := queryPool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&n); err != nil {
+			t.Errorf("lifeos_query cannot read %s: %v", table, err)
+		}
+	}
+
+	for name, change := range map[string]string{
+		"an insert":          "INSERT INTO todos (title, source) VALUES ('x', 'manual')",
+		"an update":          "UPDATE todos SET title = 'x'",
+		"a delete":           "DELETE FROM todos",
+		"a truncate":         "TRUNCATE events",
+		"a drop":             "DROP TABLE habit_logs",
+		"a new table":        "CREATE TABLE notes (id int)",
+		"a change of a role": "ALTER ROLE lifeos_query SUPERUSER",
+	} {
+		if _, err := queryPool.Exec(ctx, change); err == nil {
+			t.Errorf("lifeos_query did %s", name)
+		}
+	}
+	var title string
+	if err := pool.QueryRow(ctx, "SELECT title FROM todos").Scan(&title); err != nil || title != "Buy a domain" {
+		t.Errorf("the todo = %q, %v, want it as it was", title, err)
+	}
+}
+
+// A table from a later migration must be readable with no new GRANT.
+func TestTheQueryUserCanReadATableThatIsMadeLater(t *testing.T) {
+	pool := testdb.New(t)
+	queryPool := testdb.QueryPool(t, pool)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, "CREATE TABLE later (id int)"); err != nil {
+		t.Fatalf("make a table: %v", err)
+	}
+
+	var n int
+	if err := queryPool.QueryRow(ctx, "SELECT count(*) FROM later").Scan(&n); err != nil {
+		t.Errorf("lifeos_query cannot read a table that is made after the migration: %v", err)
 	}
 }
