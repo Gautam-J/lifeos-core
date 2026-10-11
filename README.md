@@ -99,7 +99,7 @@ The agent can run one SQL statement on the data. The statement runs as the Postg
 
 The service refuses a text that holds a card number, an Aadhaar number, a PAN, a private key or an access token. It stores nothing, and the error names the kind of secret without the secret itself. This applies to each text field: a title, a journal body, an attr, a captured text and a text file.
 
-A password in plain words and a bank account number have no pattern, so the service cannot find them. A phone number in the form `91XXXXXXXXXX` is refused in about 1 of 10 cases, because it looks like an Aadhaar number: write it as `+91 XXXXX XXXXX`.
+A password in plain words and a bank account number have no pattern, so the service cannot find them. A number of 12 digits in one piece that starts with 2 to 9 is refused in about 1 of 10 cases, because it can be an Aadhaar number. Examples are a phone number in the form `91XXXXXXXXXX` and the reference number of a UPI payment. To store such a number, write it in groups that are not 4-4-4, such as `+91 XXXXX XXXXX` or `6274 12345677`.
 
 **Use case.** You paste a note that has your card number into the journal form. The page shows "body: must not hold a card number" and keeps your text, so you can remove the number and save.
 
