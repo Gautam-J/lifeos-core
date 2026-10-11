@@ -90,9 +90,10 @@ func (s *Service) captureFile(ctx context.Context, p CaptureParams) (Capture, er
 		return Capture{}, err
 	}
 	// The file store has the bytes now. This is also true when the source
-	// existed already.
+	// existed already. A second request for the same file can come here
+	// after the first one removed it: that is not an error.
 	if inbox != nil {
-		if err := inbox.Remove(inboxPath); err != nil {
+		if err := inbox.Remove(inboxPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return Capture{}, fmt.Errorf("capture: remove the file from the inbox: %w", err)
 		}
 	}
@@ -154,6 +155,11 @@ func (s *Service) storeFile(r io.Reader, field string) (storedFile, error) {
 
 	hash := sha256.New()
 	size, err := io.Copy(io.MultiWriter(tmp, hash), io.LimitReader(r, s.files.MaxBytes+1))
+	// The bytes must be on the disk before the file gets its name: after
+	// the capture, the file in the inbox is removed.
+	if err == nil {
+		err = tmp.Sync()
+	}
 	if closeErr := tmp.Close(); err == nil {
 		err = closeErr
 	}
@@ -182,8 +188,10 @@ func (s *Service) storeFile(r io.Reader, field string) (storedFile, error) {
 	sum := hex.EncodeToString(hash.Sum(nil))
 	stored := storedFile{path: sum[:2] + "/" + sum, sha256: sum, mediaType: mediaType, size: size}
 	final := filepath.Join(s.files.Dir, stored.path)
-	if _, err := os.Stat(final); err == nil {
-		// The file store has these bytes already.
+	// The file store has these bytes already when a file of this size is
+	// there. A file of a different size is what a power cut left: the new
+	// file takes its place.
+	if info, err := os.Stat(final); err == nil && info.Size() == size {
 		return stored, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(final), 0o700); err != nil {
@@ -192,7 +200,23 @@ func (s *Service) storeFile(r io.Reader, field string) (storedFile, error) {
 	if err := os.Rename(tmp.Name(), final); err != nil {
 		return storedFile{}, fmt.Errorf("capture: store the file: %w", err)
 	}
+	// A new name is safe on the disk only after a sync of its folder.
+	for _, dir := range []string{filepath.Dir(final), s.files.Dir} {
+		if err := syncDir(dir); err != nil {
+			return storedFile{}, fmt.Errorf("capture: store the file: %w", err)
+		}
+	}
 	return stored, nil
+}
+
+// syncDir writes the entries of a folder to the disk.
+func syncDir(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 // sizeText returns a number of bytes in words: "50 MB" or "4096 bytes".

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,5 +295,75 @@ func TestCaptureKeepsTheInboxFileWhenTheEventFails(t *testing.T) {
 	}
 	if !exists(inboxPath) {
 		t.Error("the inbox file is gone, and no source holds it")
+	}
+}
+
+// Two requests for one inbox file at the same moment. The file can leave
+// the inbox only one time: a request that comes too late gets "no file has
+// this path". No request gets an internal error, and one source is stored.
+func TestCaptureOfTheSameInboxFileAtTheSameMomentGivesNoInternalError(t *testing.T) {
+	s, pool := newFileService(t)
+	const rounds, callers = 5, 6
+
+	type result struct {
+		id  int64
+		err error
+	}
+	for round := range rounds {
+		name := fmt.Sprintf("policy-%d.pdf", round)
+		putInInbox(t, s, name, append([]byte(name), pdf...))
+		results := make(chan result, callers)
+		for range callers {
+			go func() {
+				capture, err := s.Capture(context.Background(), CaptureParams{InboxPath: name, Source: SourceAgent})
+				results <- result{capture.ID, err}
+			}()
+		}
+		var stored int64
+		for range callers {
+			r := <-results
+			var invalid *ValidationError
+			switch {
+			case r.err == nil && (stored == 0 || stored == r.id):
+				stored = r.id
+			case r.err == nil:
+				t.Errorf("round %d: two callers got the IDs %d and %d", round, stored, r.id)
+			case errors.As(r.err, &invalid) && invalid.Field == "path":
+				// The file left the inbox before this request opened it.
+			default:
+				t.Errorf("round %d: error = %v, want a source or a ValidationError on path", round, r.err)
+			}
+		}
+		if stored == 0 {
+			t.Errorf("round %d: no caller stored the file", round)
+		}
+	}
+	if n := countRows(t, pool, "sources"); n != rounds {
+		t.Errorf("sources = %d, want %d", n, rounds)
+	}
+}
+
+// A power cut can leave a stored file that is empty or cut short. A new
+// capture of the same bytes must put the full file there. It must not
+// trust the damaged file and then remove the good file from the inbox.
+func TestCaptureReplacesAStoredFileThatIsDamaged(t *testing.T) {
+	s, _ := newFileService(t)
+	hash := hashHex(pdf)
+	final := filepath.Join(s.files.Dir, hash[:2], hash)
+	if err := os.MkdirAll(filepath.Dir(final), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(final, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	putInInbox(t, s, "policy.pdf", pdf)
+
+	got, err := s.Capture(context.Background(), CaptureParams{InboxPath: "policy.pdf", Source: SourceAgent})
+	if err != nil {
+		t.Fatalf("Capture: %v", err)
+	}
+	stored, err := os.ReadFile(final)
+	if err != nil || !bytes.Equal(stored, pdf) {
+		t.Errorf("the stored file has %d bytes, %v, want the %d bytes of the capture (size_bytes of the row: %d)", len(stored), err, len(pdf), got.SizeBytes)
 	}
 }
