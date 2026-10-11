@@ -1,0 +1,11 @@
+[Unit]
+Description=LifeOS wiki push (the commits of the wiki go to GitHub)
+Wants=network-online.target
+After=network-online.target
+# No message on success: the unit runs each hour.
+OnFailure=lifeos-notify@%n.service
+
+[Service]
+Type=oneshot
+User=gautam
+ExecStart=/home/gautam/lifeos-core/deploy/wiki-push.sh
