@@ -22,6 +22,8 @@ mv "$dump.part" "$dump"
 ls -1t "$dump_dir"/before-*.dump | tail -n +6 | xargs -r rm --
 
 bin/lifeos migrate
+# The unit file is a link into this folder: a pull can change it.
+sudo systemctl daemon-reload
 sudo systemctl restart lifeos.service
 
 # The server listens after it has a connection to Postgres.
