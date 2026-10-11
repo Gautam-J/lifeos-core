@@ -250,6 +250,14 @@ if [ "$(git -C "$w/remote.git" for-each-ref 'refs/heads/from-github-*' | wc -l)"
     failed=1
 fi
 
+# A push that hangs must end. A oneshot unit has no time limit of its own:
+# without one, the unit stays in its start for good, the timer cannot start
+# it again, and ntfy gets no message.
+if ! grep -q '^TimeoutStartSec=' systemd/lifeos-wiki-push.service; then
+    echo "FAIL  lifeos-wiki-push.service: no TimeoutStartSec, so a push that hangs stops each later push with no message"
+    failed=1
+fi
+
 # The default paths of wiki-push.sh. The live repository holds wiki_dir.
 # The mirror is in a folder that the server cannot write: the script runs
 # git inside the mirror, with the SSH key of the user.

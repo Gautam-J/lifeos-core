@@ -9,3 +9,6 @@ OnFailure=lifeos-notify@%n.service
 Type=oneshot
 User=gautam
 ExecStart=/home/gautam/lifeos-core/deploy/wiki-push.sh
+# A push over a dead connection must end, so that the unit fails, ntfy gets
+# the message and the timer can start the next run.
+TimeoutStartSec=10min
