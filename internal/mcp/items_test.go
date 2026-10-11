@@ -90,7 +90,7 @@ func TestServerListsTheTools(t *testing.T) {
 			t.Errorf("tool %s has no description", tool.Name)
 		}
 	}
-	for _, name := range []string{"add_item", "get", "capture"} {
+	for _, name := range []string{"add_item", "get", "capture", "search"} {
 		if !found[name] {
 			t.Errorf("tool %s is not registered", name)
 		}

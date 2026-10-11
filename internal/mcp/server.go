@@ -22,6 +22,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerTodos(server, svc)
 	registerHabits(server, svc)
 	registerCapture(server, svc)
+	registerSearch(server, svc)
 	return server
 }
 
