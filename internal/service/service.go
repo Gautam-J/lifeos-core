@@ -3,6 +3,7 @@
 package service
 
 import (
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +19,8 @@ type Service struct {
 	now   func() time.Time
 	files Files
 	wiki  Wiki
+	// wikiMu makes the writes of the wiki go one after the other.
+	wikiMu sync.Mutex
 	// queryPool connects as the read-only user. Only Query uses it.
 	queryPool    *pgxpool.Pool
 	queryTimeout time.Duration

@@ -30,6 +30,27 @@ func recordEvent(ctx context.Context, q *store.Queries, action, recordType strin
 	})
 }
 
+// recordWikiEvent appends the event of one write of a wiki file. A wiki
+// file has no row, so the event has no record ID. Call it in a transaction
+// that commits only after the commit in the git repository of the wiki.
+func recordWikiEvent(ctx context.Context, q *store.Queries, action string, source Source, oldValue, newValue any) error {
+	oldJSON, err := marshalOrNil(oldValue)
+	if err != nil {
+		return fmt.Errorf("event old value: %w", err)
+	}
+	newJSON, err := marshalOrNil(newValue)
+	if err != nil {
+		return fmt.Errorf("event new value: %w", err)
+	}
+	return q.InsertEvent(ctx, store.InsertEventParams{
+		Action:     action,
+		RecordType: "wiki",
+		Source:     string(source),
+		OldValue:   oldJSON,
+		NewValue:   newJSON,
+	})
+}
+
 func marshalOrNil(v any) ([]byte, error) {
 	if v == nil {
 		return nil, nil
