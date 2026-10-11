@@ -68,3 +68,9 @@ JOIN habits ON habits.id = habit_logs.habit_id
 WHERE habit_logs.deleted_at IS NULL AND NOT habit_logs.verified
 ORDER BY habit_logs.created_at, habit_logs.id
 LIMIT $1;
+
+-- name: PurgeHabitLog :one
+-- Removes a row for good. Only a row that is deleted already can go.
+DELETE FROM habit_logs
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING id;

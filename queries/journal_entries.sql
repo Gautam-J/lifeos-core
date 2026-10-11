@@ -41,3 +41,9 @@ UPDATE journal_entries
 SET verified = true
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: PurgeJournalEntry :one
+-- Removes a row for good. Only a row that is deleted already can go.
+DELETE FROM journal_entries
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING id;
