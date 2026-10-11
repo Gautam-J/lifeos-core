@@ -202,3 +202,24 @@ func TestCaptureAfterAPurgeStoresTheFileAgain(t *testing.T) {
 		t.Errorf("the file store has %v, want the file of the new source", got)
 	}
 }
+
+// After a restore of the database without the file store, the folder of
+// the file is not there.
+func TestPurgeOfASourceWhoseFolderIsGoneAlreadyRemovesTheRow(t *testing.T) {
+	s, pool := newFileService(t)
+	source := captureUpload(t, s, "policy.pdf")
+	deleteByHand(t, s, "source", source.ID)
+	for _, path := range storedFiles(t, s) {
+		if err := os.RemoveAll(filepath.Join(s.files.Dir, filepath.Dir(path))); err != nil {
+			t.Fatalf("remove the folder of %s: %v", path, err)
+		}
+	}
+
+	if err := s.Purge(context.Background(), "source", source.ID); err != nil {
+		t.Fatalf("Purge: %v", err)
+	}
+
+	if n := countRows(t, pool, "sources"); n != 0 {
+		t.Errorf("sources has %d rows, want 0", n)
+	}
+}

@@ -111,6 +111,11 @@ func (s *Service) removeStoredFile(path string) error {
 	if err := root.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	// The file is gone from the disk only after a sync of its folder.
-	return syncDir(filepath.Join(s.files.Dir, filepath.Dir(path)))
+	// The file is gone from the disk only after a sync of its folder. The
+	// folder is not there after a restore of the database without the
+	// file store: then there is nothing to sync.
+	if err := syncDir(filepath.Join(s.files.Dir, filepath.Dir(path))); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }
