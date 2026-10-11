@@ -1444,8 +1444,12 @@ td.wrap-any {
 		font-size: 0.875rem;
 	}
 
+	/* The label keeps its width: a long value must not press it into
+	   one letter for each line. */
 	.cards td[data-label]::before {
 		content: attr(data-label);
+		flex: none;
+		white-space: nowrap;
 		color: var(--muted-soft);
 		font-family: var(--sans);
 		font-size: 0.8125rem;
