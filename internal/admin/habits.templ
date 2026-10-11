@@ -1,0 +1,129 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+// habitsView is what the habits page shows below its form.
+type habitsView struct {
+	Today  service.HabitChecklist
+	Habits []service.Habit
+	Logs   []service.HabitLog
+}
+
+templ habitsPage(view habitsView) {
+	@page("Habits") {
+		<h1>Habits</h1>
+		<form hx-post="/admin/habits" hx-target="#list" hx-swap="outerHTML" hx-on:habit-added="this.reset()">
+			<label>
+				New habit
+				<input type="text" name="name" required maxlength="50" size="20"/>
+			</label>
+			<button type="submit">Add</button>
+		</form>
+		@habitsList(view, "")
+	}
+}
+
+// habitsList is the part of the page that a form post replaces.
+templ habitsList(view habitsView, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		<h2>Today ({ view.Today.Date })</h2>
+		if len(view.Today.Habits) == 0 {
+			<p class="muted">No active habit.</p>
+		} else {
+			<table>
+				<tbody>
+					for _, habit := range view.Today.Habits {
+						<tr>
+							<td>{ habit.Name }</td>
+							if habit.Done {
+								<td>done</td>
+								<td></td>
+							} else {
+								<td>not done</td>
+								<td>
+									<form hx-post="/admin/habits/log" hx-target="#list" hx-swap="outerHTML">
+										<input type="hidden" name="habit" value={ habit.Name }/>
+										<button type="submit">Log</button>
+									</form>
+								</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		<h2>All habits</h2>
+		if len(view.Habits) == 0 {
+			<p class="muted">No habits yet.</p>
+		} else {
+			<table>
+				<tbody>
+					for _, habit := range view.Habits {
+						<tr>
+							<td>{ strconv.FormatInt(habit.ID, 10) }</td>
+							<td>
+								<form hx-post={ habitPath(habit.ID) } hx-target="#list" hx-swap="outerHTML">
+									<input type="text" name="name" required maxlength="50" size="20" value={ habit.Name }/>
+									<label>
+										<input type="checkbox" name="active" value="true" checked?={ habit.Active }/>
+										active
+									</label>
+									<button type="submit">Save</button>
+								</form>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		<h2>Logs</h2>
+		if len(view.Logs) == 0 {
+			<p class="muted">No logs yet.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Habit</th>
+						<th>Day</th>
+						<th>Source</th>
+						<th>Verified</th>
+						<th>Logged (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, log := range view.Logs {
+						<tr>
+							<td>{ strconv.FormatInt(log.ID, 10) }</td>
+							<td>{ log.Habit }</td>
+							<td>{ log.LoggedOn }</td>
+							<td>{ string(log.Source) }</td>
+							<td>{ formatVerified(log.Verified) }</td>
+							<td>{ log.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								<button
+									hx-post={ "/admin/habits/logs/" + strconv.FormatInt(log.ID, 10) + "/delete" }
+									hx-target="#list"
+									hx-swap="outerHTML"
+									hx-confirm={ "Delete the log of " + log.Habit + " on " + log.LoggedOn + "?" }
+								>Delete</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+func habitPath(id int64) string {
+	return "/admin/habits/" + strconv.FormatInt(id, 10)
+}
