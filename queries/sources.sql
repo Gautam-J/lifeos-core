@@ -24,3 +24,14 @@ UPDATE sources
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: PurgeSource :one
+-- Removes a row for good. Only a row that is deleted already can go.
+DELETE FROM sources
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING *;
+
+-- name: CountSourcesOfFile :one
+-- Counts the rows, live and deleted, that use one file of the file store.
+SELECT count(*) FROM sources
+WHERE file_path = $1;
