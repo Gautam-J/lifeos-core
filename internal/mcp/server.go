@@ -23,6 +23,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerHabits(server, svc)
 	registerCapture(server, svc)
 	registerSearch(server, svc)
+	registerQuery(server, svc)
 	return server
 }
 
