@@ -57,7 +57,7 @@ Create a folder when its first file lands; do not add empty packages.
 10. **The journal holds Gautam's own words.** The service stores the body of a journal entry exactly as it comes and never rewords it. The `journal` tool writes a verified row, because no agent infers a journal entry. An admin handler changes the CR LF of a text area to LF, which is what Gautam typed.
 11. **A habit has one log for each day.** A second log for the same habit and day is not a write: the service returns the stored log. The one exception: a verified log over a log that is not verified approves that log. "Done" for a day means a verified log.
 12. **A source is verbatim.** A source is one row of `sources`: a text, a link or a file that `Capture` stores exactly as it comes. The service never changes a source, so `update` refuses the type `source`. The same content a second time is not a write: `Capture` returns the stored source. A source is always verified, because it holds what came in and no agent inferred it. A record that an agent takes from a source names it in `source_ref`. A file is in the file store at `<files_dir>/<first two characters of its SHA-256>/<SHA-256>`; a soft delete keeps the file.
-13. **`query` reads and never writes.** `Query` runs one SQL statement of an agent on a connection of the Postgres user `lifeos_query`, which has only the right to SELECT, in a read-only transaction. The database refuses a change; the Go code does not look at the SQL. `UseQueryPool` refuses a pool whose user can change a table. A new table gets the SELECT right from the default privileges of migration `00004`; add its name to the description of the `query` tool, which a test checks.
+13. **`query` reads and never writes.** `Query` runs one SQL statement of an agent on a connection of the Postgres user `lifeos_query`, which has only the right to SELECT, in a read-only transaction. The database refuses a change; the Go code does not look at the SQL. `UseQueryPool` refuses a pool whose user can change a table. A new table is closed to `query` until its migration gives the right: `GRANT SELECT ON <table> TO lifeos_query`. Give the right to each table that an agent can read, and add the name of the table to the description of the `query` tool, which a test checks. Give no right to a table that holds a secret, such as a token or a password hash; the description names that table as one that `query` cannot read.
 
 ## Commands
 
@@ -80,7 +80,7 @@ make run        # build, then run lifeos serve
 ## Migrations
 
 - One goose SQL file per change, `migrations/NNNNN_name.sql`, with `-- +goose Up` and `-- +goose Down`.
-- Every new record table gets the provenance columns, `deleted_at`, and the `set_updated_at()` trigger. Copy them from `catalog_items` in `00001_init.sql`. Give `source_ref` a foreign key to `sources`, as `00003_sources.sql` does.
+- Every new record table gets the provenance columns, `deleted_at`, and the `set_updated_at()` trigger. Copy them from `catalog_items` in `00001_init.sql`. Give `source_ref` a foreign key to `sources`, as `00003_sources.sql` does, and give `lifeos_query` the right to read the table (rule 13).
 - Never edit a migration that has been applied; add a new one.
 - A migration that drops or renames a column runs only after a fresh `pg_dump`.
 

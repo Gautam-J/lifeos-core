@@ -257,8 +257,10 @@ func TestTheQueryUserCanReadAndCannotWrite(t *testing.T) {
 	}
 }
 
-// A table from a later migration must be readable with no new GRANT.
-func TestTheQueryUserCanReadATableThatIsMadeLater(t *testing.T) {
+// A later table is closed to the query tool until its migration gives the
+// right. A table that holds a secret, such as a token, gets no right, and a
+// migration that forgets a line fails safe: the query is refused.
+func TestTheQueryUserCannotReadALaterTableWithoutAGrant(t *testing.T) {
 	pool := testdb.New(t)
 	queryPool := testdb.QueryPool(t, pool)
 	ctx := context.Background()
@@ -267,7 +269,13 @@ func TestTheQueryUserCanReadATableThatIsMadeLater(t *testing.T) {
 	}
 
 	var n int
+	if err := queryPool.QueryRow(ctx, "SELECT count(*) FROM later").Scan(&n); err == nil {
+		t.Error("lifeos_query can read a table that no migration gave to it")
+	}
+	if _, err := pool.Exec(ctx, "GRANT SELECT ON later TO lifeos_query"); err != nil {
+		t.Fatalf("grant: %v", err)
+	}
 	if err := queryPool.QueryRow(ctx, "SELECT count(*) FROM later").Scan(&n); err != nil {
-		t.Errorf("lifeos_query cannot read a table that is made after the migration: %v", err)
+		t.Errorf("lifeos_query cannot read the table after the grant: %v", err)
 	}
 }
