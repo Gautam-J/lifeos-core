@@ -28,6 +28,8 @@ func Register(router chi.Router, svc *service.Service) {
 	router.Get("/admin/items/{id}/edit", h.editItemPage)
 	router.Post("/admin/items/{id}", h.saveItem)
 	router.Post("/admin/items/{id}/delete", h.deleteItem)
+	router.Get("/admin/review", h.reviewPage)
+	router.Post("/admin/review/verify", h.verifyRecord)
 	router.Handle("/admin/static/*", http.StripPrefix("/admin/", http.FileServerFS(static)))
 }
 

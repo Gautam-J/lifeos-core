@@ -1,0 +1,59 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ reviewPage(entries []service.ReviewEntry) {
+	@page("Review") {
+		<h1>Review queue</h1>
+		<p class="muted">Records that an agent inferred. Reports do not count a record until you approve it.</p>
+		@reviewList(entries, "")
+	}
+}
+
+// reviewList is the part of the page that an approval replaces.
+templ reviewList(entries []service.ReviewEntry, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(entries) == 0 {
+			<p class="muted">No record waits for review.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Type</th>
+						<th>ID</th>
+						<th>Record</th>
+						<th>Source</th>
+						<th>Added (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, entry := range entries {
+						<tr>
+							<td>{ entry.Type }</td>
+							<td>{ strconv.FormatInt(entry.ID, 10) }</td>
+							<td>{ entry.Summary }</td>
+							<td>{ string(entry.Source) }</td>
+							<td>{ entry.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								<form hx-post="/admin/review/verify" hx-target="#list" hx-swap="outerHTML">
+									<input type="hidden" name="type" value={ entry.Type }/>
+									<input type="hidden" name="id" value={ strconv.FormatInt(entry.ID, 10) }/>
+									<button type="submit">Approve</button>
+								</form>
+								<a href={ templ.URL(itemPath(entry.ID) + "/edit") }>Edit</a>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
