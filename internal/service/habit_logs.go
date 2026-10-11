@@ -62,6 +62,9 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := p.checkSourceRef(ctx, q); err != nil {
+		return HabitLog{}, err
+	}
 
 	habit, err := q.GetActiveHabitByName(ctx, name)
 	if errors.Is(err, pgx.ErrNoRows) {

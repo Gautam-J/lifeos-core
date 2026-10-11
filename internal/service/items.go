@@ -62,6 +62,9 @@ func (s *Service) AddItem(ctx context.Context, p AddItemParams) (Item, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := p.checkSourceRef(ctx, q); err != nil {
+		return Item{}, err
+	}
 
 	stored, err := q.InsertCatalogItem(ctx, row)
 	if err != nil {

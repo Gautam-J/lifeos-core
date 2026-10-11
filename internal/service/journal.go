@@ -50,6 +50,9 @@ func (s *Service) AddJournalEntry(ctx context.Context, p AddJournalEntryParams) 
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := p.checkSourceRef(ctx, q); err != nil {
+		return JournalEntry{}, err
+	}
 
 	stored, err := q.InsertJournalEntry(ctx, row)
 	if err != nil {

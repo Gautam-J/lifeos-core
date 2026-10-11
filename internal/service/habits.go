@@ -79,6 +79,9 @@ func (s *Service) AddHabit(ctx context.Context, p AddHabitParams) (Habit, error)
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := p.checkSourceRef(ctx, q); err != nil {
+		return Habit{}, err
+	}
 
 	stored, err := q.InsertHabit(ctx, store.InsertHabitParams{
 		Name:      name,

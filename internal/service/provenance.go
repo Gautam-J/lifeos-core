@@ -1,5 +1,15 @@
 package service
 
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/Gautam-J/lifeos-core/internal/store"
+)
+
 // Source says how a record came into LifeOS.
 type Source string
 
@@ -26,4 +36,21 @@ func (p Provenance) validate() error {
 		return nil
 	}
 	return invalid("source", "must be one of manual, import, connector, agent")
+}
+
+// checkSourceRef refuses a SourceRef that names no live source. Call it in
+// the transaction of the write. The foreign key refuses an unknown ID too,
+// but its error does not name the field, and it accepts a deleted source.
+func (p Provenance) checkSourceRef(ctx context.Context, q *store.Queries) error {
+	if p.SourceRef == nil {
+		return nil
+	}
+	_, err := q.GetSource(ctx, *p.SourceRef)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return invalid("source_ref", "must be the ID of a source that exists")
+	}
+	if err != nil {
+		return fmt.Errorf("check source_ref: %w", err)
+	}
+	return nil
 }
