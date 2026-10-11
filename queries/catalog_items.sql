@@ -30,3 +30,15 @@ UPDATE catalog_items
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: ListUnverifiedCatalogItems :many
+SELECT * FROM catalog_items
+WHERE deleted_at IS NULL AND NOT verified
+ORDER BY id
+LIMIT $1;
+
+-- name: VerifyCatalogItem :one
+UPDATE catalog_items
+SET verified = true
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
