@@ -521,3 +521,87 @@ func TestWikiWriteRefusesATitleOrASummaryThatDoesNotReadBack(t *testing.T) {
 		}
 	}
 }
+
+func TestWikiWriteBackToTheCommittedTextNeedsNoCommit(t *testing.T) {
+	s, pool := newWikiService(t)
+	first := writePage(t, s, agentDesign())
+
+	// A person changes the file by hand and makes no commit.
+	committed, err := os.ReadFile(filepath.Join(s.wiki.Dir, "topics/agent-design.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byHand := string(committed) + "- A line by hand.\n"
+	putPage(t, s, "topics/agent-design.md", byHand)
+
+	// An agent reads that file and writes the text of the commit again.
+	// Git has nothing to commit: that is not a failure.
+	p := agentDesign()
+	p.BaseHash = hashOfFile(byHand)
+	page := writePage(t, s, p)
+
+	if page.Hash != first.Hash || page.Body != agentDesign().Body {
+		t.Errorf("page = %+v, want the page of the first write", page)
+	}
+	if n := len(commits(t, s)); n != 1 {
+		t.Errorf("%d commits, want 1", n)
+	}
+	if status := gitOut(t, s, "status", "--porcelain"); status != "" {
+		t.Errorf("git status = %q, want a clean tree", status)
+	}
+	// The file on the disk changed, so the write has its event.
+	if n := len(wikiEvents(t, pool)); n != 2 {
+		t.Errorf("%d wiki events, want 2", n)
+	}
+}
+
+func TestWikiWriteKeepsThePageWhenTheEventCannotBeStored(t *testing.T) {
+	s, pool := newWikiService(t)
+	first := writePage(t, s, agentDesign())
+
+	// This hook of git runs after the commit is made. It waits, so that
+	// the test can break the database connection of the write before the
+	// write stores its event.
+	signals := t.TempDir()
+	hook := "#!/bin/sh\ntouch " + signals + "/committed\nwhile [ ! -e " + signals + "/go ]; do sleep 0.05; done\n"
+	hookPath := filepath.Join(filepath.Dir(s.wiki.Dir), ".git", "hooks", "post-commit")
+	if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hookPath, []byte(hook), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	p := agentDesign()
+	p.Body, p.BaseHash = "A new body.", first.Hash
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.WikiWrite(context.Background(), p)
+		done <- err
+	}()
+	for !exists(filepath.Join(signals, "committed")) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, err := pool.Exec(context.Background(),
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()"); err != nil {
+		t.Fatalf("break the connections: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(signals, "go"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := <-done; err == nil {
+		t.Error("WikiWrite returned no error, and its event is not stored")
+	}
+	// The commit is made, so the file must be the file of the commit.
+	if status := gitOut(t, s, "status", "--porcelain"); status != "" {
+		t.Errorf("git status = %q, want a clean tree: the page of the commit must stay", status)
+	}
+	stored, err := s.WikiRead(context.Background(), "topics/agent-design.md")
+	if err != nil || stored.Body != "A new body." {
+		t.Errorf("stored body = %q, error %v, want the new body", stored.Body, err)
+	}
+	if got := commits(t, s); len(got) != 2 {
+		t.Errorf("commits = %q, want 2", got)
+	}
+}

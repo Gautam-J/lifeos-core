@@ -247,7 +247,9 @@ func yamlKeepsText(value string) bool {
 // changeWikiFile puts newRaw into the file at path, or removes the file
 // when newRaw is nil. oldRaw is the content before the change, nil for a
 // new file. It also writes index.md again, appends the event and makes the
-// commit. When one of these fails, the files are as they were before.
+// commit. When one of these fails before the commit is made, the files are
+// as they were before. After the commit, the files stay: they are the files
+// of the commit.
 //
 // The caller holds wikiMu.
 func (s *Service) changeWikiFile(ctx context.Context, root *os.Root, action string, actor Source, filePath string, oldRaw, newRaw []byte) (err error) {
@@ -258,8 +260,9 @@ func (s *Service) changeWikiFile(ctx context.Context, root *os.Root, action stri
 	// A client that goes away must not stop git in the middle of a commit.
 	ctx = context.WithoutCancel(ctx)
 	paths := []string{filePath, wikiIndexPath}
+	committed := false
 	defer func() {
-		if err == nil {
+		if err == nil || committed {
 			return
 		}
 		// Each step is done on the files that are there: an error of a
@@ -294,13 +297,34 @@ func (s *Service) changeWikiFile(ctx context.Context, root *os.Root, action stri
 	if err := s.wikiGit(ctx, append([]string{"add", "-A", "--"}, paths...)...); err != nil {
 		return err
 	}
-	if err := s.wikiGit(ctx, append([]string{"commit", "-q", "-m", "wiki: " + action + " " + filePath, "--"}, paths...)...); err != nil {
+	// The files can be equal to the last commit already: a person changed
+	// a file by hand with no commit, and this write puts the text of the
+	// commit back. Then git has nothing to commit.
+	staged, err := s.wikiStaged(ctx, paths)
+	if err != nil {
 		return err
 	}
+	if staged {
+		if err := s.wikiGit(ctx, append([]string{"commit", "-q", "-m", "wiki: " + action + " " + filePath, "--"}, paths...)...); err != nil {
+			return err
+		}
+	}
+	committed = true
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("wiki: %w", err)
+		return fmt.Errorf("wiki: the page is stored and its event is not: %w", err)
 	}
 	return nil
+}
+
+// wikiStaged reports whether git has a change of one of paths to commit.
+func (s *Service) wikiStaged(ctx context.Context, paths []string) (bool, error) {
+	err := s.wikiGit(ctx, append([]string{"diff", "--cached", "--quiet", "--"}, paths...)...)
+	// git diff --quiet gives the status 1 when there is a difference.
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return true, nil
+	}
+	return false, err
 }
 
 // putWikiFile writes raw to the file at filePath, or removes the file when
