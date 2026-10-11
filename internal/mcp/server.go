@@ -15,7 +15,7 @@ import (
 
 // NewServer returns the MCP server named lifeos with every tool registered.
 func NewServer(svc *service.Service) *sdk.Server {
-	server := sdk.NewServer(&sdk.Implementation{Name: "lifeos", Version: "0.1.0"}, nil)
+	server := sdk.NewServer(&sdk.Implementation{Name: "lifeos", Version: "0.1.0"}, &sdk.ServerOptions{Instructions: instructions})
 	registerItems(server, svc)
 	registerRecords(server, svc)
 	registerJournal(server, svc)

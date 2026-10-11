@@ -15,6 +15,12 @@ type captureInput struct {
 	Title string `json:"title,omitempty" jsonschema:"A short label for the capture. A file with no title gets its file name."`
 }
 
+// captureOutput is the stored source and the next step of the agent.
+type captureOutput struct {
+	service.Capture
+	Next string `json:"next" jsonschema:"What you do after this call."`
+}
+
 type markProcessedInput struct {
 	ID int64 `json:"id" jsonschema:"The ID of the source."`
 }
@@ -22,8 +28,8 @@ type markProcessedInput struct {
 func registerCapture(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "capture",
-		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. When you take a record from a source, give the ID of the source as source_ref to add_item, todo or log_habit. Returns the stored source with its ID.",
-	}, func(ctx context.Context, _ *sdk.CallToolRequest, in captureInput) (*sdk.CallToolResult, service.Capture, error) {
+		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. When you take a record from a source, give the ID of the source as source_ref to add_item, todo or log_habit. Returns the stored source with its ID, and the next step: how to work the source into the wiki and the records.",
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, in captureInput) (*sdk.CallToolResult, captureOutput, error) {
 		capture, err := svc.Capture(ctx, service.CaptureParams{
 			Text:      in.Text,
 			URL:       in.URL,
@@ -32,9 +38,9 @@ func registerCapture(server *sdk.Server, svc *service.Service) {
 			Source:    service.SourceAgent,
 		})
 		if err != nil {
-			return nil, service.Capture{}, toToolError(err)
+			return nil, captureOutput{}, toToolError(err)
 		}
-		return nil, capture, nil
+		return nil, captureOutput{Capture: capture, Next: captureNext(capture.ID, capture.ProcessedAt != nil)}, nil
 	})
 
 	sdk.AddTool(server, &sdk.Tool{
