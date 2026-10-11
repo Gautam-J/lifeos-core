@@ -1,0 +1,173 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/Gautam-J/lifeos-core/internal/store"
+)
+
+// UpdateTodoParams is the input of UpdateTodo. A field that is nil keeps
+// its stored value.
+type UpdateTodoParams struct {
+	Title *string `json:"title"`
+	// Status is open, done or dropped. The service sets done_at from it.
+	Status  *string `json:"status"`
+	DueOn   *string `json:"due_on"`
+	Project *string `json:"project"`
+	// Clear names the optional fields to empty: due_on, project.
+	Clear []string `json:"-"`
+	// Actor is who makes the change. It goes into the event; the source
+	// of the row stays as it is.
+	Actor Source `json:"-"`
+	// Inferred is true when an agent makes a change that Gautam did not
+	// state. The service refuses such a change to a verified row.
+	Inferred bool `json:"-"`
+}
+
+// clearableTodoFields are the optional fields that Clear can name.
+var clearableTodoFields = []string{"due_on", "project"}
+
+// UpdateTodo changes the given fields of one todo and appends an update
+// event that holds the old row, in one transaction. It locks the row
+// first, so two updates at the same moment do not lose a field. A call
+// that changes no value writes nothing and appends no event.
+func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) (Todo, error) {
+	if err := p.check(); err != nil {
+		return Todo{}, err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Todo{}, fmt.Errorf("update todo: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	q := store.New(tx)
+
+	current, err := q.GetTodoForUpdate(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Todo{}, ErrNotFound
+	}
+	if err != nil {
+		return Todo{}, fmt.Errorf("update todo: %w", err)
+	}
+	old := todoFromRow(current)
+
+	// The changed todo goes through the same checks as a new todo.
+	next := p.applyTo(old)
+	v, err := checkTodo(next.Title, next.Status, next.DueOn, next.Project)
+	if err != nil {
+		return Todo{}, err
+	}
+	next.Title = v.title
+	if next == old {
+		return old, nil
+	}
+	// A guess must not replace a value that Gautam approved.
+	if p.Inferred && old.Verified {
+		return Todo{}, invalid("dictated", "must be true to change a verified record: ask the user to confirm the change, then send it again")
+	}
+	// done_at follows the status. It keeps its value while the todo
+	// stays done.
+	doneAt := current.DoneAt
+	switch {
+	case v.status != "done":
+		doneAt = nil
+	case old.Status != "done":
+		now := s.now().UTC()
+		doneAt = &now
+	}
+	stored, err := q.UpdateTodo(ctx, store.UpdateTodoParams{
+		ID:      id,
+		Title:   v.title,
+		Status:  v.status,
+		DueOn:   v.dueOn,
+		Project: v.project,
+		DoneAt:  doneAt,
+	})
+	if err != nil {
+		return Todo{}, fmt.Errorf("update todo: %w", err)
+	}
+	todo := todoFromRow(stored)
+	if err := recordEvent(ctx, q, "update", "todos", id, p.Actor, old, todo); err != nil {
+		return Todo{}, fmt.Errorf("update todo: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Todo{}, fmt.Errorf("update todo: %w", err)
+	}
+	return todo, nil
+}
+
+// check refuses input that is wrong for every stored row.
+func (p UpdateTodoParams) check() error {
+	if err := (Provenance{Source: p.Actor}).validate(); err != nil {
+		return err
+	}
+	if p.Title == nil && p.Status == nil && p.DueOn == nil && p.Project == nil && len(p.Clear) == 0 {
+		return invalid("fields", "must name at least one field to change, or a field to empty in clear")
+	}
+	for _, name := range p.Clear {
+		if !slices.Contains(clearableTodoFields, name) {
+			return invalid("clear", "can hold only due_on, project")
+		}
+	}
+	if p.DueOn != nil {
+		if slices.Contains(p.Clear, "due_on") {
+			return invalid("due_on", "has a value and is also in clear")
+		}
+		if *p.DueOn == "" {
+			return invalid("due_on", "must be a date as YYYY-MM-DD; to remove the date, put due_on in clear")
+		}
+	}
+	if p.Project != nil {
+		if slices.Contains(p.Clear, "project") {
+			return invalid("project", "has a value and is also in clear")
+		}
+		if strings.TrimSpace(*p.Project) == "" {
+			return invalid("project", "must not be empty; to remove the project, put project in clear")
+		}
+	}
+	return nil
+}
+
+// applyTo returns old with the changes of p. The values are not checked
+// yet.
+func (p UpdateTodoParams) applyTo(old Todo) Todo {
+	next := old
+	if p.Title != nil {
+		next.Title = *p.Title
+	}
+	if p.Status != nil {
+		next.Status = *p.Status
+	}
+	if p.DueOn != nil {
+		next.DueOn = *p.DueOn
+	}
+	if p.Project != nil {
+		next.Project = strings.TrimSpace(*p.Project)
+	}
+	if slices.Contains(p.Clear, "due_on") {
+		next.DueOn = ""
+	}
+	if slices.Contains(p.Clear, "project") {
+		next.Project = ""
+	}
+	return next
+}
+
+// DeleteTodo marks one todo as deleted and appends a delete event that
+// holds the row, in one transaction.
+func (s *Service) DeleteTodo(ctx context.Context, id int64, p DeleteParams) error {
+	return s.deleteRecord(ctx, "todos", id, p, func(q *store.Queries) (any, error) {
+		row, err := q.SoftDeleteTodo(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return todoFromRow(row), nil
+	})
+}

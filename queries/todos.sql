@@ -13,3 +13,20 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
 ORDER BY (status = 'open') DESC, id DESC
 LIMIT sqlc.arg('max_rows');
+
+-- name: GetTodoForUpdate :one
+SELECT * FROM todos
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE;
+
+-- name: UpdateTodo :one
+UPDATE todos
+SET title = $2, status = $3, due_on = $4, project = $5, done_at = $6
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: SoftDeleteTodo :one
+UPDATE todos
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
