@@ -53,3 +53,9 @@ SELECT * FROM journal_entries
 WHERE deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id DESC
 LIMIT $1;
+
+-- name: ListJournalEntriesSince :many
+SELECT * FROM journal_entries
+WHERE deleted_at IS NULL AND entry_date >= sqlc.arg('day')::date
+ORDER BY entry_date DESC, id DESC
+LIMIT sqlc.arg('max_rows');
