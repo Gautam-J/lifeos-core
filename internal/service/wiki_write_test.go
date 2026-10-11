@@ -188,7 +188,7 @@ func TestWikiWriteReplacesAPageThatTheCallerRead(t *testing.T) {
 
 	s.now = func() time.Time { return testNow.Add(48 * time.Hour) }
 	p := agentDesign()
-	p.Body, p.BaseHash, p.Contested = "A new body.", first.Hash, true
+	p.Body, p.BaseHash, p.Contested = "A new body.", first.Hash, ptr(true)
 	second := writePage(t, s, p)
 
 	if second.Body != "A new body." || !second.Contested {
@@ -438,5 +438,45 @@ func TestWikiWriteOfTwoCallersAtTheSameTime(t *testing.T) {
 	}
 	if n := len(commits(t, s)); n != 1 {
 		t.Errorf("%d commits, want 1", n)
+	}
+}
+
+func TestWikiWriteKeepsTheStatusThatTheCallLeavesOut(t *testing.T) {
+	s, _ := newWikiService(t)
+	p := agentDesign()
+	p.Path, p.Status = "projects/kindle.md", "done"
+	first := writePage(t, s, p)
+
+	// An agent corrects one sentence and sends no status.
+	p.Body, p.Status, p.BaseHash = "A corrected body.", "", first.Hash
+	second := writePage(t, s, p)
+	if second.Status != "done" {
+		t.Errorf("status = %q, want done: the call did not send a status", second.Status)
+	}
+
+	// A status in the call changes the page.
+	p.Status, p.BaseHash = "active", second.Hash
+	if third := writePage(t, s, p); third.Status != "active" {
+		t.Errorf("status = %q, want active", third.Status)
+	}
+}
+
+func TestWikiWriteKeepsTheContestedMarkThatTheCallLeavesOut(t *testing.T) {
+	s, _ := newWikiService(t)
+	p := agentDesign()
+	p.Contested = ptr(true)
+	first := writePage(t, s, p)
+
+	// An agent corrects one sentence and does not send the mark.
+	p.Body, p.Contested, p.BaseHash = "A corrected body.", nil, first.Hash
+	second := writePage(t, s, p)
+	if !second.Contested {
+		t.Error("the page lost its contested mark: the call did not send the mark")
+	}
+
+	// Only a call that sends false takes the mark away.
+	p.Contested, p.BaseHash = ptr(false), second.Hash
+	if third := writePage(t, s, p); third.Contested {
+		t.Error("the page is still contested after a write with contested false")
 	}
 }

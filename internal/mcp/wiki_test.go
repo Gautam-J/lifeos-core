@@ -71,6 +71,15 @@ func TestWikiToolsWriteReadSearchAppendAndDeleteAPage(t *testing.T) {
 		t.Errorf("changed page = %v", changed)
 	}
 
+	// A write that sends no status and no mark keeps the two.
+	kept := structured(t, call(t, session, "wiki_write", map[string]any{
+		"path": "projects/lifeos.md", "title": "LifeOS", "summary": "A second brain on a Raspberry Pi.",
+		"body": "LifeOS keeps each fact in one row " + cite, "base_hash": changed["hash"],
+	}))
+	if kept["status"] != "paused" || kept["contested"] != true {
+		t.Errorf("page after a write with no status and no mark = %v, want paused and contested", kept)
+	}
+
 	appended := structured(t, call(t, session, "wiki_append", map[string]any{"path": "projects/lifeos.md", "text": "- 2026-10-12: One more line."}))
 	if !strings.HasSuffix(appended["body"].(string), cite+"\n- 2026-10-12: One more line.") {
 		t.Errorf("appended body = %q", appended["body"])

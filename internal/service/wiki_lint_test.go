@@ -92,7 +92,7 @@ func TestWikiLintReportsEachKindOfFinding(t *testing.T) {
 
 	// A page that holds two statements that contradict each other.
 	writePage(t, s, WikiWriteParams{
-		Path: "projects/kindle.md", Title: "Kindle", Summary: "S.", Contested: true, Actor: SourceAgent,
+		Path: "projects/kindle.md", Title: "Kindle", Summary: "S.", Contested: ptr(true), Actor: SourceAgent,
 		Body: "- 2026-09-01: The screen is 6 inches.\n- 2026-10-01: The screen is 7 inches. See [long](../topics/long.md).",
 	})
 

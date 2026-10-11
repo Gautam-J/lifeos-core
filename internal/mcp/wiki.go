@@ -27,8 +27,8 @@ type wikiWriteInput struct {
 	Title     string `json:"title" jsonschema:"The title of the page, one line."`
 	Summary   string `json:"summary" jsonschema:"One line that says what the page is about. The index shows it."`
 	Body      string `json:"body" jsonschema:"The full text of the page in Markdown, without frontmatter. It replaces the text that the page has."`
-	Status    string `json:"status,omitempty" jsonschema:"Only for a project: active, paused or done. The default is active."`
-	Contested bool   `json:"contested,omitempty" jsonschema:"true when the page holds two statements that contradict each other."`
+	Status    string `json:"status,omitempty" jsonschema:"Only for a project: active, paused or done. Leave it out to keep the status that the page has. A new project is active."`
+	Contested *bool  `json:"contested,omitempty" jsonschema:"true when the page holds two statements that contradict each other. false only after the user said which statement is true. Leave it out to keep the mark that the page has."`
 	BaseHash  string `json:"base_hash,omitempty" jsonschema:"The hash that wiki_read returned for the page. Necessary to change a page that exists. Leave it out for a new page."`
 }
 

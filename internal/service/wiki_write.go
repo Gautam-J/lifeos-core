@@ -37,10 +37,14 @@ type WikiWriteParams struct {
 	Summary string
 	// Body is the text of the page, in Markdown, without frontmatter.
 	Body string
-	// Status is active, paused or done. Only a project takes it; a
-	// project with no status is active.
-	Status    string
-	Contested bool
+	// Status is active, paused or done. Only a project takes it. An
+	// empty Status keeps the status that the page has; a new project is
+	// active.
+	Status string
+	// Contested says whether the page holds two statements that
+	// contradict each other. Nil keeps the mark that the page has; a new
+	// page has none.
+	Contested *bool
 	// BaseHash is the hash of the version that the caller read. It is
 	// empty for a new page.
 	BaseHash string
@@ -81,7 +85,7 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 		Title:     strings.TrimSpace(p.Title),
 		Summary:   strings.TrimSpace(p.Summary),
 		Status:    p.Status,
-		Contested: p.Contested,
+		Contested: p.Contested != nil && *p.Contested,
 		Body:      strings.Trim(p.Body, "\n"),
 	}
 	if err := page.check(); err != nil {
@@ -115,6 +119,14 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 		}
 		// A file that a person broke by hand has no dates to keep.
 		if old, err := parseWikiFile(p.Path, oldRaw); err == nil {
+			// A change of the text must not change the status or
+			// the contested mark: the call sends one only to set it.
+			if page.Type == "project" && page.Status == "" {
+				page.Status = old.Status
+			}
+			if p.Contested == nil {
+				page.Contested = old.Contested
+			}
 			if old.sameContent(page) {
 				return old, nil
 			}
@@ -122,6 +134,9 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 		}
 	} else if p.BaseHash != "" {
 		return WikiPage{}, invalid("base_hash", "no page has this path: leave base_hash out to create the page")
+	}
+	if page.Type == "project" && page.Status == "" {
+		page.Status = "active"
 	}
 	if err := checkNewCitations(ctx, store.New(s.pool), "body", oldBody, page.Body); err != nil {
 		return WikiPage{}, err
@@ -139,7 +154,7 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 }
 
 // check refuses a page whose fields the wiki cannot take. It sets the
-// status of a project and the period of a review.
+// period of a review.
 func (page *WikiPage) check() error {
 	for _, f := range []struct {
 		field, value string
@@ -167,18 +182,13 @@ func (page *WikiPage) check() error {
 	if err := checkText("body", page.Body); err != nil {
 		return err
 	}
-	switch page.Type {
-	case "project":
-		if page.Status == "" {
-			page.Status = "active"
-		}
-		if !slices.Contains(wikiStatuses, page.Status) {
-			return invalid("status", "must be one of: "+strings.Join(wikiStatuses, ", "))
-		}
-	default:
-		if page.Status != "" {
-			return invalid("status", "must be empty: only a project has a status")
-		}
+	switch {
+	case page.Status == "":
+		// WikiWrite gives a project its status.
+	case page.Type != "project":
+		return invalid("status", "must be empty: only a project has a status")
+	case !slices.Contains(wikiStatuses, page.Status):
+		return invalid("status", "must be one of: "+strings.Join(wikiStatuses, ", "))
 	}
 	if m := wikiReviewPattern.FindStringSubmatch(page.Path); m != nil {
 		page.Period = m[1]
