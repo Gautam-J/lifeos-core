@@ -9,20 +9,20 @@ import (
 )
 
 type getInput struct {
-	Type string `json:"type" jsonschema:"Record type. One of: item, journal, todo"`
+	Type string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log"`
 	ID   int64  `json:"id" jsonschema:"Record ID"`
 }
 
 type updateInput struct {
-	Type     string         `json:"type" jsonschema:"Record type. One of: item, journal, todo"`
+	Type     string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log"`
 	ID       int64          `json:"id" jsonschema:"Record ID"`
-	Fields   map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: body, entry_date. For a todo: title, status (open, done or dropped), due_on, project. Leave out a field to keep its value. attrs replaces every attr."`
+	Fields   map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: body, entry_date. For a todo: title, status (open, done or dropped), due_on, project. A habit_log has no field to change: delete it, then log the habit again. Leave out a field to keep its value. attrs replaces every attr."`
 	Clear    []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. A journal has none."`
 	Dictated bool           `json:"dictated,omitempty" jsonschema:"true only when the user stated this change directly. false when you inferred it from a source. An inferred change to a verified record is refused: ask the user first."`
 }
 
 type deleteInput struct {
-	Type      string `json:"type" jsonschema:"Record type. One of: item, journal, todo"`
+	Type      string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log"`
 	ID        int64  `json:"id" jsonschema:"Record ID"`
 	Confirmed bool   `json:"confirmed,omitempty" jsonschema:"true only after you showed the record to the user and the user said yes to the delete"`
 }
