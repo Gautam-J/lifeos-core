@@ -71,11 +71,68 @@
 	   marketing page; a tool that is open all day gets less. */
 	--s-band: clamp(2rem, 4.5vw, 3.5rem);
 
+	--icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236c6a64' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+	--icon-menu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 7h12M4 13h12'/%3E%3C/svg%3E");
+	--icon-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m5 5 10 10M15 5 5 15'/%3E%3C/svg%3E");
+
 	--gutter: clamp(1rem, 4vw, 2rem);
 	--top: 4rem;
 	--control: 2.5rem;
 
 	color-scheme: light;
+}
+
+/* The dark theme. DESIGN.md has dark surfaces for cards; here they are the
+   floor of the page, and a dark card goes one step deeper. The coral stays.
+   The pages follow the setting of the system, and static/theme.js sets
+   data-theme when Gautam chose a theme in this browser. The two blocks
+   must stay equal: a test compares them. */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--ink: #faf9f5;
+		--body: #d1cec6;
+		--body-strong: #ebe8e1;
+		--muted: #a09d96;
+		--muted-soft: #86837b;
+		--hairline: #36342f;
+		--hairline-soft: #2a2825;
+		--canvas: #181715;
+		--surface-soft: #1f1e1b;
+		--surface-card: #252320;
+		--surface-cream-strong: #34322d;
+		--surface-dark: #0f0e0d;
+		--surface-dark-elevated: #1f1e1b;
+		--surface-dark-soft: #161513;
+		--primary-disabled: #36342f;
+		--error: #e0766b;
+		--icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23a09d96' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+		--icon-menu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23faf9f5' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 7h12M4 13h12'/%3E%3C/svg%3E");
+		--icon-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23faf9f5' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m5 5 10 10M15 5 5 15'/%3E%3C/svg%3E");
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme="dark"] {
+	--ink: #faf9f5;
+	--body: #d1cec6;
+	--body-strong: #ebe8e1;
+	--muted: #a09d96;
+	--muted-soft: #86837b;
+	--hairline: #36342f;
+	--hairline-soft: #2a2825;
+	--canvas: #181715;
+	--surface-soft: #1f1e1b;
+	--surface-card: #252320;
+	--surface-cream-strong: #34322d;
+	--surface-dark: #0f0e0d;
+	--surface-dark-elevated: #1f1e1b;
+	--surface-dark-soft: #161513;
+	--primary-disabled: #36342f;
+	--error: #e0766b;
+	--icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23a09d96' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+	--icon-menu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23faf9f5' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 7h12M4 13h12'/%3E%3C/svg%3E");
+	--icon-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23faf9f5' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m5 5 10 10M15 5 5 15'/%3E%3C/svg%3E");
+	color-scheme: dark;
 }
 
 /* A large monitor shows the same layout with larger type, so that the
@@ -212,8 +269,8 @@ h2 {
 	top: -4rem;
 	z-index: 30;
 	padding: 0.5rem 0.875rem;
-	background: var(--ink);
-	color: var(--on-dark);
+	background: var(--primary);
+	color: var(--on-primary);
 	border-radius: var(--r-md);
 }
 
@@ -462,7 +519,7 @@ input[type="date"] {
 
 select {
 	padding-right: 2.25rem;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236c6a64' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+	background-image: var(--icon-chevron);
 	background-repeat: no-repeat;
 	background-position: right 0.875rem center;
 	background-size: 0.75rem;
@@ -1265,6 +1322,31 @@ td.wrap-any {
 	color: var(--on-dark);
 }
 
+.theme {
+	display: inline-flex;
+	gap: 0.125rem;
+	padding: 0.1875rem;
+	border-radius: var(--r-md);
+	background: var(--surface-dark-elevated);
+}
+
+.theme button {
+	min-height: 2rem;
+	padding: 0 0.75rem;
+	border: 0;
+	border-radius: var(--r-sm);
+	background: none;
+	color: var(--on-dark-soft);
+	font: 500 0.8125rem/1 var(--sans);
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.theme button[aria-checked="true"] {
+	background: var(--on-dark);
+	color: var(--surface-dark);
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 64em) {
@@ -1296,7 +1378,7 @@ td.wrap-any {
 		margin: 0;
 		border: 1px solid var(--hairline);
 		border-radius: 50%;
-		background: var(--canvas) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 7h12M4 13h12'/%3E%3C/svg%3E") center / 1.25rem no-repeat;
+		background: var(--canvas) var(--icon-menu) center / 1.25rem no-repeat;
 		cursor: pointer;
 		-webkit-appearance: none;
 		appearance: none;
@@ -1304,7 +1386,7 @@ td.wrap-any {
 	}
 
 	input.menu-toggle:checked {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23141413' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='m5 5 10 10M15 5 5 15'/%3E%3C/svg%3E");
+		background-image: var(--icon-close);
 	}
 
 	.nav {
@@ -1382,6 +1464,11 @@ td.wrap-any {
 
 	.link {
 		min-height: 2.5rem;
+	}
+
+	.theme button {
+		min-height: 2.5rem;
+		padding: 0 1rem;
 	}
 
 	.form .btn-primary {

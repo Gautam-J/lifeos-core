@@ -19,11 +19,14 @@ templ page(title, section string) {
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<meta name="color-scheme" content="light dark"/>
 			<meta name="theme-color" content="#faf9f5"/>
 			<meta name="apple-mobile-web-app-title" content="LifeOS"/>
 			<title>{ title } · LifeOS</title>
 			<link rel="preload" href="/admin/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin/>
 			<link rel="preload" href="/admin/static/fonts/cormorant-garamond.woff2" as="font" type="font/woff2" crossorigin/>
+			<!-- This script sets the theme. It must run before the page shows, so it has no defer. -->
+			<script src={ asset("theme.js") }></script>
 			<link rel="stylesheet" href={ templ.URL(asset("app.css")) }/>
 			<link rel="icon" type="image/svg+xml" href={ templ.URL(asset("icon.svg")) }/>
 			<link rel="apple-touch-icon" href={ templ.URL(asset("apple-touch-icon.png")) }/>
@@ -78,6 +81,11 @@ templ page(title, section string) {
 						<a href="/admin/deleted">Deleted</a>
 					</nav>
 					<p>Each time is in India Standard Time.</p>
+					<div class="theme" role="radiogroup" aria-label="Theme">
+						<button type="button" role="radio" aria-checked="false" data-theme-set="system">System</button>
+						<button type="button" role="radio" aria-checked="false" data-theme-set="light">Light</button>
+						<button type="button" role="radio" aria-checked="false" data-theme-set="dark">Dark</button>
+					</div>
 				</div>
 			</footer>
 		</body>

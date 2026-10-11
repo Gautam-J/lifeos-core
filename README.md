@@ -172,6 +172,8 @@ LifeOS has no login of its own. The admin pages, the REST API and the MCP server
 
 A record that the admin pages write is `manual` and verified.
 
+The pages have a light and a dark theme. They follow the setting of your system. To set one, use **System**, **Light** or **Dark** at the bottom of a page; the browser keeps the choice, and the server stores nothing.
+
 ### REST API
 
 The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/openapi.json`. A record that the REST API writes is `manual` and verified.

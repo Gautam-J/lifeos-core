@@ -71,6 +71,7 @@ Create a folder when its first file lands; do not add empty packages.
 - **Each page must work on a phone, a tablet, a laptop and a 4K monitor.** A list is a table with the class `cards`: below 768px each row becomes a card, and a cell shows the label of its `data-label` attribute. Sizes are in `rem`, because the root size grows on a wide monitor.
 - **The summary page `/admin` shows today and yesterday in IST**, from the one service function `Overview`. Its forms post to the routes of the record types. htmx sends `HX-Target: today`, and the handler then answers with the summary (`onToday`), not with its list. The two forms have `hx-preserve`, so a write does not remove what Gautam typed in the other form.
 - **The address of a static file has the hash of its content** (`asset`), and the server lets the browser keep only such an address. Without that, Cloudflare and the browser show the old styles for hours after a deploy. A font has no hash: give a new font a new file name.
+- **The pages have a light and a dark theme.** They follow the setting of the system. The footer has the choice System, Light or Dark; `static/theme.js` keeps a choice in `localStorage` of the browser and sets `data-theme` on the page. The server stores no theme and gets none. The dark values of the tokens are in `app.css` two times, for the system setting and for the choice; a test checks that the two blocks are equal. Give each new color a value in the two themes.
 - A page loads no file from a different site. The fonts are in `static/fonts`, with their license.
 
 ## Commands
