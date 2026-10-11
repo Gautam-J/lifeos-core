@@ -226,7 +226,7 @@ The rules for an agent are in the tool descriptions. The results of `journal` an
 You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
 
 ```sh
-docker compose -f deploy/docker-compose.yml up -d   # Postgres and ntfy
+docker compose -f deploy/docker-compose.yml up -d   # Postgres, the Postgres server of the tests, and ntfy
 git clone git@github.com:Gautam-J/lifeos-wiki.git /var/lib/lifeos/lifeos-wiki   # one time: the wiki that the server writes
 make tools      # one time: install sqlc into ~/go/bin (linux/arm64 binary)
 make query-user # one time: make the read-only Postgres user lifeos_query
@@ -250,7 +250,7 @@ The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
 | --- | --- |
 | `make generate` | Runs sqlc and templ. Generated code is not in git. |
 | `make build` | Builds `bin/lifeos`. |
-| `make test` | Runs `deploy/test.sh`, `go vet` and all tests. Tests need the Postgres container. |
+| `make test` | Runs `deploy/test.sh`, `go vet` and all tests. Tests need the container `postgres-test`, which keeps its data in memory. |
 | `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
 
 Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs, the file store and the wiki folder. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.

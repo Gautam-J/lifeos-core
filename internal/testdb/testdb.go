@@ -1,4 +1,6 @@
-// Package testdb gives each test its own migrated Postgres database.
+// Package testdb gives each test its own migrated Postgres database. The
+// databases are on the server postgres-test of deploy/docker-compose.yml,
+// whose data is in memory.
 package testdb
 
 import (
@@ -27,7 +29,7 @@ func New(t *testing.T) *pgxpool.Pool {
 
 	admin, err := pgx.Connect(ctx, url)
 	if err != nil {
-		t.Fatalf("testdb: connect: %v", err)
+		t.Fatalf("testdb: connect: %v; start the server of the tests with `docker compose -f deploy/docker-compose.yml up -d postgres-test`", err)
 	}
 	suffix := make([]byte, 6)
 	if _, err := rand.Read(suffix); err != nil {
@@ -66,8 +68,8 @@ func New(t *testing.T) *pgxpool.Pool {
 
 // QueryPool returns a pool for the database of pool that connects as the
 // read-only user lifeos_query. The password comes from the
-// LIFEOS_QUERY_PASSWORD environment variable; `make query-user` makes the
-// user.
+// LIFEOS_QUERY_PASSWORD environment variable; the server postgres-test
+// makes the user when it starts.
 func QueryPool(t *testing.T, pool *pgxpool.Pool) *pgxpool.Pool {
 	t.Helper()
 	password := os.Getenv("LIFEOS_QUERY_PASSWORD")

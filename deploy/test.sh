@@ -96,5 +96,19 @@ if [ "$writable" = 0 ]; then
     failed=1
 fi
 
+# The tests use the Postgres server postgres-test, whose data is in memory.
+# One run of the tests writes about 2.5 GB, and that load must not go to the
+# SD card or to the server that holds the real data.
+test_port=$(sed -n 's/^export LIFEOS_TEST_DATABASE_URL.*@127\.0\.0\.1:\([0-9]*\)\/.*/\1/p' ../Makefile)
+test_service=$(sed -n '/^  postgres-test:$/,/^$/p' docker-compose.yml)
+if [ -z "$test_port" ] || [[ $test_service != *"\"127.0.0.1:$test_port:5432\""* ]]; then
+    echo "FAIL  Makefile: the tests do not use the port of postgres-test (LIFEOS_TEST_DATABASE_URL has the port '$test_port')"
+    failed=1
+fi
+if [[ $test_service != *"tmpfs:"* ]] || [[ $test_service == *"pgdata"* ]]; then
+    echo "FAIL  docker-compose.yml: the data of postgres-test is not in memory"
+    failed=1
+fi
+
 [ "$failed" = 0 ] && echo "ok    deploy/test.sh"
 exit "$failed"

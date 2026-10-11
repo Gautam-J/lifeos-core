@@ -37,7 +37,7 @@ config/lifeos.yaml     listen addresses, database URLs, file store, wiki folder;
 sqlc.yaml              sqlc settings
 Makefile               tools, query-user, generate, build, test, migrate, run
 dashboards/            Grafana definitions, versioned with the schema they query
-deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, deploy.sh, check-access.sh, test.sh
+deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, postgres-test-init.sh, deploy.sh, check-access.sh, test.sh
 docs/design.md         the design doc, exported
 ```
 
@@ -73,7 +73,7 @@ make run        # build, then run lifeos serve
 ```
 
 - **Generated code is not in git.** After a fresh clone, run `make generate` before `go build` or `go vet`.
-- **Tests need Postgres and the read-only user.** Start the container from `deploy/docker-compose.yml`, then run `make query-user` one time; the Makefile reads `deploy/.env`. Each test creates its own database and drops it. `go test` without `make` fails, because `LIFEOS_TEST_DATABASE_URL` is not set.
+- **Tests use their own Postgres server.** It is the container `postgres-test` of `deploy/docker-compose.yml`, on port 5433. Its data is in memory: one run of the tests writes about 2.5 GB, which must not go to the SD card, and the tests must not use the server that holds the real data. The container makes the read-only user when it starts; the Makefile reads `deploy/.env`. Each test creates its own database and drops it. `go test` without `make` fails, because `LIFEOS_TEST_DATABASE_URL` is not set.
 - **Narrow a test run** with `make test PKG=./internal/api ARGS="-run TestName -v"`.
 
 `lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. On the Pi it runs as the systemd unit `deploy/systemd/lifeos.service`; `make run` is for work on the code. It needs the folders `files_dir`, `inbox_dir` and `wiki_dir` of the config file, the program `git`, and the two passwords `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.

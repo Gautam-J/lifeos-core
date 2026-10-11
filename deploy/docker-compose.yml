@@ -20,6 +20,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # The Postgres server of the tests. Its data is in memory: one run of the
+  # tests writes about 2.5 GB, and the SD card must not get that load. The
+  # server holds nothing of value, so it does not wait for a write to be
+  # safe. A start of the container gives an empty server; the init script
+  # makes the user lifeos_query again. The data cannot use more memory than
+  # the size of the tmpfs.
+  postgres-test:
+    image: postgres:18
+    restart: unless-stopped
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off", "-c", "max_wal_size=96MB"]
+    environment:
+      POSTGRES_USER: lifeos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      LIFEOS_QUERY_PASSWORD: ${LIFEOS_QUERY_PASSWORD:?set LIFEOS_QUERY_PASSWORD in deploy/.env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql:size=768m
+    volumes:
+      - ./postgres-test-init.sh:/docker-entrypoint-initdb.d/10-query-user.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifeos -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   ntfy:
     image: binwiederhier/ntfy:v2
     restart: unless-stopped

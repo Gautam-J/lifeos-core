@@ -3,8 +3,10 @@ include deploy/.env
 export POSTGRES_PASSWORD
 # The password of the read-only user lifeos_query, for the query tool.
 export LIFEOS_QUERY_PASSWORD
-# Tests create and drop their own databases on this server.
-export LIFEOS_TEST_DATABASE_URL = postgres://lifeos:$(POSTGRES_PASSWORD)@127.0.0.1:5432/postgres?sslmode=disable
+# Tests create and drop their own databases on the server postgres-test of
+# deploy/docker-compose.yml. Its data is in memory, not on the SD card, and
+# it is not the server that holds the real data.
+export LIFEOS_TEST_DATABASE_URL = postgres://lifeos:$(POSTGRES_PASSWORD)@127.0.0.1:5433/postgres?sslmode=disable
 
 # Narrow a test run with: make test PKG=./internal/api ARGS="-run TestName -v"
 PKG ?= ./...
