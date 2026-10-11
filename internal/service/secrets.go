@@ -105,20 +105,34 @@ func grouped(groups []string, first int, grouping []int) (string, bool) {
 	return strings.Join(groups[first:last+1], ""), true
 }
 
-// isCardNumber reports whether digits has the length of a card number, the
-// first digits of a card network and a correct Luhn check digit.
+// isCardNumber reports whether digits has the first digits of a card
+// network, a length that this network uses, and a correct Luhn check digit.
+// The length matters: the IMEI of a phone has 15 digits and a Luhn check
+// digit, and most IMEIs start with 35 or 49.
 func isCardNumber(digits string) bool {
-	if len(digits) < 13 || len(digits) > 19 {
+	n := len(digits)
+	if n < 13 || n > 19 {
 		return false
 	}
 	two, _ := strconv.Atoi(digits[:2])
 	four, _ := strconv.Atoi(digits[:4])
-	network := digits[0] == '4' || // Visa
-		digits[0] == '6' || // Discover, RuPay, Maestro, UnionPay
-		(two >= 50 && two <= 58) || // Mastercard, Maestro, RuPay
-		(four >= 2221 && four <= 2720) || // Mastercard
-		two == 30 || (two >= 34 && two <= 39) || // Diners Club, American Express, JCB
-		two == 81 || two == 82 // RuPay
+	network := false
+	switch {
+	case digits[0] == '4': // Visa
+		network = n == 13 || n == 16 || n == 19
+	case (two >= 51 && two <= 55) || (four >= 2221 && four <= 2720): // Mastercard
+		network = n == 16
+	case two == 34 || two == 37: // American Express
+		network = n == 15
+	case two == 30 || two == 36 || two == 38 || two == 39: // Diners Club
+		network = n == 14 || n >= 16
+	case two == 35: // JCB, RuPay
+		network = n >= 16
+	case digits[0] == '6', two == 50, two >= 56 && two <= 58: // Discover, RuPay, UnionPay, Maestro
+		network = true
+	case two == 81 || two == 82: // RuPay
+		network = n == 16
+	}
 	return network && luhnValid(digits)
 }
 
