@@ -29,7 +29,7 @@ sudo systemctl restart lifeos.service
 # The server listens after it has a connection to Postgres.
 addr=$(sed -n 's/^http_addr: *//p' config/lifeos.yaml)
 for _ in $(seq 30); do
-    if curl -fsS -o /dev/null "http://$addr/admin/items"; then
+    if curl -fs -o /dev/null "http://$addr/admin/items"; then
         echo "lifeos answers on $addr"
         deploy/check-access.sh
         exit 0
