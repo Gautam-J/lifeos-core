@@ -310,6 +310,32 @@ Approximate memory on the 8 GB Pi:
 
 Claude Code runs as `claude remote-control` under systemd, signed in with a full claude.ai login; a long-lived setup token cannot start Remote Control. Move to the N100 first: anything with a local model, OCR, photo indexing or Metabase.
 
+## Monitoring
+
+Prometheus collects system and app metrics on the Pi, Grafana shows them beside the life dashboards and sends alerts to ntfy, and two checks run off the Pi so a dead Pi or a dropped tunnel still raises an alarm.
+
+| Watches | Collected by | Notes |
+| --- | --- | --- |
+| CPU, RAM, disk, temperature, systemd service state | node_exporter | Thermal and systemd collectors on |
+| Undervoltage and throttling | node_exporter textfile collector | A one-minute timer writes `vcgencmd get_throttled` to a file |
+| Postgres connections, size, slow queries | postgres_exporter | Read-only monitoring user |
+| Public hostnames (`api.`, `mcp.`, `ntfy.`, `dash.`) | blackbox_exporter | Probes through the tunnel every minute |
+| Request latency, errors, tool calls, job runs, connector last sync | `/metrics` on `lifeos`, Prometheus Go client | Same numbers feed the LifeOS health dashboard |
+| Pi alive, tunnel reachable | Healthchecks.io (hosted, free tier) | One check pinged by the Pi every 5 minutes; one pinged only after a successful public probe of `api.<domain>`. Silence emails Gautam |
+
+Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds and keeps 30 days. cAdvisor is left out because it is CPU-heavy on a Pi. If memory gets tight, VictoriaMetrics replaces Prometheus with the same scrape config and queries.
+
+| Alert (Grafana alerting to ntfy) | Fires when |
+| --- | --- |
+| Disk filling | SSD above 85% |
+| Too hot or undervolted | Above 75 °C, or any throttle flag set |
+| Service down | A systemd unit or a blackbox probe fails for 5 minutes |
+| Job missed | A job's last success is older than its schedule plus 30 minutes |
+| Connector stale | No Health sync for 3 hours, or no calendar sync for 1 hour |
+| Backup missed | No successful restic run in 26 hours |
+
+Scrape config, alert rules and the system dashboard live in `lifeos-core/monitoring/` as provisioning files. Logs stay in the systemd journal (`journalctl -u lifeos`), and `lifeos` writes structured logs.
+
 ## Roadmap
 
 | Phase | Time | Work | Gate |
