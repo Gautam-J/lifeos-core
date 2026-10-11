@@ -3,6 +3,8 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 
@@ -42,4 +44,29 @@ func toHTTPError(where string, err error) error {
 	}
 	slog.Error("api: request failed", "error", err)
 	return huma.Error500InternalServerError("internal error")
+}
+
+// patch sends the body of a PATCH request to service.Update and returns
+// the record after the change. raw is the body as it came: only a map of
+// fields can tell a null from a field that is absent, and the service
+// refuses a null. T is the struct of the record type.
+func patch[T any](ctx context.Context, svc *service.Service, recordType string, id int64, raw []byte, clear []string) (T, error) {
+	var zero T
+	// Huma checked the names and the types of the body already.
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return zero, huma.Error400BadRequest("the body is not a JSON object")
+	}
+	delete(fields, "clear")
+	// A request to the REST API comes from Gautam's own devices, so the
+	// change is his and the verified flag stays as it is.
+	record, err := svc.Update(ctx, recordType, id, service.UpdateParams{
+		Fields: fields,
+		Clear:  clear,
+		Actor:  service.SourceManual,
+	})
+	if err != nil {
+		return zero, toHTTPError("body", err)
+	}
+	return record.(T), nil
 }
