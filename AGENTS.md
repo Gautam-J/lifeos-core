@@ -29,7 +29,7 @@ internal/testdb/       test helper: one migrated database for each test
 internal/testaccess/   test helper: a stand-in for Cloudflare Access that signs tokens
 internal/api/          chi + Huma handlers
 internal/mcp/          tools on the official MCP Go SDK
-internal/admin/        templ + htmx admin pages
+internal/admin/        templ + htmx admin pages; the styles and the fonts are in static/
 internal/connectors/   health, caldav, imap, owntracks, csv: one plugin each
 internal/jobs/         briefs, inbox processing, lint
 queries/               SQL that sqlc compiles
@@ -42,6 +42,7 @@ deploy/                docker-compose.yml, systemd units and timers, backup scri
 skills/                drafts of agent skills; no agent loads them (skills/README.md)
 prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported
+DESIGN.md              the look of the admin pages: colors, type, spacing, components
 ```
 
 Create a folder when its first file lands; do not add empty packages.
@@ -62,6 +63,15 @@ Create a folder when its first file lands; do not add empty packages.
 12. **A source is verbatim.** A source is one row of `sources`: a text, a link or a file that `Capture` stores exactly as it comes. The service never changes the content of a source, so `update` refuses the type `source`. `MarkProcessed` sets the time `processed_at`, when the work on the source is complete, and it changes nothing else. The same content a second time is not a write: `Capture` returns the stored source. A source is always verified, because it holds what came in and no agent inferred it. A record that an agent takes from a source names it in `source_ref`. A file is in the file store at `<files_dir>/<first two characters of its SHA-256>/<SHA-256>`; a soft delete keeps the file. `Purge` removes the file, unless a different source uses it. `Purge` refuses a source that a record names in `source_ref`.
 13. **`query` reads and never writes.** `Query` runs one SQL statement of an agent on a connection of the Postgres user `lifeos_query`, which has only the right to SELECT, in a read-only transaction. The database refuses a change; the Go code does not look at the SQL. `UseQueryPool` refuses a pool whose user can change a table. A new table is closed to `query` until its migration gives the right: `GRANT SELECT ON <table> TO lifeos_query`. Give the right to each table that an agent can read, and add the name of the table to the description of the `query` tool, which a test checks. Give no right to a table that holds a secret, such as a token or a password hash; the description names that table as one that `query` cannot read.
 14. **The wiki has one writer, and it holds no fact of its own.** A wiki page is a Markdown file below `wiki_dir`, in a git repository. `WikiWrite`, `WikiAppend` and `WikiDelete` are the only code that changes a file there. Each one writes `index.md` again, appends one event (`record_type` is `wiki`, no record ID, the path and the hash as the value) and makes one commit. When the commit fails, the files go back to what they were. A fact is a record in the database; a page holds analysis and cites the row, as `(journal:57)`. The prefixes are in `WikiCitationPrefixes`: add the prefix of each new record type there and to `citationIsLive`. A write refuses a new citation of a row that is not live; `WikiLint` reports a citation whose row was deleted later. `WikiWrite` needs the hash of the stored page, so that one session does not overwrite the change of a different session. No REST route and no admin page writes the wiki. The rules for an agent are in the tool descriptions, in the `next` field of the results of `journal` and `capture`, and in `internal/mcp/instructions.go`. The Claude app does not give the server instructions to the model, so no rule can be only there.
+
+## Admin pages
+
+- **The look comes from `DESIGN.md`.** The tokens (colors, type, radius, spacing) are the custom properties at the top of `internal/admin/static/app.css`. Use a token; do not write a new color or size into a rule. A serif font is for a headline and for a large number, the sans font for all other text, and the coral color for the one primary button of a form and for the callout card.
+- **Each page uses `page(title, section)`** in `layout.templ`: the menu, the frame and the footer. `section` is the menu entry that the page belongs to. Add a new page to `menu` there.
+- **Each page must work on a phone, a tablet, a laptop and a 4K monitor.** A list is a table with the class `cards`: below 768px each row becomes a card, and a cell shows the label of its `data-label` attribute. Sizes are in `rem`, because the root size grows on a wide monitor.
+- **The summary page `/admin` shows today and yesterday in IST**, from the one service function `Overview`. Its forms post to the routes of the record types. htmx sends `HX-Target: today`, and the handler then answers with the summary (`onToday`), not with its list. The two forms have `hx-preserve`, so a write does not remove what Gautam typed in the other form.
+- **The address of a static file has the hash of its content** (`asset`), and the server lets the browser keep only such an address. Without that, Cloudflare and the browser show the old styles for hours after a deploy. A font has no hash: give a new font a new file name.
+- A page loads no file from a different site. The fonts are in `static/fonts`, with their license.
 
 ## Commands
 

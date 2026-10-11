@@ -161,6 +161,7 @@ LifeOS has no login of its own. The admin pages, the REST API and the MCP server
 
 | Page | What you do there |
 | --- | --- |
+| `/admin` | The summary of today and yesterday: write a journal entry, add a todo, log a habit, mark a todo done, approve a record, and see each write of the two days. |
 | `/admin/items` | Add a list item, see the list, edit or delete an item. |
 | `/admin/journal` | Write an entry, see the entries, edit or delete an entry. |
 | `/admin/todos` | Add a todo, mark it done, edit or delete it. |
@@ -238,7 +239,7 @@ make migrate    # generate, build, apply the migrations
 make run        # run lifeos serve
 ```
 
-Then open <http://127.0.0.1:8200/admin/items>.
+Then open <http://127.0.0.1:8200/admin>.
 
 On the Pi, the server runs as a systemd unit and `make run` is only for work on the code:
 
