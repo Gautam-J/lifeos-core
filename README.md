@@ -1,0 +1,186 @@
+# lifeos-core
+
+LifeOS is a self-hosted second brain. One Go binary, `lifeos`, runs on a Raspberry Pi 4 and stores personal records in Postgres. A person uses the admin pages. A program uses the REST API. An AI agent uses the MCP server (MCP is the Model Context Protocol, which gives an agent a set of tools).
+
+This repo holds the service code only. It holds no personal data.
+
+- **Design:** [docs/design.md](docs/design.md)
+- **Rules for code changes:** [AGENTS.md](AGENTS.md)
+- **Work that is not planned yet:** [docs/backlog.md](docs/backlog.md)
+
+## Status
+
+| Phase | State |
+| --- | --- |
+| 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
+| 2 · Core data | In work. Lists, journal, todos, habits, the review queue and the three interfaces are built. Search, capture, money tables and CSV importers are not built. |
+| 3 to 5 | Not started. |
+
+The section [Not built yet](#not-built-yet) lists what is missing.
+
+## What you can do
+
+Each function below has one use case. All three interfaces call the same service code, so the same checks apply to each of them.
+
+### 1. Lists: movies, books, places, games
+
+A list item has a kind (`movie`, `book`, `place` or `game`), a title, an optional rating from 0 to 5 in steps of 0.5, an optional day, and free `attrs` such as author or year.
+
+**Use case.** You watched a movie last night. Open `/admin/items`, select `movie`, type the title, give 4 stars and the day. You can also tell the agent "add Dune, 4 stars, yesterday"; the agent calls `add_item`.
+
+### 2. Journal
+
+A journal entry has a body and the day that the entry is about. The service stores the body exactly as you wrote it. The default day is today in India Standard Time (IST). A day in the future is refused.
+
+**Use case.** At the end of the day, type some lines in `/admin/journal`. Or dictate the text to the agent, which calls `journal`. The agent must send your words without a change, and it must not write an entry of its own.
+
+### 3. Todos
+
+A todo has a title, a status (`open`, `done` or `dropped`), an optional due day and an optional project. The time of completion (`done_at`) follows the status. Lists show the open todos first.
+
+**Use case.** In a conversation you say "remind me to renew the car insurance by the 20th". The agent calls `todo` with the title and `due_on`. Later you press **Done** in `/admin/todos`.
+
+### 4. Habits
+
+A habit is a name, such as `gym`. A habit log records that you did the habit on one day. A habit has one log for each day, so a second log for the same day stores nothing.
+
+- You add, rename and retire a habit in `/admin/habits` only. To retire a habit, clear its **active** box. An agent cannot add a habit.
+- A log for an unknown or retired habit is refused. The error lists the active habits.
+- "Done" for a day means a verified log.
+
+**Use case.** You add the habits `gym` and `read` one time. Each evening you open `/admin/habits` and press the button for each habit of today. Or you say "I went to the gym"; the agent calls `log_habit`.
+
+### 5. Review queue
+
+Each record has a `source` (`manual`, `import`, `connector` or `agent`) and a `verified` flag. A record that you write or dictate is verified. A record that an agent infers is not verified, and it waits in the review queue until you approve it.
+
+**Use case.** The agent reads your journal entry "finished Project Hail Mary" and proposes a book with `dictated` set to false. The book shows in `/admin/review`. You press **Approve**, or you correct the record first.
+
+### 6. Corrections and deletes
+
+- **Update.** A change sets only the fields that you give. An agent cannot apply an inferred change to a verified record: it asks you first, then sends the change as dictated.
+- **Delete.** A delete is soft: the row gets a `deleted_at` time and leaves every list. An agent can delete a record only after you said yes.
+- A habit log has no field that you can change. Delete the log, then log the habit for the correct day.
+
+**Use case.** You say "that was 3 stars, not 4". The agent calls `update` with the type `item`, the ID and `rating: 3`.
+
+### 7. Event log
+
+Each write appends one row to the `events` table in the same transaction: the action (`create`, `update`, `delete` or `verify`), the source, the old value and the new value. A call that changes no value appends nothing.
+
+**Use case.** A rating looks wrong. Read the `events` rows of that record to see who changed the rating, when, and what the value was before.
+
+### 8. Backup, restore test and notifications
+
+- `deploy/backup.sh` dumps the database into two restic repositories: one on the Pi and one in Backblaze B2. A systemd timer runs it each night at 02:00.
+- `deploy/restore-test.sh [local|b2]` loads the latest backup into a scratch database and compares the row count of each table with production.
+- `deploy/notify.sh <topic> <message>` sends a message to the ntfy server on the Pi. The backup unit sends its result this way.
+
+**Use case.** The backup fails in the night. Your phone gets a high-priority ntfy message with the last 15 log lines of the unit.
+
+## Interfaces
+
+`lifeos serve` opens two listeners. Each is on `127.0.0.1` only.
+
+| Listener | Default address | Serves |
+| --- | --- | --- |
+| `http_addr` | `127.0.0.1:8200` | Admin pages and REST API |
+| `mcp_addr` | `127.0.0.1:8100` | MCP server, path `/mcp` |
+
+There is no login yet. Do not put these listeners on a public address.
+
+### Admin pages
+
+| Page | What you do there |
+| --- | --- |
+| `/admin/items` | Add a list item, see the list, edit or delete an item. |
+| `/admin/journal` | Write an entry, see the entries, edit or delete an entry. |
+| `/admin/todos` | Add a todo, mark it done, edit or delete it. |
+| `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
+| `/admin/review` | See the records that wait, and approve them. |
+
+A record that the admin pages write is `manual` and verified.
+
+### REST API
+
+The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/openapi.json`. A record that the REST API writes is `manual` and verified.
+
+| Record | Routes |
+| --- | --- |
+| List items | `POST /api/items`, `GET /api/items?kind=&limit=`, `GET`, `PATCH`, `DELETE /api/items/{id}` |
+| Journal | `POST /api/journal`, `GET`, `PATCH`, `DELETE /api/journal/{id}` |
+| Todos | `POST /api/todos`, `GET /api/todos?status=&limit=`, `GET`, `PATCH`, `DELETE /api/todos/{id}` |
+| Habits | `POST /api/habits/log`, `GET /api/habits/today`, `GET`, `DELETE /api/habits/logs/{id}` |
+| Review | `GET /api/review?limit=`, `POST /api/review/verify` |
+
+A list returns 50 rows by default; the maximum is 200.
+
+```sh
+curl -s -X POST http://127.0.0.1:8200/api/todos \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "renew the car insurance", "due_on": "2026-10-20"}'
+```
+
+### MCP tools
+
+A record that an MCP tool writes has the source `agent`. It is verified only when the tool input says that you dictated it.
+
+| Tool | What it does |
+| --- | --- |
+| `add_item` | Adds a movie, book, place or game. |
+| `journal` | Stores a journal entry, word for word. The entry is always verified. |
+| `todo` | Adds one todo. |
+| `log_habit` | Logs a habit for a day. A second call with `dictated: true` approves a proposed log. |
+| `get` | Reads one record by type and ID. |
+| `update` | Corrects one record. |
+| `delete` | Deletes one record after you said yes (`confirmed: true`). |
+| `review_queue` | Lists the records that wait for approval, oldest first. |
+| `verify` | Approves records that you approved in the conversation. |
+
+The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo` and `habit_log`.
+
+## Run it
+
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`.
+
+```sh
+docker compose -f deploy/docker-compose.yml up -d   # Postgres and ntfy
+make tools      # one time: install sqlc into ~/go/bin (linux/arm64 binary)
+make migrate    # generate, build, apply the migrations
+make run        # run lifeos serve
+```
+
+Then open <http://127.0.0.1:8200/admin/items>.
+
+| Command | Result |
+| --- | --- |
+| `make generate` | Runs sqlc and templ. Generated code is not in git. |
+| `make build` | Builds `bin/lifeos`. |
+| `make test` | Runs `go vet` and all tests. Tests need the Postgres container. |
+| `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
+
+Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses and the database URL. The password comes from `POSTGRES_PASSWORD` in the environment.
+
+## Not built yet
+
+- **Search and lists for the agent.** No MCP tool lists or searches records. The REST API has no route that lists journal entries.
+- **Capture** of raw text into an inbox, and the read-only `query` database user.
+- **Rejection of secrets.** The service does not yet refuse passwords, card numbers or government ID numbers in text.
+- **Money tables and CSV importers.** `lifeos import-csv` and `lifeos job` return "not implemented".
+- **Login, tokens and the systemd unit** for `lifeos serve`, and permanent delete in the admin pages.
+
+## Repository layout
+
+```
+cmd/lifeos/          main package: serve, migrate
+internal/service/    all logic: validation, provenance, events
+internal/api/        REST handlers (chi + Huma)
+internal/mcp/        MCP tools
+internal/admin/      admin pages (templ + htmx)
+internal/config/     loads config/lifeos.yaml
+internal/testdb/     one migrated database for each test
+queries/             SQL that sqlc compiles into internal/store/
+migrations/          goose SQL migrations
+deploy/              docker-compose.yml, backup scripts, systemd units
+docs/                design doc, backlog, implementation plans
+```
