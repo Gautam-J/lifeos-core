@@ -221,3 +221,19 @@ func TestUseQueryPoolRefusesAUserThatCanWrite(t *testing.T) {
 		t.Errorf("Query with no query pool: error = %v, want an error that is not a ValidationError", err)
 	}
 }
+
+// One row can be very large. Without a limit, one statement can use all
+// the memory of the Pi.
+func TestQueryRefusesARowThatIsTooLarge(t *testing.T) {
+	s, _ := newQueryService(t)
+	ctx := context.Background()
+
+	_, err := s.Query(ctx, "SELECT repeat('x', 30000000)")
+	wantSQLRefused(t, "a row of 30 MB", err, "a row is too large")
+
+	// A row of 1 MB comes back whole: that is the largest text of a source.
+	got, err := s.Query(ctx, "SELECT repeat('x', 1048576)")
+	if err != nil || len(got.Rows) != 1 || len(*got.Rows[0][0]) != 1048576 {
+		t.Errorf("a row of 1 MB: %d rows, %v, want the full value", len(got.Rows), err)
+	}
+}

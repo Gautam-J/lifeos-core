@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Gautam-J/lifeos-core/internal/store"
@@ -20,6 +21,10 @@ const (
 	// the context of a model.
 	maxQueryRows        = 200
 	maxQueryResultBytes = 256 << 10
+	// maxQueryRowBytes is the largest row that the connection reads: 2 MB,
+	// so that the 1 MB text of one source fits. Without it, one row can
+	// have 1 GB.
+	maxQueryRowBytes    = 2 << 20
 	defaultQueryTimeout = 5 * time.Second
 )
 
@@ -79,6 +84,7 @@ func (s *Service) Query(ctx context.Context, sql string) (QueryResult, error) {
 		conn.Conn().Close(context.Background())
 		conn.Release()
 	}()
+	conn.Conn().PgConn().Frontend().SetMaxBodyLen(maxQueryRowBytes)
 	if _, err := conn.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly}); err != nil {
 		return QueryResult{}, fmt.Errorf("query: %w", err)
 	}
@@ -120,6 +126,10 @@ func (s *Service) Query(ctx context.Context, sql string) (QueryResult, error) {
 func (s *Service) queryError(ctx context.Context, err error) error {
 	if ctx.Err() != nil {
 		return invalid("sql", fmt.Sprintf("took longer than %s: ask for fewer rows", s.queryTimeout))
+	}
+	var tooLarge *pgproto3.ExceededMaxBodyLenErr
+	if errors.As(err, &tooLarge) {
+		return invalid("sql", "a row is too large: select fewer columns, or cut a long text with left()")
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
