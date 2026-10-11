@@ -12,13 +12,18 @@ import (
 // not repeat it. Each text that a caller gives goes through this check
 // before the service stores it.
 func checkText(field, value string) error {
-	if !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+	if !isText(value) {
 		return invalid(field, "must be valid text without a NUL character")
 	}
 	if kind := secretKind(value); kind != "" {
 		return invalid(field, "must not hold "+kind+": LifeOS does not store one. Take it out, then send the text again")
 	}
 	return nil
+}
+
+// isText reports whether value is text that Postgres can store and compare.
+func isText(value string) bool {
+	return utf8.ValidString(value) && !strings.ContainsRune(value, 0)
 }
 
 // checkLimit returns the number of rows for a list. 0 means 50; the

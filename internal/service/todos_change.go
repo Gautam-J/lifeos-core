@@ -175,6 +175,9 @@ func (s *Service) DeleteTodo(ctx context.Context, id int64, p DeleteParams) erro
 // summary is the one line that the review queue shows for a todo.
 func (t Todo) summary() string {
 	s := "todo: " + t.Title
+	if t.Status != "open" {
+		s += ", " + t.Status
+	}
 	if t.Project != "" {
 		s += ", project " + t.Project
 	}

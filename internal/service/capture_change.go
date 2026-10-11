@@ -18,3 +18,18 @@ func (s *Service) DeleteCapture(ctx context.Context, id int64, p DeleteParams) e
 		return captureFromRow(row), nil
 	})
 }
+
+// summary is the one line that a search shows for a source.
+func (c Capture) summary() string {
+	s := c.Kind + ": "
+	if c.Title != "" && c.Kind != "file" {
+		s += c.Title + ": "
+	}
+	switch c.Kind {
+	case "link":
+		return s + c.URL
+	case "file":
+		return s + c.Title + " (" + c.MediaType + ")"
+	}
+	return s + shorten(c.Content, 80)
+}
