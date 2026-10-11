@@ -12,3 +12,20 @@ SELECT * FROM journal_entries
 WHERE deleted_at IS NULL
 ORDER BY entry_date DESC, id DESC
 LIMIT $1;
+
+-- name: GetJournalEntryForUpdate :one
+SELECT * FROM journal_entries
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE;
+
+-- name: UpdateJournalEntry :one
+UPDATE journal_entries
+SET body = $2, entry_date = $3
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: SoftDeleteJournalEntry :one
+UPDATE journal_entries
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
