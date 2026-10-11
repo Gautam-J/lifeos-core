@@ -37,7 +37,7 @@ config/lifeos.yaml     listen addresses, database URLs, file store; later models
 sqlc.yaml              sqlc settings
 Makefile               tools, query-user, generate, build, test, migrate, run
 dashboards/            Grafana definitions, versioned with the schema they query
-deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, deploy.sh, check-access.sh
+deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, deploy.sh, check-access.sh, test.sh
 docs/design.md         the design doc, exported
 ```
 
@@ -66,7 +66,7 @@ make tools      # one time: install sqlc into ~/go/bin
 make query-user # one time: make the read-only Postgres user lifeos_query
 make generate   # run sqlc and templ: writes internal/store/ and *_templ.go
 make build      # generate, then build bin/lifeos
-make test       # generate, go vet, then all tests
+make test       # generate, deploy/test.sh, go vet, then all tests
 make migrate    # build, then apply migrations to the database in config/lifeos.yaml
 make run        # build, then run lifeos serve
 ```
@@ -91,6 +91,8 @@ make run        # build, then run lifeos serve
 **LifeOS has no login of its own.** Cloudflare Access is the only lock on the two public hostnames: one for the admin pages (a login with an email code) and one for the REST API (an Access service token for each device). The names are in `deploy/.env`. So:
 
 - Never add a hostname to the tunnel before its Access application exists.
-- Run `deploy/check-access.sh` after each change of the tunnel or of an Access application. It fails when a hostname answers a request that has no login.
+- Run `deploy/check-access.sh` after each change of the tunnel or of an Access application. It fails when a hostname answers a request that has no login. Only an answer that Access alone gives is proof: the redirect to its login page, and 401 for the API hostname. `deploy/test.sh` holds the cases.
+- Give each tunnel rule of a LifeOS hostname an `access` part: `required: true`, the team name and the audience tag of its Access application. Then `cloudflared` checks the token of Access itself, and the hostname stays closed when its application is removed.
+- The unit gives the server only the two database passwords, the binary, the config and the file store. Add each new key of `deploy/.env` to `UnsetEnvironment` in `deploy/systemd/lifeos.service`; `deploy/test.sh` checks the list against `deploy/.env.example`.
 - `serve.go` puts `http.CrossOriginProtection` in front of the admin pages and the API. It refuses a request that changes data and that a browser sent from a different origin. Keep it: without it, a page of another site can use the Access login of the browser.
 - The MCP listener has no public hostname. Give it one only after the MCP handler checks the token of Access itself (Phase 3).

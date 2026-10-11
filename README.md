@@ -62,7 +62,7 @@ Each record has a `source` (`manual`, `import`, `connector` or `agent`) and a `v
 
 - **Update.** A change sets only the fields that you give. An agent cannot apply an inferred change to a verified record: it asks you first, then sends the change as dictated.
 - **Delete.** A delete is soft: the row gets a `deleted_at` time and leaves every list. An agent can delete a record only after you said yes.
-- **Delete forever.** The page `/admin/deleted` lists the deleted records. "Delete forever" removes the row, empties the old and the new value of each event of that record, and removes the file of a file source unless a different source uses it. Only this page can do it: no agent tool and no REST route can. A source that a record names in `source_ref` stays until that record is gone. The backups that were made before keep the record.
+- **Delete forever.** The page `/admin/deleted` lists the deleted records. "Delete forever" removes the row, empties the old and the new value of each event of that record, and removes the file of a file source unless a different source uses it. Only this page can do it: no agent tool and no REST route can. A source that a record names in `source_ref` stays until that record is gone. The backups and the deploy dumps that were made before keep the record.
 - A habit log has no field that you can change. Delete the log, then log the habit for the correct day.
 
 **Use case.** You say "that was 3 stars, not 4". The agent calls `update` with the type `item`, the ID and `rating: 3`.
@@ -122,9 +122,9 @@ A password in plain words and a bank account number have no pattern, so the serv
 
 ### 13. Service, deploy and public hostnames
 
-- **Service.** `deploy/systemd/lifeos.service` starts `lifeos serve` at boot and starts it again after a failure. After ten failed starts in five minutes, ntfy gets a message. The logs are in the journal: `journalctl -u lifeos`.
+- **Service.** `deploy/systemd/lifeos.service` starts `lifeos serve` at boot and starts it again after a failure. When it cannot start for about five minutes, ntfy gets a message. The unit gives the server only the two database passwords, the binary, the config and the file store: not the other values of `deploy/.env`, not the home folder and not the Docker socket. The logs are in the journal: `journalctl -u lifeos`.
 - **Deploy.** `deploy/deploy.sh` pulls the code, builds it, dumps the database to `/var/backups/lifeos/deploy/`, applies the migrations, starts the service again and runs the check below.
-- **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname and the REST API a second one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API. LifeOS has no login of its own, so Access is the only lock.
+- **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname and the REST API a second one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API. LifeOS has no login of its own, so Access is the only lock. `cloudflared` checks the token of Access on each request of the two hostnames, so a hostname stays closed when its Access application is removed.
 - **Check.** `deploy/check-access.sh` fails when a hostname answers a request that has no login.
 - **Requests from another site.** The server refuses a request that changes data and that a browser sent from a different origin. A program, such as an iOS Shortcut, is not a browser and goes through.
 
@@ -226,7 +226,7 @@ The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
 | --- | --- |
 | `make generate` | Runs sqlc and templ. Generated code is not in git. |
 | `make build` | Builds `bin/lifeos`. |
-| `make test` | Runs `go vet` and all tests. Tests need the Postgres container. |
+| `make test` | Runs `deploy/test.sh`, `go vet` and all tests. Tests need the Postgres container. |
 | `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
 
 Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs and the file store. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.
