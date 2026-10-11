@@ -13,7 +13,7 @@ This repo holds the service code only. It holds no personal data.
 | Phase | State |
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
-| 2 · Core data | In work. Lists, journal, todos, habits, the review queue, capture, search, the read-only query and the three interfaces are built. Money tables and CSV importers are not built. |
+| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The gate is one week of daily logging. Money tables and imports are in [docs/backlog.md](docs/backlog.md). |
 | 3 to 5 | Not started. |
 
 The section [Not built yet](#not-built-yet) lists what is missing.
@@ -62,13 +62,14 @@ Each record has a `source` (`manual`, `import`, `connector` or `agent`) and a `v
 
 - **Update.** A change sets only the fields that you give. An agent cannot apply an inferred change to a verified record: it asks you first, then sends the change as dictated.
 - **Delete.** A delete is soft: the row gets a `deleted_at` time and leaves every list. An agent can delete a record only after you said yes.
+- **Delete forever.** The page `/admin/deleted` lists the deleted records. "Delete forever" removes the row, empties the old and the new value of each event of that record, and removes the file of a file source unless a different source uses it. Only this page can do it: no agent tool and no REST route can. A source that a record names in `source_ref` stays until that record is gone. The backups that were made before keep the record.
 - A habit log has no field that you can change. Delete the log, then log the habit for the correct day.
 
 **Use case.** You say "that was 3 stars, not 4". The agent calls `update` with the type `item`, the ID and `rating: 3`.
 
 ### 7. Event log
 
-Each write appends one row to the `events` table in the same transaction: the action (`create`, `update`, `delete` or `verify`), the source, the old value and the new value. A call that changes no value appends nothing.
+Each write appends one row to the `events` table in the same transaction: the action (`create`, `update`, `delete`, `verify` or `purge`), the source, the old value and the new value. A call that changes no value appends nothing. The log only grows, with one exception: a permanent delete empties the values of the events of its record.
 
 **Use case.** A rating looks wrong. Read the `events` rows of that record to see who changed the rating, when, and what the value was before.
 
@@ -119,6 +120,16 @@ A password in plain words and a bank account number have no pattern, so the serv
 
 **Use case.** The backup fails in the night. Your phone gets a high-priority ntfy message with the last 15 log lines of the unit.
 
+### 13. Service, deploy and public hostnames
+
+- **Service.** `deploy/systemd/lifeos.service` starts `lifeos serve` at boot and starts it again after a failure. After ten failed starts in five minutes, ntfy gets a message. The logs are in the journal: `journalctl -u lifeos`.
+- **Deploy.** `deploy/deploy.sh` pulls the code, builds it, dumps the database to `/var/backups/lifeos/deploy/`, applies the migrations, starts the service again and runs the check below.
+- **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname and the REST API a second one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API. LifeOS has no login of its own, so Access is the only lock.
+- **Check.** `deploy/check-access.sh` fails when a hostname answers a request that has no login.
+- **Requests from another site.** The server refuses a request that changes data and that a browser sent from a different origin. A program, such as an iOS Shortcut, is not a browser and goes through.
+
+**Use case.** You add a hostname to the tunnel and forget its Access application. `deploy/check-access.sh` prints `OPEN` for that hostname and exits with an error.
+
 ## Interfaces
 
 `lifeos serve` opens two listeners. Each is on `127.0.0.1` only.
@@ -128,7 +139,7 @@ A password in plain words and a bank account number have no pattern, so the serv
 | `http_addr` | `127.0.0.1:8200` | Admin pages and REST API |
 | `mcp_addr` | `127.0.0.1:8100` | MCP server, path `/mcp` |
 
-There is no login yet. Do not put these listeners on a public address.
+LifeOS has no login of its own. The admin pages and the REST API are public only through the Cloudflare Tunnel, each behind Cloudflare Access (section 13). The MCP listener has no public hostname.
 
 ### Admin pages
 
@@ -140,6 +151,7 @@ There is no login yet. Do not put these listeners on a public address.
 | `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
 | `/admin/sources` | Capture a text or a link, see the sources, delete a source. |
 | `/admin/review` | See the records that wait, and approve them. |
+| `/admin/deleted` | See the deleted records, and remove one for good. |
 
 A record that the admin pages write is `manual` and verified.
 
@@ -200,6 +212,16 @@ make run        # run lifeos serve
 
 Then open <http://127.0.0.1:8200/admin/items>.
 
+On the Pi, the server runs as a systemd unit and `make run` is only for work on the code:
+
+```sh
+sudo systemctl link "$PWD/deploy/systemd/lifeos.service"   # one time
+sudo systemctl enable --now lifeos.service                 # one time
+deploy/deploy.sh                                           # after each change of the code
+```
+
+The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
+
 | Command | Result |
 | --- | --- |
 | `make generate` | Runs sqlc and templ. Generated code is not in git. |
@@ -214,8 +236,9 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 - **The page of a link and the text of a file.** LifeOS stores a link as its URL and a file as its bytes. It does not get the page, and it does not read the text of a PDF. No page shows or downloads a stored file.
 - **The inbox job** that reads each new source and proposes records from it.
 - **Lists in the REST API.** No route lists journal entries or sources. The admin pages list them, and the agent uses `search` and `query`.
-- **Money tables and CSV importers.** `lifeos import-csv` and `lifeos job` return "not implemented".
-- **Login, tokens and the systemd unit** for `lifeos serve`, and permanent delete in the admin pages.
+- **Money tables, the reconciliation with a bank statement and the one-time imports.** They are in [docs/backlog.md](docs/backlog.md). `lifeos import-csv` and `lifeos job` return "not implemented".
+- **A public hostname for the MCP server.** It comes in Phase 3, with a login through Cloudflare Access and a check of the Access token in `lifeos`.
+- **A way to get a deleted record back.** The page `/admin/deleted` only removes.
 
 ## Repository layout
 
@@ -229,6 +252,6 @@ internal/config/     loads config/lifeos.yaml
 internal/testdb/     one migrated database for each test
 queries/             SQL that sqlc compiles into internal/store/
 migrations/          goose SQL migrations
-deploy/              docker-compose.yml, backup scripts, query-user.sh, systemd units
+deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, systemd units
 docs/                design doc, backlog, implementation plans
 ```
