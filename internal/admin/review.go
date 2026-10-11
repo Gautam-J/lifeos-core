@@ -40,6 +40,10 @@ func (h *handlers) verifyRecord(w http.ResponseWriter, r *http.Request) {
 		listFailure(w, r, err, "The record was not approved: internal error. Try again.")
 		return
 	}
+	if onToday(r) {
+		h.showToday(w, r, message)
+		return
+	}
 
 	entries, err := h.svc.ReviewQueue(r.Context(), 0)
 	if err != nil {

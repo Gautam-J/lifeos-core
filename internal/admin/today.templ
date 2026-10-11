@@ -1,0 +1,249 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ todayPage(view service.Overview) {
+	@page("Today", "Today") {
+		@todayPart(view, "")
+	}
+}
+
+// todayPart is the part of the summary page that a write replaces. The two
+// forms keep their place and what Gautam typed (hx-preserve).
+templ todayPart(view service.Overview, errorMessage string) {
+	<div id="today">
+		<section class="hero">
+			<h1>{ longDay(view.Today.Date) }</h1>
+			<p class="lead">{ lead(view) }</p>
+		</section>
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if view.Waiting > 0 {
+			@reviewCallout(view)
+		}
+		<section class="metrics band" aria-label="Today and yesterday">
+			<article class="metric">
+				<h2 class="metric-label"><a href="/admin/journal">Journal</a></h2>
+				<p class="metric-value">{ strconv.Itoa(view.Today.JournalEntries) }</p>
+				<p class="metric-unit">
+					if view.Today.JournalEntries == 1 {
+						entry today
+					} else {
+						entries today
+					}
+				</p>
+				<p class="metric-foot">Yesterday <b>{ strconv.Itoa(view.Yesterday.JournalEntries) }</b></p>
+			</article>
+			<article class="metric">
+				<h2 class="metric-label"><a href="/admin/habits">Habits</a></h2>
+				<p class="metric-value">
+					{ strconv.Itoa(view.Today.HabitsDone) }
+					<span class="metric-of">of { strconv.Itoa(len(view.Habits.Habits)) }</span>
+				</p>
+				<p class="metric-unit">done today</p>
+				<p class="metric-foot">Yesterday <b>{ strconv.Itoa(view.Yesterday.HabitsDone) }</b></p>
+			</article>
+			<article class="metric">
+				<h2 class="metric-label"><a href="/admin/todos">Todos</a></h2>
+				<p class="metric-value">{ strconv.Itoa(view.Today.TodosDone) }</p>
+				<p class="metric-unit">done today</p>
+				<p class="metric-foot">Yesterday <b>{ strconv.Itoa(view.Yesterday.TodosDone) }</b></p>
+			</article>
+			<article class="metric">
+				<h2 class="metric-label"><a href="/admin/sources">Saved</a></h2>
+				<p class="metric-value">{ strconv.Itoa(view.Today.ItemsAdded + view.Today.Captures) }</p>
+				<p class="metric-unit">items and sources today</p>
+				<p class="metric-foot">Yesterday <b>{ strconv.Itoa(view.Yesterday.ItemsAdded + view.Yesterday.Captures) }</b></p>
+			</article>
+		</section>
+		<div class="columns band">
+			<section class="card card-line composer" id="write" aria-label="Write in the journal">
+				<form id="write-form" hx-preserve="true" hx-post="/admin/journal" hx-target="#today" hx-swap="outerHTML" hx-on:entry-added="this.reset()">
+					<textarea name="body" required placeholder="What happened today?" aria-label="Journal entry"></textarea>
+					<div class="composer-bar">
+						<label>
+							Day
+							<input type="date" name="entry_date" max={ view.Today.Date }/>
+						</label>
+						<button class="btn btn-primary" type="submit">Add entry</button>
+					</div>
+				</form>
+			</section>
+			<section class="journal" aria-labelledby="journal-title">
+				<div class="section-head">
+					<h2 class="serif-sm" id="journal-title">Journal</h2>
+					<a class="link" href="/admin/journal">All entries</a>
+				</div>
+				if len(view.Journal) == 0 {
+					<p class="empty">Nothing is written for today or yesterday.</p>
+				} else {
+					<div class="entries">
+						for _, entry := range view.Journal {
+							<article class="entry">
+								<div class="entry-head">
+									<h3 class="entry-day">{ dayName(view, entry.EntryDate) }</h3>
+									<span class="muted small">{ clock(entry.CreatedAt) }</span>
+								</div>
+								<div class="prose">{ entry.Body }</div>
+								<div class="entry-foot">
+									<span class="meta">
+										@verified(entry.Verified)
+									</span>
+									<a class="link" href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
+								</div>
+							</article>
+						}
+					</div>
+				}
+			</section>
+			<div class="stack side">
+				<section class="card" aria-labelledby="habits-title">
+					<div class="card-head">
+						<h2 id="habits-title">Habits</h2>
+						<a class="link" href="/admin/habits">All habits</a>
+					</div>
+					if len(view.Habits.Habits) == 0 {
+						<p class="muted">No habit is active.</p>
+					} else {
+						<ul class="rows">
+							for _, habit := range view.Habits.Habits {
+								<li>
+									<span class="row-main">{ habit.Name }</span>
+									if habit.Done {
+										<span class="state"><span class="dot dot-yes"></span>Done</span>
+									} else {
+										<form hx-post="/admin/habits/log" hx-target="#today" hx-swap="outerHTML">
+											<input type="hidden" name="habit" value={ habit.Name }/>
+											<button class="btn btn-sm btn-secondary" type="submit">Log</button>
+										</form>
+									}
+								</li>
+							}
+						</ul>
+					}
+				</section>
+				<section class="card card-line" aria-labelledby="todos-title">
+					<div class="card-head">
+						<h2 id="todos-title">Todos</h2>
+						<a class="link" href="/admin/todos">All todos</a>
+					</div>
+					<form class="quick-todo" id="todo-form" hx-preserve="true" hx-post="/admin/todos" hx-target="#today" hx-swap="outerHTML" hx-on:todo-added="this.reset()">
+						<input type="text" name="title" required maxlength="300" placeholder="Add a todo" aria-label="Todo"/>
+						<input type="date" name="due_on" aria-label="Due"/>
+						<button class="btn btn-secondary" type="submit">Add todo</button>
+					</form>
+					if len(view.Next) == 0 {
+						<p class="muted">No todo is open.</p>
+					} else {
+						<ul class="rows">
+							for _, todo := range view.Next {
+								<li>
+									<span class="row-main">
+										{ todo.Title }
+										@dueNote(view, todo)
+									</span>
+									<button class="btn btn-sm btn-secondary" hx-post={ todoPath(todo.ID) + "/done" } hx-target="#today" hx-swap="outerHTML">Done</button>
+								</li>
+							}
+						</ul>
+					}
+				</section>
+			</div>
+		</div>
+		<section class="card-dark band" aria-labelledby="activity-title">
+			<div class="card-head">
+				<h2 id="activity-title">Activity</h2>
+				<p>Each write of today and yesterday</p>
+			</div>
+			if len(view.Activity) == 0 {
+				<p class="log log-empty">No write yet.</p>
+			} else {
+				<div class="log" tabindex="0" role="region" aria-labelledby="activity-title">
+					<table>
+						for i, a := range view.Activity {
+							if i == 0 || activityDay(a) != activityDay(view.Activity[i-1]) {
+								<tr>
+									<th colspan="4" scope="colgroup">{ dayName(view, activityDay(a)) }</th>
+								</tr>
+							}
+							<tr>
+								<td class="t">{ clock(a.At) }</td>
+								<td class={ string(a.Source) }>{ string(a.Source) }</td>
+								<td class="act">{ a.Action }</td>
+								<td class="what">
+									@activityLink(a)
+								</td>
+							</tr>
+						}
+					</table>
+				</div>
+			}
+		</section>
+	</div>
+}
+
+// todayFailure takes the place of the summary when a form post fails on
+// the server.
+templ todayFailure(message string) {
+	<div id="today">
+		<p class="error" role="alert">{ message }</p>
+	</div>
+}
+
+// reviewCallout shows the first records of the review queue.
+templ reviewCallout(view service.Overview) {
+	<section class="callout" aria-labelledby="review-title">
+		<div>
+			<h2 id="review-title">{ waitingLine(view.Waiting) }</h2>
+			<p>An agent inferred each one. Reports do not count a record until you approve it.</p>
+			<a class="btn btn-on-coral" href="/admin/review">Open the review queue</a>
+		</div>
+		<ul class="rows">
+			for _, entry := range view.Review {
+				<li>
+					<span class="row-main">
+						{ entry.Summary }
+						<span class="row-sub">Added { stamp(entry.CreatedAt) }</span>
+					</span>
+					<form hx-post="/admin/review/verify" hx-target="#today" hx-swap="outerHTML">
+						<input type="hidden" name="type" value={ entry.Type }/>
+						<input type="hidden" name="id" value={ strconv.FormatInt(entry.ID, 10) }/>
+						<button class="btn btn-sm btn-on-coral" type="submit">Approve</button>
+					</form>
+				</li>
+			}
+		</ul>
+	</section>
+}
+
+templ dueNote(view service.Overview, todo service.Todo) {
+	{{ line, late := dueLine(view, todo) }}
+	if late {
+		<span class="row-sub late">{ line }</span>
+	} else if line != "" {
+		<span class="row-sub">{ line }</span>
+	}
+}
+
+templ activityLink(a service.Activity) {
+	{{ name, href := activityRecord(a) }}
+	if href != "" {
+		<a href={ templ.URL(href) }>{ name }</a>
+	} else {
+		{ name }
+	}
+}
+
+// verified shows the state of a record: Gautam approved it, or it waits.
+templ verified(yes bool) {
+	if yes {
+		<span class="state"><span class="dot dot-yes"></span>Verified</span>
+	} else {
+		<span class="state"><span class="dot dot-no"></span>Waits for review</span>
+	}
+}

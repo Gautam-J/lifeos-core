@@ -50,7 +50,7 @@ func TestHabitsPageShowsTheFormAndNoHabits(t *testing.T) {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`hx-post="/admin/habits"`, `name="name"`, "No habits yet.", "No logs yet.", "Today (" + todayIST() + ")", `href="/admin/habits"`} {
+	for _, want := range []string{`hx-post="/admin/habits"`, `name="name"`, "No habits yet.", "No logs yet.", `datetime="` + todayIST() + `"`, `href="/admin/habits"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not contain %q", want)
 		}
@@ -72,7 +72,7 @@ func TestAddHabitStoresTheHabitAndShowsItInTheChecklist(t *testing.T) {
 	if !strings.HasPrefix(strings.TrimSpace(body), `<div id="list">`) {
 		t.Errorf("the response is not the #list fragment:\n%s", body)
 	}
-	for _, want := range []string{`<td>gym</td>`, "not done", `name="habit" value="gym"`, `value="gym"`} {
+	for _, want := range []string{`<span class="row-main">gym</span>`, "not done", `name="habit" value="gym"`, `value="gym"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the list does not contain %q:\n%s", want, body)
 		}
@@ -243,7 +243,7 @@ func TestHabitsPageEscapesTheName(t *testing.T) {
 	if strings.Contains(body, "<b>x") {
 		t.Error("the page contains the name as raw HTML")
 	}
-	for _, want := range []string{`value="a&#34;&lt;b&gt;x"`, `<td>a&#34;&lt;b&gt;x</td>`} {
+	for _, want := range []string{`value="a&#34;&lt;b&gt;x"`, `<span class="row-main">a&#34;&lt;b&gt;x</span>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not contain %s", want)
 		}

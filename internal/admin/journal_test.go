@@ -137,7 +137,7 @@ func TestJournalPagesShowTheEntryAsText(t *testing.T) {
 		t.Fatalf("edit page: status = %d, want 200", edit.Code)
 	}
 	const escaped = "  a &lt;b&gt;bold&lt;/b&gt; day\n\n&lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt; \n"
-	if !strings.Contains(list, `<td class="text">`+escaped+`</td>`) {
+	if !strings.Contains(list, `<div class="prose">`+escaped+`</div>`) {
 		t.Errorf("the list does not show the entry as text with its spaces and line breaks:\n%s", list)
 	}
 	for _, want := range []string{

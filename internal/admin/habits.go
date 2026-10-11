@@ -48,6 +48,10 @@ func (h *handlers) showHabits(w http.ResponseWriter, r *http.Request, err error,
 		listFailure(w, r, err, what+": internal error. Try again.")
 		return
 	}
+	if onToday(r) {
+		h.showToday(w, r, message)
+		return
+	}
 	view, err := h.loadHabits(r.Context())
 	if err != nil {
 		listFailure(w, r, err, "The list did not load: internal error. Reload the page.")

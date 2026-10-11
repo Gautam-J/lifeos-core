@@ -6,68 +6,37 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/service"
 )
 
-templ page(title string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } · LifeOS</title>
-			<script src="/admin/static/htmx.min.js"></script>
-			<style>
-				body { font-family: system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; }
-				form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; margin-bottom: 1.5rem; }
-				label { display: flex; flex-direction: column; font-size: 0.85rem; }
-				table { border-collapse: collapse; width: 100%; }
-				th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
-				td form { display: inline; margin: 0; }
-				nav { display: flex; gap: 1rem; margin-bottom: 1rem; }
-				td.text { white-space: pre-wrap; }
-				.error { color: #b00020; }
-				.muted { color: #666; }
-			</style>
-		</head>
-		<body>
-			<nav>
-				<a href="/admin/items">Items</a>
-				<a href="/admin/journal">Journal</a>
-				<a href="/admin/todos">Todos</a>
-				<a href="/admin/habits">Habits</a>
-				<a href="/admin/sources">Sources</a>
-				<a href="/admin/review">Review</a>
-				<a href="/admin/deleted">Deleted</a>
-			</nav>
-			{ children... }
-		</body>
-	</html>
-}
-
 templ itemsPage(items []service.Item) {
-	@page("Items") {
-		<h1>Items</h1>
-		<form hx-post="/admin/items" hx-target="#list" hx-swap="outerHTML" hx-on:item-added="this.reset()">
-			<label>
-				Kind
-				<select name="kind" required>
-					for _, kind := range service.ItemKinds {
-						<option value={ kind }>{ kind }</option>
-					}
-				</select>
-			</label>
-			<label>
-				Title
-				<input type="text" name="title" required maxlength="300" size="40"/>
-			</label>
-			<label>
-				Rating
-				<input type="number" name="rating" min="0" max="5" step="0.5"/>
-			</label>
-			<label>
-				Date
-				<input type="date" name="occurred_on"/>
-			</label>
-			<button type="submit">Add</button>
-		</form>
+	@page("Items", "Items") {
+		<header class="page-head">
+			<h1>Items</h1>
+			<p>What you watched, read, visited or played, with your rating.</p>
+		</header>
+		<section class="panel" aria-label="Add an item">
+			<form class="form" hx-post="/admin/items" hx-target="#list" hx-swap="outerHTML" hx-on:item-added="this.reset()">
+				<label class="field field-narrow">
+					Kind
+					<select name="kind" required>
+						for _, kind := range service.ItemKinds {
+							<option value={ kind }>{ kind }</option>
+						}
+					</select>
+				</label>
+				<label class="field field-wide">
+					Title
+					<input type="text" name="title" required maxlength="300"/>
+				</label>
+				<label class="field field-narrow">
+					Rating
+					<input type="number" name="rating" min="0" max="5" step="0.5" inputmode="decimal" placeholder="0 to 5"/>
+				</label>
+				<label class="field">
+					Date
+					<input type="date" name="occurred_on"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Add item</button>
+			</form>
+		</section>
 		@itemsList(items, "")
 	}
 }
@@ -79,48 +48,64 @@ templ itemsList(items []service.Item, errorMessage string) {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
 		if len(items) == 0 {
-			<p class="muted">No items yet.</p>
+			<p class="empty">No items yet. Add the first one with the form.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Kind</th>
-						<th>Title</th>
-						<th>Rating</th>
-						<th>Date</th>
-						<th>Source</th>
-						<th>Verified</th>
-						<th>Added (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, item := range items {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
 						<tr>
-							<td>{ strconv.FormatInt(item.ID, 10) }</td>
-							<td>{ item.Kind }</td>
-							<td>{ item.Title }</td>
-							<td>{ formatRating(item.Rating) }</td>
-							<td>{ item.OccurredOn }</td>
-							<td>{ string(item.Source) }</td>
-							<td>{ formatVerified(item.Verified) }</td>
-							<td>{ item.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								<a href={ templ.URL(itemPath(item.ID) + "/edit") }>Edit</a>
-								<button
-									hx-post={ itemPath(item.ID) + "/delete" }
-									hx-target="#list"
-									hx-swap="outerHTML"
-									hx-confirm={ "Delete " + item.Title + "?" }
-								>Delete</button>
-							</td>
+							<th>ID</th>
+							<th>Title</th>
+							<th>Kind</th>
+							<th>Rating</th>
+							<th>Date</th>
+							<th class="col-lo">Source</th>
+							<th>Verified</th>
+							<th class="col-lo">Added</th>
+							<th></th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for _, item := range items {
+							<tr>
+								<td class="id" data-label="ID">{ strconv.FormatInt(item.ID, 10) }</td>
+								<td class="title">{ item.Title }</td>
+								<td><span class="pill">{ item.Kind }</span></td>
+								<td class="num" data-label="Rating">{ formatRating(item.Rating) }</td>
+								<td class="when" data-label="Date">{ item.OccurredOn }</td>
+								<td class="col-lo" data-label="Source">{ string(item.Source) }</td>
+								<td data-label="Verified">
+									@yesNo(item.Verified)
+								</td>
+								<td class="when col-lo" data-label="Added">{ stamp(item.CreatedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										<a class="link" href={ templ.URL(itemPath(item.ID) + "/edit") }>Edit</a>
+										<button
+											class="link link-danger"
+											hx-post={ itemPath(item.ID) + "/delete" }
+											hx-target="#list"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete " + item.Title + "?" }
+										>Delete</button>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
 	</div>
+}
+
+// yesNo shows the verified column of a list.
+templ yesNo(verified bool) {
+	if verified {
+		<span class="state"><span class="dot dot-yes"></span>yes</span>
+	} else {
+		<span class="state"><span class="dot dot-no"></span>no</span>
+	}
 }
 
 // itemsFailure takes the place of the list when a form post fails on the
@@ -142,35 +127,41 @@ type itemForm struct {
 }
 
 templ editItemPage(form itemForm, errorMessage string) {
-	@page("Edit item") {
-		<h1>Edit item { strconv.FormatInt(form.ID, 10) }</h1>
+	@page("Edit item", "Items") {
+		<header class="page-head">
+			<h1>Edit item { strconv.FormatInt(form.ID, 10) }</h1>
+		</header>
 		if errorMessage != "" {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
-		<form method="post" action={ templ.URL(itemPath(form.ID)) }>
-			<label>
-				Kind
-				<select name="kind" required>
-					for _, kind := range service.ItemKinds {
-						<option value={ kind } selected?={ kind == form.Kind }>{ kind }</option>
-					}
-				</select>
-			</label>
-			<label>
-				Title
-				<input type="text" name="title" required maxlength="300" size="40" value={ form.Title }/>
-			</label>
-			<label>
-				Rating
-				<input type="number" name="rating" min="0" max="5" step="0.5" value={ form.Rating }/>
-			</label>
-			<label>
-				Date
-				<input type="date" name="occurred_on" value={ form.OccurredOn }/>
-			</label>
-			<button type="submit">Save</button>
-			<a href="/admin/items">Cancel</a>
-		</form>
+		<section class="panel panel-narrow">
+			<form class="form form-stack" method="post" action={ templ.URL(itemPath(form.ID)) }>
+				<label class="field">
+					Kind
+					<select name="kind" required>
+						for _, kind := range service.ItemKinds {
+							<option value={ kind } selected?={ kind == form.Kind }>{ kind }</option>
+						}
+					</select>
+				</label>
+				<label class="field">
+					Title
+					<input type="text" name="title" required maxlength="300" value={ form.Title }/>
+				</label>
+				<label class="field">
+					Rating
+					<input type="number" name="rating" min="0" max="5" step="0.5" inputmode="decimal" value={ form.Rating }/>
+				</label>
+				<label class="field">
+					Date
+					<input type="date" name="occurred_on" value={ form.OccurredOn }/>
+				</label>
+				<div class="form-actions">
+					<button class="btn btn-primary" type="submit">Save changes</button>
+					<a class="btn btn-secondary" href="/admin/items">Cancel</a>
+				</div>
+			</form>
+		</section>
 	}
 }
 

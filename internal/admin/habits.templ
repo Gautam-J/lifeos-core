@@ -14,15 +14,20 @@ type habitsView struct {
 }
 
 templ habitsPage(view habitsView) {
-	@page("Habits") {
-		<h1>Habits</h1>
-		<form hx-post="/admin/habits" hx-target="#list" hx-swap="outerHTML" hx-on:habit-added="this.reset()">
-			<label>
-				New habit
-				<input type="text" name="name" required maxlength="50" size="20"/>
-			</label>
-			<button type="submit">Add</button>
-		</form>
+	@page("Habits", "Habits") {
+		<header class="page-head">
+			<h1>Habits</h1>
+			<p>A habit has one log for each day. A log that waits for review does not count as done.</p>
+		</header>
+		<section class="panel" aria-label="Add a habit">
+			<form class="form" hx-post="/admin/habits" hx-target="#list" hx-swap="outerHTML" hx-on:habit-added="this.reset()">
+				<label class="field field-wide">
+					New habit
+					<input type="text" name="name" required maxlength="50"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Add habit</button>
+			</form>
+		</section>
 		@habitsList(view, "")
 	}
 }
@@ -33,93 +38,102 @@ templ habitsList(view habitsView, errorMessage string) {
 		if errorMessage != "" {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
-		<h2>Today ({ view.Today.Date })</h2>
+		<div class="section-head">
+			<h2 class="serif-sm">Today</h2>
+			<time class="muted small" datetime={ view.Today.Date }>{ longDay(view.Today.Date) }</time>
+		</div>
 		if len(view.Today.Habits) == 0 {
-			<p class="muted">No active habit.</p>
+			<p class="empty">No active habit.</p>
 		} else {
-			<table>
-				<tbody>
+			<div class="card">
+				<ul class="rows">
 					for _, habit := range view.Today.Habits {
-						<tr>
-							<td>{ habit.Name }</td>
+						<li>
+							<span class="row-main">{ habit.Name }</span>
 							if habit.Done {
-								<td>done</td>
-								<td></td>
+								<span class="state"><span class="dot dot-yes"></span>done</span>
 							} else {
-								<td>not done</td>
-								<td>
-									<form hx-post="/admin/habits/log" hx-target="#list" hx-swap="outerHTML">
-										<input type="hidden" name="habit" value={ habit.Name }/>
-										<button type="submit">Log</button>
-									</form>
-								</td>
-							}
-						</tr>
-					}
-				</tbody>
-			</table>
-		}
-		<h2>All habits</h2>
-		if len(view.Habits) == 0 {
-			<p class="muted">No habits yet.</p>
-		} else {
-			<table>
-				<tbody>
-					for _, habit := range view.Habits {
-						<tr>
-							<td>{ strconv.FormatInt(habit.ID, 10) }</td>
-							<td>
-								<form hx-post={ habitPath(habit.ID) } hx-target="#list" hx-swap="outerHTML">
-									<input type="text" name="name" required maxlength="50" size="20" value={ habit.Name }/>
-									<label>
-										<input type="checkbox" name="active" value="true" checked?={ habit.Active }/>
-										active
-									</label>
-									<button type="submit">Save</button>
+								<form class="inline-form" hx-post="/admin/habits/log" hx-target="#list" hx-swap="outerHTML">
+									<span class="state muted small"><span class="dot dot-no"></span>not done</span>
+									<input type="hidden" name="habit" value={ habit.Name }/>
+									<button class="btn btn-sm btn-secondary" type="submit">Log</button>
 								</form>
-							</td>
-						</tr>
+							}
+						</li>
 					}
-				</tbody>
-			</table>
+				</ul>
+			</div>
 		}
-		<h2>Logs</h2>
-		if len(view.Logs) == 0 {
-			<p class="muted">No logs yet.</p>
+		<div class="section-head">
+			<h2 class="serif-sm">All habits</h2>
+		</div>
+		if len(view.Habits) == 0 {
+			<p class="empty">No habits yet. Add the first one with the form.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Habit</th>
-						<th>Day</th>
-						<th>Source</th>
-						<th>Verified</th>
-						<th>Logged (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, log := range view.Logs {
-						<tr>
-							<td>{ strconv.FormatInt(log.ID, 10) }</td>
-							<td>{ log.Habit }</td>
-							<td>{ log.LoggedOn }</td>
-							<td>{ string(log.Source) }</td>
-							<td>{ formatVerified(log.Verified) }</td>
-							<td>{ log.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								<button
-									hx-post={ "/admin/habits/logs/" + strconv.FormatInt(log.ID, 10) + "/delete" }
-									hx-target="#list"
-									hx-swap="outerHTML"
-									hx-confirm={ "Delete the log of " + log.Habit + " on " + log.LoggedOn + "?" }
-								>Delete</button>
-							</td>
-						</tr>
+			<div class="panel">
+				<ul class="rows">
+					for _, habit := range view.Habits {
+						<li>
+							<form class="inline-form row-form" hx-post={ habitPath(habit.ID) } hx-target="#list" hx-swap="outerHTML">
+								<span class="id">{ strconv.FormatInt(habit.ID, 10) }</span>
+								<input type="text" name="name" required maxlength="50" aria-label="Name" value={ habit.Name }/>
+								<label class="check">
+									<input type="checkbox" name="active" value="true" checked?={ habit.Active }/>
+									active
+								</label>
+								<button class="btn btn-sm btn-secondary" type="submit">Save</button>
+							</form>
+						</li>
 					}
-				</tbody>
-			</table>
+				</ul>
+			</div>
+		}
+		<div class="section-head">
+			<h2 class="serif-sm">Logs</h2>
+		</div>
+		if len(view.Logs) == 0 {
+			<p class="empty">No logs yet.</p>
+		} else {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Habit</th>
+							<th>Day</th>
+							<th class="col-lo">Source</th>
+							<th>Verified</th>
+							<th class="col-lo">Logged</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, log := range view.Logs {
+							<tr>
+								<td class="id" data-label="ID">{ strconv.FormatInt(log.ID, 10) }</td>
+								<td class="title">{ log.Habit }</td>
+								<td class="when" data-label="Day">{ log.LoggedOn }</td>
+								<td class="col-lo" data-label="Source">{ string(log.Source) }</td>
+								<td data-label="Verified">
+									@yesNo(log.Verified)
+								</td>
+								<td class="when col-lo" data-label="Logged">{ stamp(log.CreatedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										<button
+											class="link link-danger"
+											hx-post={ "/admin/habits/logs/" + strconv.FormatInt(log.ID, 10) + "/delete" }
+											hx-target="#list"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete the log of " + log.Habit + " on " + log.LoggedOn + "?" }
+										>Delete</button>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
 	</div>
 }

@@ -7,24 +7,28 @@ import (
 )
 
 templ sourcesPage(captures []service.Capture) {
-	@page("Sources") {
-		<h1>Sources</h1>
-		<p class="muted">A source is a text or a link that LifeOS keeps exactly as it is. Fill in the text or the link, not the two.</p>
-		<form hx-post="/admin/sources" hx-target="#list" hx-swap="outerHTML" hx-on:source-added="this.reset()">
-			<label>
-				Text
-				<textarea name="text" cols="60" rows="6"></textarea>
-			</label>
-			<label>
-				Link
-				<input type="url" name="url" size="40" placeholder="https://"/>
-			</label>
-			<label>
-				Title (optional)
-				<input type="text" name="title" maxlength="300" size="30"/>
-			</label>
-			<button type="submit">Capture</button>
-		</form>
+	@page("Sources", "Sources") {
+		<header class="page-head">
+			<h1>Sources</h1>
+			<p>A source is a text or a link that LifeOS keeps exactly as it is. Fill in the text or the link, not the two.</p>
+		</header>
+		<section class="panel" aria-label="Capture a source">
+			<form class="form" hx-post="/admin/sources" hx-target="#list" hx-swap="outerHTML" hx-on:source-added="this.reset()">
+				<label class="field field-full">
+					Text
+					<textarea name="text" rows="6"></textarea>
+				</label>
+				<label class="field field-wide">
+					Link
+					<input type="url" name="url" placeholder="https://"/>
+				</label>
+				<label class="field field-wide">
+					<span>Title <span class="hint">(optional)</span></span>
+					<input type="text" name="title" maxlength="300"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Capture source</button>
+			</form>
+		</section>
 		@sourcesList(captures, "")
 	}
 }
@@ -36,50 +40,55 @@ templ sourcesList(captures []service.Capture, errorMessage string) {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
 		if len(captures) == 0 {
-			<p class="muted">No sources yet.</p>
+			<p class="empty">No sources yet. Capture the first one with the form.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Kind</th>
-						<th>Title</th>
-						<th>Content</th>
-						<th>Source</th>
-						<th>Captured (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, capture := range captures {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
 						<tr>
-							<td>{ strconv.FormatInt(capture.ID, 10) }</td>
-							<td>{ capture.Kind }</td>
-							<td>{ capture.Title }</td>
-							<td>
-								switch capture.Kind {
-									case "link":
-										<a href={ templ.URL(capture.URL) } rel="noreferrer">{ capture.URL }</a>
-									case "file":
-										{ capture.MediaType }, { fileSize(capture.SizeBytes) }
-									default:
-										{ preview(capture.Content) }
-								}
-							</td>
-							<td>{ string(capture.Source) }</td>
-							<td>{ capture.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								<button
-									hx-post={ sourcePath(capture.ID) + "/delete" }
-									hx-target="#list"
-									hx-swap="outerHTML"
-									hx-confirm={ "Delete source " + strconv.FormatInt(capture.ID, 10) + "?" }
-								>Delete</button>
-							</td>
+							<th>ID</th>
+							<th>Kind</th>
+							<th>Title</th>
+							<th>Content</th>
+							<th class="col-lo">Source</th>
+							<th>Captured</th>
+							<th></th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for _, capture := range captures {
+							<tr>
+								<td class="id" data-label="ID">{ strconv.FormatInt(capture.ID, 10) }</td>
+								<td><span class="pill">{ capture.Kind }</span></td>
+								<td class="title">{ capture.Title }</td>
+								<td class="wrap-any" data-label="Content">
+									switch capture.Kind {
+										case "link":
+											<a href={ templ.URL(capture.URL) } rel="noreferrer">{ capture.URL }</a>
+										case "file":
+											{ capture.MediaType }, { fileSize(capture.SizeBytes) }
+										default:
+											{ preview(capture.Content) }
+									}
+								</td>
+								<td class="col-lo" data-label="Source">{ string(capture.Source) }</td>
+								<td class="when" data-label="Captured">{ stamp(capture.CreatedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										<button
+											class="link link-danger"
+											hx-post={ sourcePath(capture.ID) + "/delete" }
+											hx-target="#list"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete source " + strconv.FormatInt(capture.ID, 10) + "?" }
+										>Delete</button>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
 	</div>
 }

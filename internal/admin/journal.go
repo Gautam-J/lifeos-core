@@ -27,6 +27,10 @@ func (h *handlers) journalPage(w http.ResponseWriter, r *http.Request) {
 
 // showJournalList renders the list again, with message above it.
 func (h *handlers) showJournalList(w http.ResponseWriter, r *http.Request, message string) {
+	if onToday(r) {
+		h.showToday(w, r, message)
+		return
+	}
 	entries, err := h.svc.ListJournalEntries(r.Context(), 0)
 	if err != nil {
 		listFailure(w, r, err, "The list did not load: internal error. Reload the page.")

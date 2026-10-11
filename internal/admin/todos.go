@@ -20,6 +20,10 @@ func (h *handlers) todosPage(w http.ResponseWriter, r *http.Request) {
 
 // showTodosList renders the list again, with message above it.
 func (h *handlers) showTodosList(w http.ResponseWriter, r *http.Request, message string) {
+	if onToday(r) {
+		h.showToday(w, r, message)
+		return
+	}
 	todos, err := h.svc.ListTodos(r.Context(), service.ListTodosParams{})
 	if err != nil {
 		listFailure(w, r, err, "The list did not load: internal error. Reload the page.")

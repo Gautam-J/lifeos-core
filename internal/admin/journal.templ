@@ -7,19 +7,24 @@ import (
 )
 
 templ journalPage(entries []service.JournalEntry) {
-	@page("Journal") {
-		<h1>Journal</h1>
-		<form hx-post="/admin/journal" hx-target="#list" hx-swap="outerHTML" hx-on:entry-added="this.reset()">
-			<label>
-				Entry
-				<textarea name="body" required cols="60" rows="6"></textarea>
-			</label>
-			<label>
-				Day (empty means today)
-				<input type="date" name="entry_date"/>
-			</label>
-			<button type="submit">Add</button>
-		</form>
+	@page("Journal", "Journal") {
+		<header class="page-head">
+			<h1>Journal</h1>
+			<p>Your own words, stored exactly as you write them.</p>
+		</header>
+		<section class="panel" aria-label="Write an entry">
+			<form class="form" hx-post="/admin/journal" hx-target="#list" hx-swap="outerHTML" hx-on:entry-added="this.reset()">
+				<label class="field field-full">
+					Entry
+					<textarea name="body" required rows="6"></textarea>
+				</label>
+				<label class="field">
+					<span>Day <span class="hint">(empty means today)</span></span>
+					<input type="date" name="entry_date"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Add entry</button>
+			</form>
+		</section>
 		@journalList(entries, "")
 	}
 }
@@ -31,42 +36,39 @@ templ journalList(entries []service.JournalEntry, errorMessage string) {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
 		if len(entries) == 0 {
-			<p class="muted">No entries yet.</p>
+			<p class="empty">No entries yet. Write the first one with the form.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Day</th>
-						<th>Entry</th>
-						<th>Source</th>
-						<th>Verified</th>
-						<th>Written (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, entry := range entries {
-						<tr>
-							<td>{ strconv.FormatInt(entry.ID, 10) }</td>
-							<td>{ entry.EntryDate }</td>
-							<td class="text">{ entry.Body }</td>
-							<td>{ string(entry.Source) }</td>
-							<td>{ formatVerified(entry.Verified) }</td>
-							<td>{ entry.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								<a href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
+			<div class="entries">
+				for _, entry := range entries {
+					<article class="entry">
+						<div class="entry-head">
+							<h2 class="entry-day"><time datetime={ entry.EntryDate }>{ longDay(entry.EntryDate) }</time></h2>
+							<span class="id">entry { strconv.FormatInt(entry.ID, 10) }</span>
+						</div>
+						<div class="prose">{ entry.Body }</div>
+						<div class="entry-foot">
+							<span class="meta">
+								<span>{ string(entry.Source) }</span>
+								<span>
+									Verified
+									@yesNo(entry.Verified)
+								</span>
+								<span>Written { stamp(entry.CreatedAt) }</span>
+							</span>
+							<div class="actions">
+								<a class="link" href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
 								<button
+									class="link link-danger"
 									hx-post={ journalPath(entry.ID) + "/delete" }
 									hx-target="#list"
 									hx-swap="outerHTML"
 									hx-confirm={ "Delete the entry of " + entry.EntryDate + "?" }
 								>Delete</button>
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
+							</div>
+						</div>
+					</article>
+				}
+			</div>
 		}
 	</div>
 }
@@ -83,23 +85,29 @@ type journalForm struct {
 // break after the start tag. Without it, an entry that starts with a line
 // break loses that line break on Save.
 templ editJournalPage(form journalForm, errorMessage string) {
-	@page("Edit journal entry") {
-		<h1>Edit journal entry { strconv.FormatInt(form.ID, 10) }</h1>
+	@page("Edit journal entry", "Journal") {
+		<header class="page-head">
+			<h1>Edit journal entry { strconv.FormatInt(form.ID, 10) }</h1>
+		</header>
 		if errorMessage != "" {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
-		<form method="post" action={ templ.URL(journalPath(form.ID)) }>
-			<label>
-				Entry
-				<textarea name="body" required cols="60" rows="12">{ "\n" + form.Body }</textarea>
-			</label>
-			<label>
-				Day
-				<input type="date" name="entry_date" required value={ form.EntryDate }/>
-			</label>
-			<button type="submit">Save</button>
-			<a href="/admin/journal">Cancel</a>
-		</form>
+		<section class="panel panel-narrow">
+			<form class="form form-stack" method="post" action={ templ.URL(journalPath(form.ID)) }>
+				<label class="field">
+					Entry
+					<textarea name="body" required rows="12">{ "\n" + form.Body }</textarea>
+				</label>
+				<label class="field">
+					Day
+					<input type="date" name="entry_date" required value={ form.EntryDate }/>
+				</label>
+				<div class="form-actions">
+					<button class="btn btn-primary" type="submit">Save changes</button>
+					<a class="btn btn-secondary" href="/admin/journal">Cancel</a>
+				</div>
+			</form>
+		</section>
 	}
 }
 

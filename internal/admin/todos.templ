@@ -7,23 +7,28 @@ import (
 )
 
 templ todosPage(todos []service.Todo) {
-	@page("Todos") {
-		<h1>Todos</h1>
-		<form hx-post="/admin/todos" hx-target="#list" hx-swap="outerHTML" hx-on:todo-added="this.reset()">
-			<label>
-				Title
-				<input type="text" name="title" required maxlength="300" size="40"/>
-			</label>
-			<label>
-				Project
-				<input type="text" name="project" maxlength="100" size="15"/>
-			</label>
-			<label>
-				Due
-				<input type="date" name="due_on"/>
-			</label>
-			<button type="submit">Add</button>
-		</form>
+	@page("Todos", "Todos") {
+		<header class="page-head">
+			<h1>Todos</h1>
+			<p>The open todos come first.</p>
+		</header>
+		<section class="panel" aria-label="Add a todo">
+			<form class="form" hx-post="/admin/todos" hx-target="#list" hx-swap="outerHTML" hx-on:todo-added="this.reset()">
+				<label class="field field-wide">
+					Title
+					<input type="text" name="title" required maxlength="300"/>
+				</label>
+				<label class="field">
+					Project
+					<input type="text" name="project" maxlength="100"/>
+				</label>
+				<label class="field">
+					Due
+					<input type="date" name="due_on"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Add todo</button>
+			</form>
+		</section>
 		@todosList(todos, "")
 	}
 }
@@ -35,49 +40,56 @@ templ todosList(todos []service.Todo, errorMessage string) {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
 		if len(todos) == 0 {
-			<p class="muted">No todos yet.</p>
+			<p class="empty">No todos yet. Add the first one with the form.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>ID</th>
-						<th>Title</th>
-						<th>Status</th>
-						<th>Project</th>
-						<th>Due</th>
-						<th>Source</th>
-						<th>Verified</th>
-						<th>Added (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, todo := range todos {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
 						<tr>
-							<td>{ strconv.FormatInt(todo.ID, 10) }</td>
-							<td>{ todo.Title }</td>
-							<td>{ todo.Status }</td>
-							<td>{ todo.Project }</td>
-							<td>{ todo.DueOn }</td>
-							<td>{ string(todo.Source) }</td>
-							<td>{ formatVerified(todo.Verified) }</td>
-							<td>{ todo.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								if todo.Status == "open" {
-									<button hx-post={ todoPath(todo.ID) + "/done" } hx-target="#list" hx-swap="outerHTML">Done</button>
-								}
-								<a href={ templ.URL(todoPath(todo.ID) + "/edit") }>Edit</a>
-								<button
-									hx-post={ todoPath(todo.ID) + "/delete" }
-									hx-target="#list"
-									hx-swap="outerHTML"
-									hx-confirm={ "Delete " + todo.Title + "?" }
-								>Delete</button>
-							</td>
+							<th>ID</th>
+							<th>Title</th>
+							<th>Status</th>
+							<th>Project</th>
+							<th>Due</th>
+							<th class="col-lo">Source</th>
+							<th>Verified</th>
+							<th class="col-lo">Added</th>
+							<th></th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for _, todo := range todos {
+							<tr>
+								<td class="id" data-label="ID">{ strconv.FormatInt(todo.ID, 10) }</td>
+								<td class={ "title", templ.KV("done-title", todo.Status != "open") }>{ todo.Title }</td>
+								<td><span class="pill">{ todo.Status }</span></td>
+								<td data-label="Project">{ todo.Project }</td>
+								<td class="when" data-label="Due">{ todo.DueOn }</td>
+								<td class="col-lo" data-label="Source">{ string(todo.Source) }</td>
+								<td data-label="Verified">
+									@yesNo(todo.Verified)
+								</td>
+								<td class="when col-lo" data-label="Added">{ stamp(todo.CreatedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										if todo.Status == "open" {
+											<button class="btn btn-sm btn-secondary" hx-post={ todoPath(todo.ID) + "/done" } hx-target="#list" hx-swap="outerHTML">Done</button>
+										}
+										<a class="link" href={ templ.URL(todoPath(todo.ID) + "/edit") }>Edit</a>
+										<button
+											class="link link-danger"
+											hx-post={ todoPath(todo.ID) + "/delete" }
+											hx-target="#list"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete " + todo.Title + "?" }
+										>Delete</button>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
 	</div>
 }
@@ -93,35 +105,41 @@ type todoForm struct {
 }
 
 templ editTodoPage(form todoForm, errorMessage string) {
-	@page("Edit todo") {
-		<h1>Edit todo { strconv.FormatInt(form.ID, 10) }</h1>
+	@page("Edit todo", "Todos") {
+		<header class="page-head">
+			<h1>Edit todo { strconv.FormatInt(form.ID, 10) }</h1>
+		</header>
 		if errorMessage != "" {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
-		<form method="post" action={ templ.URL(todoPath(form.ID)) }>
-			<label>
-				Title
-				<input type="text" name="title" required maxlength="300" size="40" value={ form.Title }/>
-			</label>
-			<label>
-				Status
-				<select name="status" required>
-					for _, status := range service.TodoStatuses {
-						<option value={ status } selected?={ status == form.Status }>{ status }</option>
-					}
-				</select>
-			</label>
-			<label>
-				Project
-				<input type="text" name="project" maxlength="100" size="15" value={ form.Project }/>
-			</label>
-			<label>
-				Due
-				<input type="date" name="due_on" value={ form.DueOn }/>
-			</label>
-			<button type="submit">Save</button>
-			<a href="/admin/todos">Cancel</a>
-		</form>
+		<section class="panel panel-narrow">
+			<form class="form form-stack" method="post" action={ templ.URL(todoPath(form.ID)) }>
+				<label class="field">
+					Title
+					<input type="text" name="title" required maxlength="300" value={ form.Title }/>
+				</label>
+				<label class="field">
+					Status
+					<select name="status" required>
+						for _, status := range service.TodoStatuses {
+							<option value={ status } selected?={ status == form.Status }>{ status }</option>
+						}
+					</select>
+				</label>
+				<label class="field">
+					Project
+					<input type="text" name="project" maxlength="100" value={ form.Project }/>
+				</label>
+				<label class="field">
+					Due
+					<input type="date" name="due_on" value={ form.DueOn }/>
+				</label>
+				<div class="form-actions">
+					<button class="btn btn-primary" type="submit">Save changes</button>
+					<a class="btn btn-secondary" href="/admin/todos">Cancel</a>
+				</div>
+			</form>
+		</section>
 	}
 }
 

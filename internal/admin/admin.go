@@ -5,12 +5,16 @@ package admin
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -24,9 +28,10 @@ var static embed.FS
 func Register(router chi.Router, svc *service.Service) {
 	h := &handlers{svc: svc}
 	// The address that Gautam types has no path.
-	for _, path := range []string{"/", "/admin", "/admin/"} {
+	for _, path := range []string{"/", "/admin/"} {
 		router.Get(path, home)
 	}
+	router.Get("/admin", h.todayPage)
 	router.Get("/admin/items", h.itemsPage)
 	router.Post("/admin/items", h.addItem)
 	router.Get("/admin/items/{id}/edit", h.editItemPage)
@@ -52,19 +57,67 @@ func Register(router chi.Router, svc *service.Service) {
 	router.Post("/admin/sources", h.addSource)
 	router.Post("/admin/sources/{id}/delete", h.deleteSource)
 	router.Get("/admin/review", h.reviewPage)
+	router.Get("/admin/review/count", h.reviewCount)
 	router.Post("/admin/review/verify", h.verifyRecord)
 	router.Get("/admin/deleted", h.deletedPage)
 	router.Post("/admin/deleted/purge", h.purgeRecord)
-	router.Handle("/admin/static/*", http.StripPrefix("/admin/", http.FileServerFS(static)))
+	router.Handle("/admin/static/*", staticFiles())
+}
+
+// assetVersions holds the start of the hash of each static file, by the
+// path of the file below static/.
+var assetVersions = func() map[string]string {
+	versions := map[string]string{}
+	err := fs.WalkDir(static, "static", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		content, err := static.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(content)
+		versions[strings.TrimPrefix(path, "static/")] = hex.EncodeToString(sum[:])[:12]
+		return nil
+	})
+	if err != nil {
+		panic("admin: read the static files: " + err.Error())
+	}
+	return versions
+}()
+
+// asset returns the address of a static file. The address changes with
+// the content of the file, so that a browser can keep the file for good.
+func asset(name string) string {
+	return "/admin/static/" + name + "?v=" + assetVersions[name]
+}
+
+// staticFiles serves the folder static. Cloudflare and the browser keep a
+// static file for hours when the server says nothing, and a deploy would
+// show the old styles. So a file stays only when its address names its
+// content. A font has no version: a new font gets a new file name.
+func staticFiles() http.Handler {
+	files := http.StripPrefix("/admin/", http.FileServerFS(static))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/admin/static/")
+		version, known := assetVersions[name]
+		switch {
+		case known && (r.URL.Query().Get("v") == version || strings.HasPrefix(name, "fonts/")):
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		default:
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		files.ServeHTTP(w, r)
+	})
 }
 
 type handlers struct {
 	svc *service.Service
 }
 
-// home sends the browser to the first admin page.
+// home sends the browser to the summary page.
 func home(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/admin/items", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
 func (h *handlers) itemsPage(w http.ResponseWriter, r *http.Request) {
@@ -139,10 +192,15 @@ func render(w http.ResponseWriter, r *http.Request, c component) {
 	}
 }
 
-// listFailure logs err and shows message in place of the list. The status
-// is 200, because htmx does not show the body of a 5xx response.
+// listFailure logs err and shows message in place of the list, or in
+// place of the summary when the click came from there. The status is 200,
+// because htmx does not show the body of a 5xx response.
 func listFailure(w http.ResponseWriter, r *http.Request, err error, message string) {
 	slog.Error("admin: request failed", "error", err)
+	if onToday(r) {
+		render(w, r, todayFailure(message))
+		return
+	}
 	render(w, r, itemsFailure(message))
 }
 

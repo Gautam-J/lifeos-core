@@ -1,0 +1,101 @@
+package admin
+
+// menu holds the pages of the top menu, in their order.
+var menu = []struct{ Path, Name string }{
+	{"/admin", "Today"},
+	{"/admin/journal", "Journal"},
+	{"/admin/todos", "Todos"},
+	{"/admin/habits", "Habits"},
+	{"/admin/items", "Items"},
+	{"/admin/sources", "Sources"},
+}
+
+// page is the frame of each admin page. section is the name of the menu
+// entry that the page belongs to. The look follows DESIGN.md; the styles
+// are in static/app.css.
+templ page(title, section string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<meta name="theme-color" content="#faf9f5"/>
+			<meta name="apple-mobile-web-app-title" content="LifeOS"/>
+			<title>{ title } · LifeOS</title>
+			<link rel="preload" href="/admin/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/admin/static/fonts/cormorant-garamond.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="stylesheet" href={ templ.URL(asset("app.css")) }/>
+			<link rel="icon" type="image/svg+xml" href={ templ.URL(asset("icon.svg")) }/>
+			<link rel="apple-touch-icon" href={ templ.URL(asset("apple-touch-icon.png")) }/>
+			<script src={ asset("htmx.min.js") } defer></script>
+		</head>
+		<body>
+			<a class="skip" href="#main">Skip to the content</a>
+			<header class="top">
+				<div class="top-in">
+					<a class="brand" href="/admin">
+						@mark()
+						<span>LifeOS</span>
+					</a>
+					<nav class="nav" aria-label="Pages">
+						for _, entry := range menu {
+							if entry.Name == section {
+								<a href={ templ.URL(entry.Path) } aria-current="page">{ entry.Name }</a>
+							} else {
+								<a href={ templ.URL(entry.Path) }>{ entry.Name }</a>
+							}
+						}
+						<a class="sheet-only" href="/admin/review">Review</a>
+						<a class="sheet-only" href="/admin/deleted">Deleted</a>
+					</nav>
+					<div class="top-right">
+						if section == "Review" {
+							<a class="nav-review" href="/admin/review" aria-current="page">
+								@reviewLabel()
+							</a>
+						} else {
+							<a class="nav-review" href="/admin/review">
+								@reviewLabel()
+							</a>
+						}
+						<a class="btn btn-primary" href="/admin#write">Write</a>
+						<!-- A phone restores a check box when the page comes back. The menu must start closed. -->
+						<input class="menu-toggle" type="checkbox" aria-label="Menu" autocomplete="off"/>
+					</div>
+				</div>
+			</header>
+			<main class="wrap" id="main">
+				{ children... }
+			</main>
+			<footer class="foot">
+				<div class="foot-in">
+					<a class="brand" href="/admin">
+						@mark()
+						<span>LifeOS</span>
+					</a>
+					<nav aria-label="More pages">
+						<a href="/admin/review">Review</a>
+						<a href="/admin/deleted">Deleted</a>
+					</nav>
+					<p>Each time is in India Standard Time.</p>
+				</div>
+			</footer>
+		</body>
+	</html>
+}
+
+// reviewLabel is the text of the Review link. htmx fills in the number of
+// records that wait. It asks again each time a write replaces a list or
+// the summary: an approval, a delete and a habit log can each change the
+// number.
+templ reviewLabel() {
+	<span class="label">Review</span>
+	<span class="count" hx-get="/admin/review/count" hx-trigger="load, htmx:afterSwap[detail.target.id=='list'||detail.target.id=='today'] from:body"></span>
+}
+
+// mark is the sign of LifeOS: eight rays from one point.
+templ mark() {
+	<svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+		<path d="M12 2.6v18.8M2.6 12h18.8M5.35 5.35l13.3 13.3M18.65 5.35l-13.3 13.3"></path>
+	</svg>
+}

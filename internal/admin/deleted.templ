@@ -7,9 +7,11 @@ import (
 )
 
 templ deletedPage(records []service.DeletedRecord) {
-	@page("Deleted") {
-		<h1>Deleted records</h1>
-		<p class="muted">A deleted record stays in the database until you remove it here. "Delete forever" removes the record, the content of its history and the file of a file source. You cannot get it back.</p>
+	@page("Deleted", "Deleted") {
+		<header class="page-head">
+			<h1>Deleted records</h1>
+			<p>A deleted record stays in the database until you remove it here. "Delete forever" removes the record, the content of its history and the file of a file source. You cannot get it back.</p>
+		</header>
 		@deletedList(records, "")
 	}
 }
@@ -21,41 +23,45 @@ templ deletedList(records []service.DeletedRecord, errorMessage string) {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
 		if len(records) == 0 {
-			<p class="muted">No record is deleted.</p>
+			<p class="empty">No record is deleted.</p>
 		} else {
-			<table>
-				<thead>
-					<tr>
-						<th>Type</th>
-						<th>ID</th>
-						<th>Record</th>
-						<th>Deleted (IST)</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, record := range records {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
 						<tr>
-							<td>{ record.Type }</td>
-							<td>{ strconv.FormatInt(record.ID, 10) }</td>
-							<td>{ record.Summary }</td>
-							<td>{ record.DeletedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
-							<td>
-								<form
-									hx-post="/admin/deleted/purge"
-									hx-target="#list"
-									hx-swap="outerHTML"
-									hx-confirm={ "Delete " + record.Type + " " + strconv.FormatInt(record.ID, 10) + " forever? You cannot get it back." }
-								>
-									<input type="hidden" name="type" value={ record.Type }/>
-									<input type="hidden" name="id" value={ strconv.FormatInt(record.ID, 10) }/>
-									<button type="submit">Delete forever</button>
-								</form>
-							</td>
+							<th>Type</th>
+							<th>ID</th>
+							<th>Record</th>
+							<th>Deleted</th>
+							<th></th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for _, record := range records {
+							<tr>
+								<td><span class="pill">{ record.Type }</span></td>
+								<td class="id" data-label="ID">{ strconv.FormatInt(record.ID, 10) }</td>
+								<td class="title">{ record.Summary }</td>
+								<td class="when" data-label="Deleted">{ stamp(record.DeletedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										<form
+											hx-post="/admin/deleted/purge"
+											hx-target="#list"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete " + record.Type + " " + strconv.FormatInt(record.ID, 10) + " forever? You cannot get it back." }
+										>
+											<input type="hidden" name="type" value={ record.Type }/>
+											<input type="hidden" name="id" value={ strconv.FormatInt(record.ID, 10) }/>
+											<button class="link link-danger" type="submit">Delete forever</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
 	</div>
 }
