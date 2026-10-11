@@ -106,7 +106,7 @@ Rules for the layer:
 - `query` connects as a Postgres user with SELECT rights only.
 - Rows an agent infers (not ones Gautam dictates) start with `verified = false`.
 
-Every agent uses one MCP endpoint, `mcp.<domain>`, with OAuth 2.1 allowlisted to Gautam's GitHub account; the REST API serves every client that is not an agent (iOS Shortcuts, Health Auto Export, OwnTracks, the Kindle dashboard, future apps).
+Every agent uses one MCP endpoint, `mcp.<domain>`, behind Cloudflare Access, which gives an MCP client an OAuth 2.1 login that only Gautam passes; the REST API serves every client that is not an agent (iOS Shortcuts, Health Auto Export, OwnTracks, the Kindle dashboard, future apps).
 
 | Client | How it connects |
 | --- | --- |
@@ -116,7 +116,7 @@ Every agent uses one MCP endpoint, `mcp.<domain>`, with OAuth 2.1 allowlisted to
 
 Connectors sync only with a full claude.ai login, not a `claude setup-token` token; the `claude -p` brief jobs do not use MCP. If Claude Code ever needs its own sign-in, `claude mcp login lifeos --no-browser` prints the OAuth link to open on the phone.
 
-The Go SDK supplies OAuth building blocks (token checks, protected-resource metadata) rather than a ready GitHub sign-in, so Phase 3 includes about 4 hours to wire the GitHub OAuth flow, or to put a small OIDC provider in front of the MCP server.
+The server holds no OAuth code. Cloudflare Access does the OAuth flow for the MCP client (managed OAuth) and adds a signed token to each request that it lets through. The MCP server checks that token and answers no request without it.
 
 ## Agent layer
 
@@ -125,8 +125,8 @@ Agents get instructions only in open formats, so Claude Code, Codex, Gemini CLI 
 - `lifeos-wiki/AGENTS.md`: how to use LifeOS: the MCP tools, page types, citation rule, hard rules. Kept under 150 lines. Every session that uses LifeOS runs in `lifeos-wiki`.
 - `lifeos-core/AGENTS.md`: how to work on the code: stack, tests, migrations, deploy. Only build and maintenance sessions run there.
 - `CLAUDE.md`, `GEMINI.md`: one line each importing that repo's `AGENTS.md`, plus only what that tool needs differently.
-- `lifeos-wiki/.agents/skills/<name>/SKILL.md`: the procedures, and the master copy. Skills call MCP tools; they never touch Postgres or wiki files directly.
-- Each skill folder is zipped and uploaded once to claude.ai (Customize > Skills), which loads it in the Claude app and in Claude Code on the Pi. Other agents read `.agents/skills/` from the repo. No `.claude/skills` link on the Pi, so Claude Code does not see each skill twice. Re-upload after editing a skill.
+- `lifeos-core/skills/<name>/SKILL.md`: drafts of the procedures. No agent loads them: the rules are in the tool descriptions of the MCP server, and a draft becomes a skill only when daily use shows that a procedure needs one. `lifeos-wiki` holds only the wiki pages.
+- When a draft becomes a skill, its folder is zipped and uploaded once to claude.ai (Customize > Skills), which loads it in the Claude app and in Claude Code on the Pi. Upload it again after each change.
 - `lifeos-wiki/.claude/settings.json` denies Edit and Write on `wiki/**`: sessions read pages directly but write only through `wiki_write`.
 
 | Skill | Does |
@@ -195,7 +195,7 @@ How it runs:
 
 `--bare` is not used: it skips the claude.ai login and needs an API key.
 
-Agent jobs (inbox processing, wiki lint) run `claude -p "/<skill>"` from the `lifeos-wiki` folder instead, signed in with the Pro login so the synced connector and skills load, with only the `lifeos` MCP tools allowed. Brief prompts live in `lifeos-wiki/prompts/`, so editing one changes the next run without a deploy.
+Agent jobs (inbox processing, wiki lint) run `claude -p "/<skill>"` from the `lifeos-wiki` folder instead, signed in with the Pro login so the synced connector and skills load, with only the `lifeos` MCP tools allowed. Brief prompts live in `lifeos-core/prompts/`.
 
 ```yaml
 runner:
@@ -274,7 +274,7 @@ Each hostname gets two locks where possible: Cloudflare checks the visitor first
 | `dash.` | Grafana `:3000` | Access login | Grafana login |
 | `ssh.` | `ssh://localhost:22` | Access login, via `cloudflared access ssh` | SSH key |
 | `api.` | lifeos `:8000`, `/api` only | Access service token in request headers | Per-device API token |
-| `mcp.` | lifeos MCP `:8100` | None: Anthropic's servers must reach it; rate limit added | OAuth 2.1, only Gautam's GitHub account |
+| `mcp.` | lifeos MCP `:8100`, `/mcp` only | Access login through OAuth (managed OAuth), which the Claude app and Claude Code can do | The server checks the token of Access |
 | `ntfy.` | ntfy `:8080` | None: the iOS app cannot do a browser login | ntfy users, everyone else denied |
 
 ```yaml
@@ -295,7 +295,7 @@ If an app cannot send the service-token headers, turn off the Cloudflare check f
 
 If the tunnel or Cloudflare is down, nothing is reachable from outside the home network.
 
-Backups: the wiki is pushed to a private GitHub repo after each commit. Postgres dumps and the file store go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
+Backups: the wiki is pushed to a private GitHub repo each hour, by a job that is not the server. Postgres dumps and the file store go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
 
 Approximate memory on the 8 GB Pi:
 

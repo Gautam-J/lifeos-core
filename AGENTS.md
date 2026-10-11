@@ -26,6 +26,7 @@ internal/service/      all logic: validation, provenance, events
 internal/store/        sqlc-generated queries, from queries/*.sql (not in git)
 internal/config/       loads config/lifeos.yaml
 internal/testdb/       test helper: one migrated database for each test
+internal/testaccess/   test helper: a stand-in for Cloudflare Access that signs tokens
 internal/api/          chi + Huma handlers
 internal/mcp/          tools on the official MCP Go SDK
 internal/admin/        templ + htmx admin pages
@@ -37,7 +38,9 @@ config/lifeos.yaml     listen addresses, database URLs, file store, wiki folder;
 sqlc.yaml              sqlc settings
 Makefile               tools, query-user, generate, build, test, migrate, run
 dashboards/            Grafana definitions, versioned with the schema they query
-deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, postgres-test-init.sh, deploy.sh, check-access.sh, test.sh
+deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, postgres-test-init.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, test.sh
+skills/                drafts of agent skills; no agent loads them (skills/README.md)
+prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported
 ```
 
@@ -76,7 +79,7 @@ make run        # build, then run lifeos serve
 - **Tests use their own Postgres server.** It is the container `postgres-test` of `deploy/docker-compose.yml`, on port 5433. Its data is in memory: one run of the tests writes about 2.5 GB, which must not go to the SD card, and the tests must not use the server that holds the real data. The container makes the read-only user when it starts; the Makefile reads `deploy/.env`. Each test creates its own database and drops it. `go test` without `make` fails, because `LIFEOS_TEST_DATABASE_URL` is not set.
 - **Narrow a test run** with `make test PKG=./internal/api ARGS="-run TestName -v"`.
 
-`lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. On the Pi it runs as the systemd unit `deploy/systemd/lifeos.service`; `make run` is for work on the code. It needs the folders `files_dir`, `inbox_dir` and `wiki_dir` of the config file, the program `git`, and the two passwords `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.
+`lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. On the Pi it runs as the systemd unit `deploy/systemd/lifeos.service`; `make run` is for work on the code. It needs the folders `files_dir`, `inbox_dir` and `wiki_dir` of the config file, the program `git`, and four values in the environment: the two passwords `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.
 
 ## Migrations
 
@@ -89,11 +92,12 @@ make run        # build, then run lifeos serve
 
 `deploy/deploy.sh` on the Pi: `git pull`, build, dump the database, `lifeos migrate`, restart `lifeos.service`, then `deploy/check-access.sh`. Every service listens on `127.0.0.1` only; the Cloudflare Tunnel is the single way in.
 
-**LifeOS has no login of its own.** Cloudflare Access is the only lock on the two public hostnames: one for the admin pages (a login with an email code) and one for the REST API (an Access service token for each device). The names are in `deploy/.env`. So:
+**LifeOS has no login of its own.** Cloudflare Access is the only lock on the three public hostnames: one for the admin pages (a login with an email code), one for the REST API (an Access service token for each device) and one for the MCP server (the OAuth login that Access gives to an MCP client). The names are in `deploy/.env`. So:
 
 - Never add a hostname to the tunnel before its Access application exists.
-- Run `deploy/check-access.sh` after each change of the tunnel or of an Access application. It fails when a hostname answers a request that has no login. Only an answer that Access alone gives is proof: the redirect to its login page, and 401 for the API hostname. `deploy/test.sh` holds the cases.
+- Run `deploy/check-access.sh` after each change of the tunnel or of an Access application. It fails when a hostname answers a request that has no login. Only an answer that Access alone gives is proof: the redirect to its login page, and 401 for the API hostname and the MCP hostname. `deploy/test.sh` holds the cases.
 - Give each tunnel rule of a LifeOS hostname an `access` part: `required: true`, the team name and the audience tag of its Access application. Then `cloudflared` checks the token of Access itself, and the hostname stays closed when its application is removed.
-- The unit gives the server only the two database passwords, the binary, the config and the folder `/var/lib/lifeos`, which holds the file store, the inbox and the repository of the wiki. Keep the wiki there: a process that can write a git repository can make git run a program for the next user of that repository, so the server must not write a repository in the home folder. Add each new key of `deploy/.env` to `UnsetEnvironment` in `deploy/systemd/lifeos.service`; `deploy/test.sh` checks the list against `deploy/.env.example`.
+- The unit gives the server only the two database passwords, the two Access values of the MCP server, the binary, the config and the folder `/var/lib/lifeos`, which holds the file store, the inbox and the repository of the wiki. Keep the wiki there: a process that can write a git repository can make git run a program for the next user of that repository, so the server must not write a repository in the home folder. Add each new key of `deploy/.env` to `UnsetEnvironment` in `deploy/systemd/lifeos.service`; `deploy/test.sh` checks the list against `deploy/.env.example`.
 - `serve.go` puts `http.CrossOriginProtection` in front of the admin pages and the API. It refuses a request that changes data and that a browser sent from a different origin. Keep it: without it, a page of another site can use the Access login of the browser.
-- The MCP listener has no public hostname. Give it one only after the MCP handler checks the token of Access itself (Phase 3).
+- **The MCP server checks the token of Access itself.** `AccessCheck` in `internal/mcp/access.go` answers 403 to each request that has no valid token of the Access application of the MCP hostname. The team name and the audience tag come from `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD`; the server does not start without them. Each client uses the public hostname, also Claude Code on the Pi: a request straight to `mcp_addr` has no token. The check replaces the Host guard of the MCP library, which is off because the tunnel sends the public hostname to a loopback address. So never turn the check off, and add no MCP route that does not go through `Handler`. The tunnel rule of the MCP hostname sends only the path `/mcp`.
+- **The server does not push the wiki.** `deploy/wiki-push.sh` copies the commits to GitHub each hour (`lifeos-wiki-push.timer`). It fetches from the live repository into a mirror that the server cannot write, and it pushes from the mirror. Never run a git command inside the live repository as a user that has keys: the server can write that repository (see above). GitHub gets commits only from the mirror. A commit that reaches GitHub from a different place stops the push, and ntfy gets the failure. `deploy/wiki-push-repair.sh` is the fix: it keeps that commit on a branch `from-github-<time>` and puts the history of the Pi on `main`. It does not merge, because a merge is a write of the wiki that the server did not make (rule 14).

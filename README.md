@@ -14,7 +14,7 @@ This repo holds the service code only. It holds no personal data.
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
 | 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are in [docs/backlog.md](docs/backlog.md). |
-| 3 · Agents and phone | In work. Built: the wiki tools. Not built: the public hostname of the MCP server and the connector of the Claude app. The gate is one week of daily use from the phone through the agent. |
+| 3 · Agents and phone | Built: the wiki tools, the public hostname of the MCP server with the login of Cloudflare Access, and the push of the wiki to GitHub. The gate is open: one week of daily use from the phone through the agent. |
 | 4 to 5 | Not started. |
 
 The section [Not built yet](#not-built-yet) lists what is missing.
@@ -123,9 +123,10 @@ A password in plain words and a bank account number have no pattern, so the serv
 
 ### 13. Service, deploy and public hostnames
 
-- **Service.** `deploy/systemd/lifeos.service` starts `lifeos serve` at boot and starts it again after a failure. When it cannot start for about five minutes, ntfy gets a message. The unit gives the server only the two database passwords, the binary, the config and the file store: not the other values of `deploy/.env`, not the home folder and not the Docker socket. The logs are in the journal: `journalctl -u lifeos`.
+- **Service.** `deploy/systemd/lifeos.service` starts `lifeos serve` at boot and starts it again after a failure. When it cannot start for about five minutes, ntfy gets a message. The unit gives the server only the two database passwords, the two Access values of the MCP server, the binary, the config and the folder of the file store and the wiki: not the other values of `deploy/.env`, not the home folder and not the Docker socket. The logs are in the journal: `journalctl -u lifeos`.
 - **Deploy.** `deploy/deploy.sh` pulls the code, builds it, dumps the database to `/var/backups/lifeos/deploy/`, applies the migrations, starts the service again and runs the check below.
-- **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname and the REST API a second one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API. LifeOS has no login of its own, so Access is the only lock. `cloudflared` checks the token of Access on each request of the two hostnames, so a hostname stays closed when its Access application is removed.
+- **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname, the REST API a second one and the MCP server a third one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API, and an OAuth login for an MCP client. LifeOS has no login of its own, so Access is the only lock. `cloudflared` checks the token of Access on each request of the three hostnames, so a hostname stays closed when its Access application is removed.
+- **MCP server.** The MCP server also checks the token of Access itself. It answers 403 to each request that has no valid token, also to a request from the Pi. The agent in the Claude app and Claude Code on the Pi use the same hostname.
 - **Check.** `deploy/check-access.sh` fails when a hostname answers a request that has no login.
 - **Requests from another site.** The server refuses a request that changes data and that a browser sent from a different origin. A program, such as an iOS Shortcut, is not a browser and goes through.
 
@@ -141,6 +142,7 @@ The wiki holds your analysis and your insights: what the facts mean and how they
 - **Lint.** `wiki_lint` reports a file that is not a valid page, a citation of a deleted record, a broken link, a page that is marked as contested, a page that no other page links to, a page with no change for 90 days and a page of more than 150 lines. It changes nothing.
 - **Sources.** `mark_processed` records that the work on a source is complete.
 - **History.** The git history of the wiki keeps each version of each page, also of a deleted page.
+- **Copy on GitHub.** Each hour, `deploy/wiki-push.sh` copies the new commits to the private GitHub repository of the wiki. The server has no key and does not push. A clone of that repository on a different computer is for reading. A commit from there, or a change on github.com, stops the push, and ntfy gets a message. Then run `deploy/wiki-push-repair.sh`: it keeps your commit on a branch `from-github-<time>` on GitHub and puts the history of the Pi on `main`. Give the change to the agent after that, so that the server writes it.
 
 **Use case.** You tell the agent "journal - met Asha about the tunnel". The agent stores your words with `journal`. The result names the next step for the agent: it finds `people/asha-rao.md` with `wiki_search`, and it adds one dated line with `wiki_append` that cites the entry.
 
@@ -153,7 +155,7 @@ The wiki holds your analysis and your insights: what the facts mean and how they
 | `http_addr` | `127.0.0.1:8200` | Admin pages and REST API |
 | `mcp_addr` | `127.0.0.1:8100` | MCP server, path `/mcp` |
 
-LifeOS has no login of its own. The admin pages and the REST API are public only through the Cloudflare Tunnel, each behind Cloudflare Access (section 13). The MCP listener has no public hostname.
+LifeOS has no login of its own. The admin pages, the REST API and the MCP server are public only through the Cloudflare Tunnel, each behind Cloudflare Access (section 13). The MCP server answers only a request that has a token of Access, so a client uses the public hostname and not the listener.
 
 ### Admin pages
 
@@ -193,6 +195,8 @@ curl -s -X POST http://127.0.0.1:8200/api/todos \
 
 ### MCP tools
 
+To connect the Claude app, add a custom connector at <https://claude.ai/customize/connectors> with the URL `https://<LIFEOS_MCP_HOST>/mcp`, and log in with the email code of Cloudflare Access. Claude Code that has the same claude.ai login gets the connector with no second login.
+
 A record that an MCP tool writes has the source `agent`. It is verified only when the tool input says that you dictated it.
 
 | Tool | What it does |
@@ -223,7 +227,7 @@ The rules for an agent are in the tool descriptions. The results of `journal` an
 
 ## Run it
 
-You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD`, `NTFY_BASE_URL`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
 
 ```sh
 docker compose -f deploy/docker-compose.yml up -d   # Postgres, the Postgres server of the tests, and ntfy
@@ -244,6 +248,16 @@ sudo systemctl enable --now lifeos.service                 # one time
 deploy/deploy.sh                                           # after each change of the code
 ```
 
+The push of the wiki to GitHub needs a mirror, one time, and its timer:
+
+```sh
+git init --bare /var/backups/lifeos/wiki.git
+git -C /var/backups/lifeos/wiki.git remote add origin git@github.com:Gautam-J/lifeos-wiki.git
+git -C /var/backups/lifeos/wiki.git fetch origin
+sudo systemctl link "$PWD/deploy/systemd/lifeos-wiki-push.service" "$PWD/deploy/systemd/lifeos-wiki-push.timer"
+sudo systemctl enable --now lifeos-wiki-push.timer
+```
+
 The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
 
 | Command | Result |
@@ -253,7 +267,7 @@ The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
 | `make test` | Runs `deploy/test.sh`, `go vet` and all tests. Tests need the container `postgres-test`, which keeps its data in memory. |
 | `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
 
-Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs, the file store and the wiki folder. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.
+Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs, the file store and the wiki folder. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment, and the team name and the audience tag of Cloudflare Access from `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD`.
 
 ## Not built yet
 
@@ -261,8 +275,6 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 - **The inbox job** that reads each new source and proposes records from it.
 - **Lists in the REST API.** No route lists journal entries or sources. The admin pages list them, and the agent uses `search` and `query`.
 - **Money tables, the reconciliation with a bank statement and the one-time imports.** They are in [docs/backlog.md](docs/backlog.md). `lifeos import-csv` and `lifeos job` return "not implemented".
-- **A push of the wiki to GitHub.** Each write of a page is a commit on the Pi. The push comes with the public hostname of the MCP server.
-- **A public hostname for the MCP server.** It comes in Phase 3, with a login through Cloudflare Access and a check of the Access token in `lifeos`.
 - **A way to get a deleted record back.** The page `/admin/deleted` only removes.
 
 ## Repository layout
@@ -275,8 +287,11 @@ internal/mcp/        MCP tools
 internal/admin/      admin pages (templ + htmx)
 internal/config/     loads config/lifeos.yaml
 internal/testdb/     one migrated database for each test
+internal/testaccess/ a stand-in for Cloudflare Access, for tests
 queries/             SQL that sqlc compiles into internal/store/
 migrations/          goose SQL migrations
-deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, systemd units
+deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, systemd units
+skills/              drafts of agent skills; no agent loads them
+prompts/             the prompts of the brief jobs
 docs/                design doc, backlog, implementation plans
 ```
