@@ -20,6 +20,9 @@ const valid = `
 http_addr: 127.0.0.1:8200
 mcp_addr: 127.0.0.1:8100
 database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable
+files_dir: /var/lib/lifeos/files
+inbox_dir: /var/lib/lifeos/inbox
+max_file_mb: 50
 `
 
 func TestLoadReadsAllKeys(t *testing.T) {
@@ -31,6 +34,9 @@ func TestLoadReadsAllKeys(t *testing.T) {
 		HTTPAddr:    "127.0.0.1:8200",
 		MCPAddr:     "127.0.0.1:8100",
 		DatabaseURL: "postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable",
+		FilesDir:    "/var/lib/lifeos/files",
+		InboxDir:    "/var/lib/lifeos/inbox",
+		MaxFileMB:   50,
 	}
 	if cfg != want {
 		t.Errorf("Load = %+v, want %+v", cfg, want)
@@ -62,6 +68,31 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 			name:    "missing database url",
 			content: strings.Replace(valid, "database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable", "", 1),
 			wantErr: "database_url",
+		},
+		{
+			name:    "file store that is not a full path",
+			content: strings.Replace(valid, "files_dir: /var/lib/lifeos/files", "files_dir: files", 1),
+			wantErr: "files_dir",
+		},
+		{
+			name:    "missing inbox",
+			content: strings.Replace(valid, "inbox_dir: /var/lib/lifeos/inbox", "", 1),
+			wantErr: "inbox_dir",
+		},
+		{
+			name:    "inbox that is the file store",
+			content: strings.Replace(valid, "inbox_dir: /var/lib/lifeos/inbox", "inbox_dir: /var/lib/lifeos/files", 1),
+			wantErr: "inbox_dir",
+		},
+		{
+			name:    "missing file limit",
+			content: strings.Replace(valid, "max_file_mb: 50", "", 1),
+			wantErr: "max_file_mb",
+		},
+		{
+			name:    "file limit below 1",
+			content: strings.Replace(valid, "max_file_mb: 50", "max_file_mb: -1", 1),
+			wantErr: "max_file_mb",
 		},
 		{
 			name:    "unknown key",

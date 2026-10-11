@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -165,5 +167,31 @@ func TestListenNamesTheConfigKeyOfABusyPort(t *testing.T) {
 				l.Close()
 			}
 		})
+	}
+}
+
+func TestFileStoreNeedsTheTwoFolders(t *testing.T) {
+	dir := t.TempDir()
+	notAFolder := filepath.Join(dir, "a-file")
+	if err := os.WriteFile(notAFolder, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := fileStore(config.Config{FilesDir: dir, InboxDir: t.TempDir(), MaxFileMB: 50})
+	if err != nil {
+		t.Fatalf("fileStore: %v", err)
+	}
+	if files.Dir != dir || files.MaxBytes != 50<<20 {
+		t.Errorf("files = %+v, want the folder and 50 MB in bytes", files)
+	}
+
+	for key, cfg := range map[string]config.Config{
+		"files_dir": {FilesDir: filepath.Join(dir, "absent"), InboxDir: dir, MaxFileMB: 50},
+		"inbox_dir": {FilesDir: dir, InboxDir: notAFolder, MaxFileMB: 50},
+	} {
+		_, err := fileStore(cfg)
+		if err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("error = %v, want an error that names %s", err, key)
+		}
 	}
 }

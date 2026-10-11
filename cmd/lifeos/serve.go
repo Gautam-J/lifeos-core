@@ -37,6 +37,10 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	files, err := fileStore(cfg)
+	if err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -55,7 +59,22 @@ func serve(args []string) error {
 		return err
 	}
 	slog.Info("lifeos is listening", "http", httpListener.Addr().String(), "mcp", mcpListener.Addr().String())
-	return serveOn(ctx, httpListener, mcpListener, service.New(pool))
+	return serveOn(ctx, httpListener, mcpListener, service.New(pool).WithFiles(files))
+}
+
+// fileStore returns the settings of the file store. It checks that the two
+// folders exist, so that a wrong path stops the start and not a capture.
+func fileStore(cfg config.Config) (service.Files, error) {
+	for _, folder := range []struct{ key, dir string }{{"files_dir", cfg.FilesDir}, {"inbox_dir", cfg.InboxDir}} {
+		info, err := os.Stat(folder.dir)
+		if err != nil {
+			return service.Files{}, fmt.Errorf("%s: %w", folder.key, err)
+		}
+		if !info.IsDir() {
+			return service.Files{}, fmt.Errorf("%s: %s is not a folder", folder.key, folder.dir)
+		}
+	}
+	return service.Files{Dir: cfg.FilesDir, Inbox: cfg.InboxDir, MaxBytes: cfg.MaxFileMB << 20}, nil
 }
 
 // listen opens the two listeners before any request is served, so that a

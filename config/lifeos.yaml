@@ -9,3 +9,10 @@ mcp_addr: 127.0.0.1:8100
 # Postgres URL without a password. The password comes from POSTGRES_PASSWORD
 # in the environment (deploy/.env).
 database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable
+
+# The file store and the inbox of captured files. The two folders must
+# exist. The nightly backup copies files_dir.
+files_dir: /var/lib/lifeos/files
+inbox_dir: /var/lib/lifeos/inbox
+# The largest file that a capture accepts, in megabytes.
+max_file_mb: 50

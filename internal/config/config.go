@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/goccy/go-yaml"
 )
@@ -18,10 +19,18 @@ type Config struct {
 	// DatabaseURL is the Postgres URL without a password. The password
 	// comes from the POSTGRES_PASSWORD environment variable.
 	DatabaseURL string `yaml:"database_url"`
+	// FilesDir is the file store: the folder that holds the captured
+	// files.
+	FilesDir string `yaml:"files_dir"`
+	// InboxDir is the folder where a file waits for its capture.
+	InboxDir string `yaml:"inbox_dir"`
+	// MaxFileMB is the largest file that a capture accepts, in megabytes.
+	MaxFileMB int64 `yaml:"max_file_mb"`
 }
 
 // Load reads and checks the file at path. It rejects unknown keys, a missing
-// value, and a listen address that is not on the loopback interface.
+// value, a listen address that is not on the loopback interface, and a
+// folder that is not a full path.
 func Load(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -38,6 +47,17 @@ func Load(path string) (Config, error) {
 		if err := checkLoopback(addr); err != nil {
 			return Config{}, fmt.Errorf("config: %s: %s: %w", path, key, err)
 		}
+	}
+	for key, dir := range map[string]string{"files_dir": cfg.FilesDir, "inbox_dir": cfg.InboxDir} {
+		if !filepath.IsAbs(dir) {
+			return Config{}, fmt.Errorf("config: %s: %s: %q is not a full path such as /var/lib/lifeos/files", path, key, dir)
+		}
+	}
+	if filepath.Clean(cfg.InboxDir) == filepath.Clean(cfg.FilesDir) {
+		return Config{}, fmt.Errorf("config: %s: inbox_dir: must not be the folder of files_dir", path)
+	}
+	if cfg.MaxFileMB < 1 {
+		return Config{}, fmt.Errorf("config: %s: max_file_mb: must be 1 or more", path)
 	}
 	return cfg, nil
 }
