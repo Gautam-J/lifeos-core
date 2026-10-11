@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -478,5 +479,45 @@ func TestWikiWriteKeepsTheContestedMarkThatTheCallLeavesOut(t *testing.T) {
 	p.Contested, p.BaseHash = ptr(false), second.Hash
 	if third := writePage(t, s, p); third.Contested {
 		t.Error("the page is still contested after a write with contested false")
+	}
+}
+
+func TestWikiWriteRefusesATitleOrASummaryThatDoesNotReadBack(t *testing.T) {
+	s, pool := newWikiService(t)
+
+	// Each value is one that YAML reads as a different value, or not at
+	// all, when it is written with no quotes.
+	for _, value := range []string{"? Open question", ".inf", "-.inf", ".NaN", "a\tb", "bell\x07"} {
+		for _, field := range []string{"title", "summary"} {
+			p := agentDesign()
+			if field == "title" {
+				p.Title = value
+			} else {
+				p.Summary = value
+			}
+			_, err := s.WikiWrite(context.Background(), p)
+			var invalid *ValidationError
+			if !errors.As(err, &invalid) || invalid.Field != field {
+				t.Errorf("%s %q: error = %v, want a ValidationError for %s", field, value, err, field)
+			}
+		}
+	}
+	if n := len(commits(t, s)); n != 0 {
+		t.Errorf("%d commits, want none", n)
+	}
+	if n := len(wikiEvents(t, pool)); n != 0 {
+		t.Errorf("%d wiki events, want none", n)
+	}
+
+	// These look special and are text. Each one must come back as it is.
+	for i, value := range []string{"Why? Because.", "- a dash", "yes", "null", "2026", "~", "1e3", "[a list]", "{a: map}", "*star", "&and", "!bang", "|pipe", ">more", "@at", "%percent", "`tick`", "'single'", "\"double\"", "#hash", "colon: here", "é ü 日本"} {
+		p := agentDesign()
+		p.Path = fmt.Sprintf("topics/value-%d.md", i)
+		p.Title, p.Summary = value, value
+		page := writePage(t, s, p)
+		stored, err := s.WikiRead(context.Background(), p.Path)
+		if err != nil || stored.Title != value || stored.Summary != value || stored != page {
+			t.Errorf("%q: stored title, summary = %q, %q, error %v", value, stored.Title, stored.Summary, err)
+		}
 	}
 }

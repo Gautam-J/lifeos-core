@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/goccy/go-yaml"
@@ -163,8 +164,11 @@ func (page *WikiPage) check() error {
 		if f.value == "" {
 			return invalid(f.field, "must not be empty")
 		}
-		if strings.ContainsAny(f.value, "\r\n") {
-			return invalid(f.field, "must be one line")
+		if strings.ContainsFunc(f.value, unicode.IsControl) {
+			return invalid(f.field, "must be one line, with no tab and no other control character")
+		}
+		if !yamlKeepsText(f.value) {
+			return invalid(f.field, "has a form that the file of a page cannot keep, such as a question mark and a space at its start, or .inf: write it in a different way")
 		}
 		if utf8.RuneCountInString(f.value) > f.max {
 			return invalid(f.field, fmt.Sprintf("must be at most %d characters", f.max))
@@ -219,7 +223,25 @@ func composeWikiFile(page WikiPage) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("wiki: frontmatter of %s: %w", page.Path, err)
 	}
-	return []byte("---\n" + string(head) + "---\n\n" + page.Body + "\n"), nil
+	raw := []byte("---\n" + string(head) + "---\n\n" + page.Body + "\n")
+	// A file that reads back as a different page must not get to the
+	// disk: the caller would get an answer that is not true.
+	if back, err := parseWikiFile(page.Path, raw); err != nil || !back.sameContent(page) {
+		return nil, fmt.Errorf("wiki: the file of %s does not read back as the page that was sent", page.Path)
+	}
+	return raw, nil
+}
+
+// yamlKeepsText reports whether a YAML file gives value back as the same
+// text. The YAML library writes some texts with no quotes that it reads as
+// a different value, or cannot read.
+func yamlKeepsText(value string) bool {
+	raw, err := yaml.Marshal(wikiHeader{Title: value})
+	if err != nil {
+		return false
+	}
+	var back wikiHeader
+	return yaml.Unmarshal(raw, &back) == nil && back.Title == value
 }
 
 // changeWikiFile puts newRaw into the file at path, or removes the file
