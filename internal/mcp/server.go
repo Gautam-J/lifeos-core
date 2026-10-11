@@ -21,6 +21,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerJournal(server, svc)
 	registerTodos(server, svc)
 	registerHabits(server, svc)
+	registerCapture(server, svc)
 	return server
 }
 

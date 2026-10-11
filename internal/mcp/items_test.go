@@ -17,9 +17,16 @@ import (
 // session that talks to it.
 func connect(t *testing.T) (*sdk.ClientSession, *pgxpool.Pool) {
 	t.Helper()
-	ctx := context.Background()
 	pool := testdb.New(t)
-	server := lifeosmcp.NewServer(service.New(pool))
+	return connectTo(t, service.New(pool)), pool
+}
+
+// connectTo starts the lifeos MCP server for svc in this process and
+// returns a client session that talks to it.
+func connectTo(t *testing.T, svc *service.Service) *sdk.ClientSession {
+	t.Helper()
+	ctx := context.Background()
+	server := lifeosmcp.NewServer(svc)
 
 	clientSide, serverSide := sdk.NewInMemoryTransports()
 	serverSession, err := server.Connect(ctx, serverSide, nil)
@@ -34,7 +41,7 @@ func connect(t *testing.T) (*sdk.ClientSession, *pgxpool.Pool) {
 		t.Fatalf("client connect: %v", err)
 	}
 	t.Cleanup(func() { session.Close() })
-	return session, pool
+	return session
 }
 
 func call(t *testing.T, session *sdk.ClientSession, tool string, args map[string]any) *sdk.CallToolResult {
@@ -83,7 +90,7 @@ func TestServerListsTheTools(t *testing.T) {
 			t.Errorf("tool %s has no description", tool.Name)
 		}
 	}
-	for _, name := range []string{"add_item", "get"} {
+	for _, name := range []string{"add_item", "get", "capture"} {
 		if !found[name] {
 			t.Errorf("tool %s is not registered", name)
 		}
