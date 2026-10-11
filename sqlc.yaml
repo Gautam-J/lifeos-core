@@ -14,6 +14,8 @@ sql:
             nullable: true
             go_type: { type: float64, pointer: true }
           - db_type: date
+            go_type: { import: time, type: Time }
+          - db_type: date
             nullable: true
             go_type: { import: time, type: Time, pointer: true }
           - db_type: timestamptz
