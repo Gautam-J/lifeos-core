@@ -7,10 +7,16 @@ import (
 	"unicode/utf8"
 )
 
-// checkText refuses text that Postgres cannot store.
+// checkText refuses text that Postgres cannot store, and text that holds a
+// secret (AGENTS.md rule 7). The message names the kind of secret and does
+// not repeat it. Each text that a caller gives goes through this check
+// before the service stores it.
 func checkText(field, value string) error {
 	if !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
 		return invalid(field, "must be valid text without a NUL character")
+	}
+	if kind := secretKind(value); kind != "" {
+		return invalid(field, "must not hold "+kind+": LifeOS does not store one. Take it out, then send the text again")
 	}
 	return nil
 }

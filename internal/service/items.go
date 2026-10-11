@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -93,6 +94,9 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 	if utf8.RuneCountInString(title) > maxTitleLength {
 		return row, invalid("title", fmt.Sprintf("must be at most %d characters", maxTitleLength))
 	}
+	if err := checkText("title", title); err != nil {
+		return row, err
+	}
 	if p.Rating != nil {
 		r := *p.Rating
 		if math.IsNaN(r) || r < 0 || r > 5 || math.Mod(r*2, 1) != 0 {
@@ -117,6 +121,9 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 	if attrs == nil {
 		attrs = map[string]any{}
 	}
+	if err := checkAttr(attrs); err != nil {
+		return row, err
+	}
 	attrsJSON, err := json.Marshal(attrs)
 	if err != nil {
 		return row, invalid("attrs", "must be a JSON object")
@@ -132,6 +139,33 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 		SourceRef:  p.SourceRef,
 		Verified:   p.Verified,
 	}, nil
+}
+
+// checkAttr checks each name, each text and each number in an attr value,
+// at any depth. A card number can come as a JSON number.
+func checkAttr(value any) error {
+	switch v := value.(type) {
+	case string:
+		return checkText("attrs", v)
+	case float64:
+		return checkText("attrs", strconv.FormatFloat(v, 'f', -1, 64))
+	case []any:
+		for _, inner := range v {
+			if err := checkAttr(inner); err != nil {
+				return err
+			}
+		}
+	case map[string]any:
+		for name, inner := range v {
+			if err := checkText("attrs", name); err != nil {
+				return err
+			}
+			if err := checkAttr(inner); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func checkKind(kind string) error {
