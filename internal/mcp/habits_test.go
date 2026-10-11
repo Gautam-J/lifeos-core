@@ -141,3 +141,38 @@ func TestServerListsTheToolsForDailyRecords(t *testing.T) {
 		}
 	}
 }
+
+// An agent proposes a log from a journal entry. Then the user says "log
+// gym". The model must send the log again as dictated, and the tool must
+// approve the stored log. If the description says that a second call
+// changes nothing, a model can skip the call, and the habit stays "not
+// done".
+func TestLogHabitAgainAsDictatedApprovesAProposedLog(t *testing.T) {
+	session, pool := connect(t)
+	addHabit(t, pool, "gym")
+	proposed := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym"}))
+	if proposed["verified"] != false {
+		t.Fatalf("verified = %v, want false for a log that the agent proposed", proposed["verified"])
+	}
+
+	stated := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "dictated": true}))
+
+	if stated["id"] != proposed["id"] || stated["verified"] != true {
+		t.Errorf("second call returned %v, want the log %v, verified", stated, proposed["id"])
+	}
+	list, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range list.Tools {
+		if tool.Name != "log_habit" {
+			continue
+		}
+		if strings.Contains(tool.Description, "changes nothing") {
+			t.Errorf("the description says that a second call changes nothing: %q", tool.Description)
+		}
+		if !strings.Contains(tool.Description, "call again with dictated set to true: that approves the log") {
+			t.Errorf("the description does not tell the model to send a stated log again: %q", tool.Description)
+		}
+	}
+}

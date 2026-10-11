@@ -17,7 +17,7 @@ type logHabitInput struct {
 func registerHabits(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "log_habit",
-		Description: "Record that the user did a habit on a day. A habit has one log for each day: a second call for the same day changes nothing. This tool does not add a new habit; the user adds a habit in the admin pages. To remove a log, use delete with the type habit_log. Returns the stored log with its ID.",
+		Description: "Record that the user did a habit on a day. A habit has one log for each day: a second call for the same day stores no second log. If you proposed a log before and the user now states it, call again with dictated set to true: that approves the log. This tool does not add a new habit; the user adds a habit in the admin pages. To remove a log, use delete with the type habit_log. Returns the stored log with its ID.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in logHabitInput) (*sdk.CallToolResult, service.HabitLog, error) {
 		log, err := svc.LogHabit(ctx, service.LogHabitParams{
 			Habit:      in.Habit,
