@@ -24,3 +24,9 @@ UPDATE catalog_items
 SET kind = $2, title = $3, rating = $4, occurred_on = $5, attrs = $6, verified = $7
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: SoftDeleteCatalogItem :one
+UPDATE catalog_items
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
