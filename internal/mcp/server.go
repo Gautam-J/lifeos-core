@@ -19,6 +19,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerItems(server, svc)
 	registerRecords(server, svc)
 	registerJournal(server, svc)
+	registerTodos(server, svc)
 	return server
 }
 
