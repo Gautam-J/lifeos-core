@@ -26,6 +26,7 @@ func Register(router chi.Router, svc *service.Service) {
 	registerItems(api, svc)
 	registerItemChanges(api, svc)
 	registerReview(api, svc)
+	registerJournal(api, svc)
 }
 
 // toHTTPError turns a service error into a Huma error. where is the part of
@@ -69,4 +70,9 @@ func patch[T any](ctx context.Context, svc *service.Service, recordType string, 
 		return zero, toHTTPError("body", err)
 	}
 	return record.(T), nil
+}
+
+// idInput is the input of a route that has only the record ID in its path.
+type idInput struct {
+	ID int64 `path:"id"`
 }
