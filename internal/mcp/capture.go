@@ -15,6 +15,10 @@ type captureInput struct {
 	Title string `json:"title,omitempty" jsonschema:"A short label for the capture. A file with no title gets its file name."`
 }
 
+type markProcessedInput struct {
+	ID int64 `json:"id" jsonschema:"The ID of the source."`
+}
+
 func registerCapture(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "capture",
@@ -27,6 +31,17 @@ func registerCapture(server *sdk.Server, svc *service.Service) {
 			Title:     in.Title,
 			Source:    service.SourceAgent,
 		})
+		if err != nil {
+			return nil, service.Capture{}, toToolError(err)
+		}
+		return nil, capture, nil
+	})
+
+	sdk.AddTool(server, &sdk.Tool{
+		Name:        "mark_processed",
+		Description: "Record that the work on one source is complete: its facts are in records and its ideas are in the wiki, or the user said that nothing is to be taken from it. Call it as the last step of the work on a source. It changes no content of the source. To list the sources that wait, use query: SELECT id, kind, title FROM sources WHERE processed_at IS NULL AND deleted_at IS NULL ORDER BY id. Returns the source.",
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, in markProcessedInput) (*sdk.CallToolResult, service.Capture, error) {
+		capture, err := svc.MarkProcessed(ctx, in.ID, service.SourceAgent)
 		if err != nil {
 			return nil, service.Capture{}, toToolError(err)
 		}

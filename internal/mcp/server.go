@@ -24,6 +24,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerCapture(server, svc)
 	registerSearch(server, svc)
 	registerQuery(server, svc)
+	registerWiki(server, svc)
 	return server
 }
 
