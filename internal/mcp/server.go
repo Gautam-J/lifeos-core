@@ -35,8 +35,9 @@ func NewServer(svc *service.Service) *sdk.Server {
 // Each request needs a token that access accepts. The MCP library refuses
 // a request to a loopback address that names a different host, as a guard
 // against a web page that reaches a local server. That guard is off: the
-// tunnel sends each request with the public hostname, and no web page can
-// make a token of Cloudflare Access.
+// tunnel sends each request with the public hostname, and a web page that
+// reaches the listener has no token of Cloudflare Access. serve.go refuses
+// a request that a page of a different site sends through Access.
 func Handler(svc *service.Service, access *AccessCheck) http.Handler {
 	server := NewServer(svc)
 	return access.Require(sdk.NewStreamableHTTPHandler(

@@ -106,6 +106,42 @@ func TestServeAnswersAnMCPRequestForThePublicHostname(t *testing.T) {
 	}
 }
 
+// A browser that has the login of Cloudflare Access sends that login with
+// each request to the hostname, also with one that a page of a different
+// site starts. Access then adds a valid token. The MCP server must refuse
+// such a request, as the other listener does. An MCP client is no browser:
+// it sends no header about its origin, and it goes through.
+func TestServeRefusesAnMCPRequestFromAPageOfADifferentSite(t *testing.T) {
+	cfg, _, access := startServer(t)
+
+	for name, header := range map[string][2]string{
+		"a request that the browser marks as cross-site": {"Sec-Fetch-Site", "cross-site"},
+		"a request with the origin of a different site":  {"Origin", "https://evil.example"},
+	} {
+		req, err := http.NewRequest(http.MethodPost, "http://"+cfg.MCPAddr+"/mcp", strings.NewReader(initialize))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set(testaccess.Header, access.Token())
+		req.Header.Set(header[0], header[1])
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("%s: status %d, want 403", name, resp.StatusCode)
+		}
+	}
+
+	// The same request with no such header is the request of an MCP client.
+	if status, _ := postMCP(t, cfg.MCPAddr, "", access.Token()); status != http.StatusOK {
+		t.Errorf("an MCP client: status %d, want 200", status)
+	}
+}
+
 func TestAccessCheckComesFromTheEnvironment(t *testing.T) {
 	aud := strings.Repeat("0123456789abcdef", 4)
 	cases := []struct {

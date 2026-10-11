@@ -147,13 +147,15 @@ func serveOn(ctx context.Context, httpListener, mcpListener net.Listener, svc *s
 	// Cloudflare Access is the login, and the browser sends that login
 	// with each request, also with one that a page of a different site
 	// makes. This refuses a request that changes data and that a browser
-	// sent from a different origin. A program, such as a Shortcut, sends
-	// no header about its origin and goes through.
+	// sent from a different origin. A program, such as a Shortcut or an MCP
+	// client, sends no header about its origin and goes through. The MCP
+	// server gets the same guard: Access adds its token also to a request
+	// that a page of a different site starts in a browser that has the login.
 	sameOrigin := http.NewCrossOriginProtection()
 
 	servers := []*http.Server{
 		{Handler: sameOrigin.Handler(router), ReadHeaderTimeout: 10 * time.Second},
-		{Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second},
+		{Handler: sameOrigin.Handler(mcpMux), ReadHeaderTimeout: 10 * time.Second},
 	}
 	failed := make(chan error, len(servers))
 	for i, listener := range []net.Listener{httpListener, mcpListener} {
