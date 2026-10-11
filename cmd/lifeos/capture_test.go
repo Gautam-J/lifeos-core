@@ -13,14 +13,14 @@ import (
 // finds the note, takes a book from it and names the note as its source.
 // Each adapter must find what the others stored.
 func TestServeTakesACaptureThroughEveryAdapter(t *testing.T) {
-	cfg, pool := startServer(t)
+	cfg, pool, access := startServer(t)
 	ctx := context.Background()
 	rest := "http://" + cfg.HTTPAddr
 	const form = "application/x-www-form-urlencoded"
 	const json = "application/json"
 
 	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "0"}, nil)
-	session, err := client.Connect(ctx, &sdk.StreamableClientTransport{Endpoint: "http://" + cfg.MCPAddr + "/mcp"}, nil)
+	session, err := client.Connect(ctx, mcpTransport(cfg.MCPAddr, access), nil)
 	if err != nil {
 		t.Fatalf("MCP connect: %v", err)
 	}

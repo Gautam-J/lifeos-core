@@ -13,14 +13,14 @@ import (
 // it, and a habit. Each step uses a different adapter, and each adapter
 // must see what the others did.
 func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
-	cfg, pool := startServer(t)
+	cfg, pool, access := startServer(t)
 	ctx := context.Background()
 	rest := "http://" + cfg.HTTPAddr
 	const form = "application/x-www-form-urlencoded"
 	const json = "application/json"
 
 	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "0"}, nil)
-	session, err := client.Connect(ctx, &sdk.StreamableClientTransport{Endpoint: "http://" + cfg.MCPAddr + "/mcp"}, nil)
+	session, err := client.Connect(ctx, mcpTransport(cfg.MCPAddr, access), nil)
 	if err != nil {
 		t.Fatalf("MCP connect: %v", err)
 	}

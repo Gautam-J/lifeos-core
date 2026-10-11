@@ -73,11 +73,12 @@ check "the service token does not get through" 1 "FAIL  https://api.test/api/ite
 check "the API hostname gives an admin page" 1 "FAIL  https://api.test/admin/items: status 200 with the service token" "${good/token:https:\/\/api.test\/admin\/items 404/token:https:\/\/api.test\/admin\/items 200}"
 check "no answer" 1 "FAIL  https://admin.test/admin/items: no answer" "nothing 000"
 
-# The server gets only the two database passwords. Each other key of the
-# env file must be in UnsetEnvironment of the unit.
+# The server gets only the two database passwords and the two values of
+# Cloudflare Access for the token check of the MCP server. Each other key
+# of the env file must be in UnsetEnvironment of the unit.
 unset_keys=" $(sed -n 's/^UnsetEnvironment=//p' systemd/lifeos.service | tr '\n' ' ') "
 for key in $(sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' .env.example); do
-    case $key in POSTGRES_PASSWORD | LIFEOS_QUERY_PASSWORD) continue ;; esac
+    case $key in POSTGRES_PASSWORD | LIFEOS_QUERY_PASSWORD | CF_ACCESS_TEAM | LIFEOS_MCP_AUD) continue ;; esac
     if [[ $unset_keys != *" $key "* ]]; then
         echo "FAIL  lifeos.service: UnsetEnvironment does not name $key"
         failed=1

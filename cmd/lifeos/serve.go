@@ -50,6 +50,10 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	access, err := accessCheck()
+	if err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -78,7 +82,7 @@ func serve(args []string) error {
 		return err
 	}
 	slog.Info("lifeos is listening", "http", httpListener.Addr().String(), "mcp", mcpListener.Addr().String())
-	return serveOn(ctx, httpListener, mcpListener, svc)
+	return serveOn(ctx, httpListener, mcpListener, svc, access)
 }
 
 // fileStore returns the settings of the file store. It checks that the two
@@ -129,15 +133,16 @@ func listen(cfg config.Config) (httpListener, mcpListener net.Listener, err erro
 }
 
 // serveOn serves the REST API and the admin pages on httpListener and the
-// MCP server on mcpListener. It returns nil after ctx is cancelled and the
-// servers have shut down.
-func serveOn(ctx context.Context, httpListener, mcpListener net.Listener, svc *service.Service) error {
+// MCP server on mcpListener. The MCP server answers only a request that
+// has a token that access accepts. It returns nil after ctx is cancelled
+// and the servers have shut down.
+func serveOn(ctx context.Context, httpListener, mcpListener net.Listener, svc *service.Service, access *lifeosmcp.AccessCheck) error {
 	router := chi.NewRouter()
 	api.Register(router, svc)
 	admin.Register(router, svc)
 
 	mcpMux := http.NewServeMux()
-	mcpMux.Handle("/mcp", lifeosmcp.Handler(svc))
+	mcpMux.Handle("/mcp", lifeosmcp.Handler(svc, access))
 
 	// Cloudflare Access is the login, and the browser sends that login
 	// with each request, also with one that a page of a different site

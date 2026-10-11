@@ -17,7 +17,9 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/Gautam-J/lifeos-core/internal/config"
+	lifeosmcp "github.com/Gautam-J/lifeos-core/internal/mcp"
 	"github.com/Gautam-J/lifeos-core/internal/service"
+	"github.com/Gautam-J/lifeos-core/internal/testaccess"
 	"github.com/Gautam-J/lifeos-core/internal/testdb"
 )
 
@@ -48,7 +50,10 @@ func TestServeRunsOneFlowThroughEveryAdapter(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- serveOn(ctx, httpListener, mcpListener, service.New(pool)) }()
+	access := testaccess.New(t)
+	go func() {
+		done <- serveOn(ctx, httpListener, mcpListener, service.New(pool), lifeosmcp.NewAccessCheck(access.Issuer, access.Audience))
+	}()
 
 	// 1. REST: add an item.
 	resp, err := http.Post("http://"+cfg.HTTPAddr+"/api/items", "application/json",
@@ -69,7 +74,7 @@ func TestServeRunsOneFlowThroughEveryAdapter(t *testing.T) {
 
 	// 2. MCP over HTTP: read that item, then add a second one.
 	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "0"}, nil)
-	session, err := client.Connect(ctx, &sdk.StreamableClientTransport{Endpoint: "http://" + cfg.MCPAddr + "/mcp"}, nil)
+	session, err := client.Connect(ctx, mcpTransport(cfg.MCPAddr, access), nil)
 	if err != nil {
 		t.Fatalf("MCP connect: %v", err)
 	}

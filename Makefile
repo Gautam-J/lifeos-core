@@ -1,8 +1,13 @@
-# Reads the two database passwords from deploy/.env, which is not in git.
+# Reads the database passwords and the Access values from deploy/.env, which
+# is not in git.
 include deploy/.env
 export POSTGRES_PASSWORD
 # The password of the read-only user lifeos_query, for the query tool.
 export LIFEOS_QUERY_PASSWORD
+# The team name and the audience tag of Cloudflare Access, for the token
+# check of the MCP server. `make run` needs them.
+export CF_ACCESS_TEAM
+export LIFEOS_MCP_AUD
 # Tests create and drop their own databases on the server postgres-test of
 # deploy/docker-compose.yml. Its data is in memory, not on the SD card, and
 # it is not the server that holds the real data.

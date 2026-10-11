@@ -31,7 +31,7 @@ func post(t *testing.T, url, contentType, body string, headers map[string]string
 // must refuse that request. A browser says where a request comes from in
 // Sec-Fetch-Site, and an old browser in Origin.
 func TestServeRefusesAPostFromAnotherSite(t *testing.T) {
-	cfg, pool := startServer(t)
+	cfg, pool, _ := startServer(t)
 	rest := "http://" + cfg.HTTPAddr
 	const form = "application/x-www-form-urlencoded"
 	const item = `{"kind":"book","title":"Dune"}`

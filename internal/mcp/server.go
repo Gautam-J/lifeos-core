@@ -31,12 +31,18 @@ func NewServer(svc *service.Service) *sdk.Server {
 // Handler serves the lifeos MCP server over streamable HTTP. It keeps no
 // session: each tool call is one request. A session would hold a stream
 // open, and that stream would block the shutdown of the HTTP server.
-func Handler(svc *service.Service) http.Handler {
+//
+// Each request needs a token that access accepts. The MCP library refuses
+// a request to a loopback address that names a different host, as a guard
+// against a web page that reaches a local server. That guard is off: the
+// tunnel sends each request with the public hostname, and no web page can
+// make a token of Cloudflare Access.
+func Handler(svc *service.Service, access *AccessCheck) http.Handler {
 	server := NewServer(svc)
-	return sdk.NewStreamableHTTPHandler(
+	return access.Require(sdk.NewStreamableHTTPHandler(
 		func(*http.Request) *sdk.Server { return server },
-		&sdk.StreamableHTTPOptions{Stateless: true},
-	)
+		&sdk.StreamableHTTPOptions{Stateless: true, DisableLocalhostProtection: true},
+	))
 }
 
 // toToolError turns a service error into the error text that the model

@@ -12,14 +12,17 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/Gautam-J/lifeos-core/internal/config"
+	lifeosmcp "github.com/Gautam-J/lifeos-core/internal/mcp"
 	"github.com/Gautam-J/lifeos-core/internal/service"
+	"github.com/Gautam-J/lifeos-core/internal/testaccess"
 	"github.com/Gautam-J/lifeos-core/internal/testdb"
 )
 
 // startServer runs serveOn on free ports with a new database, a file store
-// in a temporary folder and the read-only query pool. The servers stop when
-// the test ends.
-func startServer(t *testing.T) (config.Config, *pgxpool.Pool) {
+// in a temporary folder, the read-only query pool and a stand-in for
+// Cloudflare Access, which signs the tokens that the MCP server wants. The
+// servers stop when the test ends.
+func startServer(t *testing.T) (config.Config, *pgxpool.Pool, *testaccess.Access) {
 	t.Helper()
 	pool := testdb.New(t)
 	cfg := freeLoopbackConfig(t)
@@ -33,12 +36,15 @@ func startServer(t *testing.T) (config.Config, *pgxpool.Pool) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- serveOn(ctx, httpListener, mcpListener, svc) }()
+	access := testaccess.New(t)
+	go func() {
+		done <- serveOn(ctx, httpListener, mcpListener, svc, lifeosmcp.NewAccessCheck(access.Issuer, access.Audience))
+	}()
 	t.Cleanup(func() {
 		cancel()
 		<-done
 	})
-	return cfg, pool
+	return cfg, pool, access
 }
 
 // send makes one HTTP request and returns the status and the body.
@@ -67,13 +73,13 @@ func send(t *testing.T, method, url, contentType, body string) (int, string) {
 // it, approves it and deletes it. Each step uses a different adapter, and
 // each adapter must see what the others did.
 func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
-	cfg, pool := startServer(t)
+	cfg, pool, access := startServer(t)
 	ctx := context.Background()
 	rest := "http://" + cfg.HTTPAddr
 	const form = "application/x-www-form-urlencoded"
 
 	client := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "0"}, nil)
-	session, err := client.Connect(ctx, &sdk.StreamableClientTransport{Endpoint: "http://" + cfg.MCPAddr + "/mcp"}, nil)
+	session, err := client.Connect(ctx, mcpTransport(cfg.MCPAddr, access), nil)
 	if err != nil {
 		t.Fatalf("MCP connect: %v", err)
 	}

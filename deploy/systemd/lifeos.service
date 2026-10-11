@@ -14,9 +14,11 @@ OnFailure=lifeos-notify@%n.service
 User=gautam
 WorkingDirectory=/home/gautam/lifeos-core
 # systemd reads KEY=value lines; it does not run the file as a shell does.
-# The server needs only the two database passwords. Each other key of
-# deploy/.env is in UnsetEnvironment; deploy/test.sh checks the list
-# against deploy/.env.example.
+# The server needs only the two database passwords and, for the token
+# check of the MCP server, the team name and the audience tag of Cloudflare
+# Access (CF_ACCESS_TEAM, LIFEOS_MCP_AUD). Each other key of deploy/.env is
+# in UnsetEnvironment; deploy/test.sh checks the list against
+# deploy/.env.example.
 EnvironmentFile=/home/gautam/lifeos-core/deploy/.env
 UnsetEnvironment=RESTIC_PASSWORD B2_BUCKET B2_ENDPOINT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 UnsetEnvironment=CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN NTFY_BASE_URL NTFY_TOKEN
