@@ -103,6 +103,7 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 	day := today(s.now()).Format(time.DateOnly)
 	page.Created, page.Updated = day, day
 	action := "create"
+	oldBody := ""
 	if oldRaw != nil {
 		action = "update"
 		switch p.BaseHash {
@@ -117,10 +118,13 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 			if old.sameContent(page) {
 				return old, nil
 			}
-			page.Created = old.Created
+			page.Created, oldBody = old.Created, old.Body
 		}
 	} else if p.BaseHash != "" {
 		return WikiPage{}, invalid("base_hash", "no page has this path: leave base_hash out to create the page")
+	}
+	if err := checkNewCitations(ctx, store.New(s.pool), "body", oldBody, page.Body); err != nil {
+		return WikiPage{}, err
 	}
 
 	newRaw, err := composeWikiFile(page)
