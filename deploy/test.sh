@@ -195,6 +195,31 @@ if [ ! -e "$w/ran" ]; then
     failed=1
 fi
 
+# The one known way that a fetch runs a program of its source: the source
+# is a partial clone, an object is absent there, and git gets it from the
+# remote of the source with the program that a setting of the source names
+# (a "lazy fetch"). git turns this off by itself, but not when the
+# environment says GIT_NO_LAZY_FETCH=0. The script must not depend on that.
+rm -f "$w/ran"
+git -C "$w/remote.git" config uploadpack.allowFilter true
+wgit clone -q --filter=blob:none --no-checkout "file://$w/remote.git" "$w/partial" 2> /dev/null
+git -C "$w/partial" config remote.origin.uploadpack "$w/trap"
+wgit init -q --bare "$w/empty.git"
+git -C "$w/empty.git" remote add origin "$w/remote.git"
+status=0
+GIT_NO_LAZY_FETCH=0 ./wiki-push.sh "$w/partial" "$w/empty.git" > /dev/null 2>&1 || status=$?
+if [ -e "$w/ran" ] || [ "$status" = 0 ]; then
+    echo "FAIL  wiki-push: a live repository that is a partial clone made the script run a program (exit $status)"
+    failed=1
+fi
+# The control: the same fetch with no guard does run the trap.
+wgit init -q --bare "$w/control.git"
+GIT_NO_LAZY_FETCH=0 git --git-dir="$w/control.git" fetch -q "$w/partial" main:main > /dev/null 2>&1 || true
+if [ ! -e "$w/ran" ]; then
+    echo "FAIL  wiki-push: the trap of the partial clone does not work: a fetch with no guard did not run it"
+    failed=1
+fi
+
 # The script never forces. A history that does not continue the last one
 # stops it, and the remote keeps what it has.
 wiki_repos

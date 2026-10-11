@@ -25,6 +25,12 @@ set -euo pipefail
 live=${1:-/var/lib/lifeos/lifeos-wiki}
 mirror=${2:-/var/backups/lifeos/wiki.git}
 
+# The one known way that a fetch runs a program of its source is a lazy
+# fetch: the source is a partial clone, and git gets an absent object with
+# the program that a setting of the source names. git has this off by
+# default; this line keeps it off when the environment says something else.
+export GIT_NO_LAZY_FETCH=1
+
 # git gives no text when it refuses a fetch that is not a fast-forward.
 if ! git --git-dir="$mirror" fetch --quiet --no-tags --no-recurse-submodules "$live" main:main; then
     echo "wiki-push: the fetch from $live failed. With no reason from git above, the live wiki does not continue the history of the mirror: a commit that the mirror has is not in the live wiki." >&2
