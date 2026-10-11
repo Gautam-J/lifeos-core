@@ -23,6 +23,10 @@ var static embed.FS
 // Register adds every /admin route to router.
 func Register(router chi.Router, svc *service.Service) {
 	h := &handlers{svc: svc}
+	// The address that Gautam types has no path.
+	for _, path := range []string{"/", "/admin", "/admin/"} {
+		router.Get(path, home)
+	}
 	router.Get("/admin/items", h.itemsPage)
 	router.Post("/admin/items", h.addItem)
 	router.Get("/admin/items/{id}/edit", h.editItemPage)
@@ -56,6 +60,11 @@ func Register(router chi.Router, svc *service.Service) {
 
 type handlers struct {
 	svc *service.Service
+}
+
+// home sends the browser to the first admin page.
+func home(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin/items", http.StatusSeeOther)
 }
 
 func (h *handlers) itemsPage(w http.ResponseWriter, r *http.Request) {

@@ -117,8 +117,15 @@ func serveOn(ctx context.Context, httpListener, mcpListener net.Listener, svc *s
 	mcpMux := http.NewServeMux()
 	mcpMux.Handle("/mcp", lifeosmcp.Handler(svc))
 
+	// Cloudflare Access is the login, and the browser sends that login
+	// with each request, also with one that a page of a different site
+	// makes. This refuses a request that changes data and that a browser
+	// sent from a different origin. A program, such as a Shortcut, sends
+	// no header about its origin and goes through.
+	sameOrigin := http.NewCrossOriginProtection()
+
 	servers := []*http.Server{
-		{Handler: router, ReadHeaderTimeout: 10 * time.Second},
+		{Handler: sameOrigin.Handler(router), ReadHeaderTimeout: 10 * time.Second},
 		{Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second},
 	}
 	failed := make(chan error, len(servers))
