@@ -41,3 +41,15 @@ SELECT * FROM sources
 WHERE deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id DESC
 LIMIT $1;
+
+-- name: GetSourceForUpdate :one
+SELECT * FROM sources
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE;
+
+-- name: MarkSourceProcessed :one
+-- Sets the time at which the source was read. It changes no other column.
+UPDATE sources
+SET processed_at = now()
+WHERE id = $1
+RETURNING *;
