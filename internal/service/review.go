@@ -49,6 +49,7 @@ func (s *Service) ReviewQueue(ctx context.Context, limit int) ([]ReviewEntry, er
 		unverifiedItems,
 		unverifiedJournalEntries,
 		unverifiedTodos,
+		unverifiedHabitLogs,
 	} {
 		more, err := unverified(ctx, q, maxRows)
 		if err != nil {
@@ -173,6 +174,9 @@ func verifyRecord(ctx context.Context, q *store.Queries, ref RecordRef) (table s
 	case "todo":
 		before, after, err = verifyTodo(ctx, q, ref.ID)
 		return "todos", before, after, err
+	case "habit_log":
+		before, after, err = verifyHabitLog(ctx, q, ref.ID)
+		return "habit_logs", before, after, err
 	}
 	return "", nil, nil, errNoCode(ref.Type)
 }
