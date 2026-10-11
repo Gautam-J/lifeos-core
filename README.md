@@ -91,7 +91,7 @@ A search finds list items, journal entries, todos and sources by their words. A 
 
 ### 10. Read-only query
 
-The agent can run one SQL statement on the data. The statement runs as the Postgres user `lifeos_query`, which can only read, for 5 seconds at most. The answer has 200 rows at most.
+The agent can run one SQL statement on the data. The statement runs as the Postgres user `lifeos_query`, which can only read, for 5 seconds at most. The answer has 200 rows at most, and one row has 2 MB at most. A new table is closed to the query until its migration gives the right to read it.
 
 **Use case.** You ask "on how many days did I go to the gym this month?". The agent calls `query` with a `SELECT count(*)` on `habit_logs`.
 
@@ -99,7 +99,15 @@ The agent can run one SQL statement on the data. The statement runs as the Postg
 
 The service refuses a text that holds a card number, an Aadhaar number, a PAN, a private key or an access token. It stores nothing, and the error names the kind of secret without the secret itself. This applies to each text field: a title, a journal body, an attr, a captured text and a text file.
 
-A password in plain words and a bank account number have no pattern, so the service cannot find them. A number of 12 digits in one piece that starts with 2 to 9 is refused in about 1 of 10 cases, because it can be an Aadhaar number. Examples are a phone number in the form `91XXXXXXXXXX` and the reference number of a UPI payment. To store such a number, write it in groups that are not 4-4-4, such as `+91 XXXXX XXXXX` or `6274 12345677`.
+How the service finds each kind:
+
+- **Card number:** the first digits of a card network, a length that this network uses, and a correct check digit. Groups such as `4111 1111 1111 1111` count. The IMEI of a phone is not a card number.
+- **Aadhaar number:** the printed form `XXXX XXXX XXXX` with a correct check digit, in each text. 12 digits in one piece count only when a name of Aadhaar is near them (`Aadhaar`, `aadhar`, `UID`, `UIDAI`, `आधार`, within 40 characters). So the reference number of a UPI payment and a phone number such as `919876543210` are stored.
+- **PAN:** the format `AAAPA9999A` in capital letters.
+- **Private key and token:** a private key block, an access key of AWS, a token of GitHub or Slack, and an API key that starts with `sk-`.
+- **Link:** a link of the form `https://name:password@host` is refused too.
+
+A password in plain words and a bank account number have no pattern, so the service cannot find them. The service does not look inside a PDF or an image.
 
 **Use case.** You paste a note that has your card number into the journal form. The page shows "body: must not hold a card number" and keeps your text, so you can remove the number and save.
 
