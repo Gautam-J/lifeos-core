@@ -196,13 +196,13 @@ func TestRecordToolsReturnErrorsTheModelCanRead(t *testing.T) {
 		args     map[string]any
 		wantText string
 	}{
-		{"update of an unknown type", "update", map[string]any{"type": "journal", "id": id, "fields": map[string]any{"title": "New"}}, "type"},
+		{"update of an unknown type", "update", map[string]any{"type": "song", "id": id, "fields": map[string]any{"title": "New"}}, "type"},
 		{"update of an unknown ID", "update", map[string]any{"type": "item", "id": 9999, "fields": map[string]any{"title": "New"}}, "not found"},
 		{"update with a misspelled field", "update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"ratting": 3}}, "ratting"},
 		{"update with a value the service refuses", "update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"rating": 7}}, "rating"},
 		{"update with a misspelled argument", "update", map[string]any{"type": "item", "id": id, "field": map[string]any{"rating": 3}}, "field"},
 		{"delete of an unknown ID", "delete", map[string]any{"type": "item", "id": 9999, "confirmed": true}, "not found"},
-		{"delete of an unknown type", "delete", map[string]any{"type": "journal", "id": id, "confirmed": true}, "type"},
+		{"delete of an unknown type", "delete", map[string]any{"type": "song", "id": id, "confirmed": true}, "type"},
 		{"verify of a record that does not exist", "verify", map[string]any{"records": []map[string]any{{"type": "item", "id": id}, {"type": "item", "id": 9999}}}, "item 9999 does not exist"},
 		{"verify with no records", "verify", map[string]any{"records": []map[string]any{}}, "records"},
 		{"review queue with a limit above the maximum", "review_queue", map[string]any{"limit": 500}, "limit"},

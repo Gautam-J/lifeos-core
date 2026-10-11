@@ -102,3 +102,42 @@ func (s *Service) DeleteJournalEntry(ctx context.Context, id int64, p DeletePara
 		return journalEntryFromRow(row), nil
 	})
 }
+
+// summary is the one line that the review queue shows for a journal entry.
+func (e JournalEntry) summary() string {
+	return "journal " + e.EntryDate + ": " + shorten(e.Body, 80)
+}
+
+// unverifiedJournalEntries returns the journal entries that wait for
+// review, oldest first.
+func unverifiedJournalEntries(ctx context.Context, q *store.Queries, limit int32) ([]ReviewEntry, error) {
+	rows, err := q.ListUnverifiedJournalEntries(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]ReviewEntry, 0, len(rows))
+	for _, row := range rows {
+		entry := journalEntryFromRow(row)
+		entries = append(entries, ReviewEntry{
+			Type:      "journal",
+			ID:        entry.ID,
+			Summary:   entry.summary(),
+			Source:    entry.Source,
+			CreatedAt: entry.CreatedAt,
+			UpdatedAt: entry.UpdatedAt,
+		})
+	}
+	return entries, nil
+}
+
+func verifyJournalEntry(ctx context.Context, q *store.Queries, id int64) (before, after any, err error) {
+	current, err := q.GetJournalEntryForUpdate(ctx, id)
+	if err != nil || current.Verified {
+		return nil, nil, err
+	}
+	stored, err := q.VerifyJournalEntry(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return journalEntryFromRow(current), journalEntryFromRow(stored), nil
+}

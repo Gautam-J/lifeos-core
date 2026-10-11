@@ -132,7 +132,7 @@ func TestToolsReturnErrorsTheModelCanRead(t *testing.T) {
 		{"missing title", "add_item", map[string]any{"kind": "movie"}, "title"},
 		{"rating of the wrong type", "add_item", map[string]any{"kind": "movie", "title": "Dune", "rating": "four"}, "rating"},
 		{"unknown ID", "get", map[string]any{"type": "item", "id": 9999}, "not found"},
-		{"unknown type", "get", map[string]any{"type": "journal", "id": 1}, "type"},
+		{"unknown type", "get", map[string]any{"type": "song", "id": 1}, "type"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

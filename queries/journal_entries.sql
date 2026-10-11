@@ -29,3 +29,15 @@ UPDATE journal_entries
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: ListUnverifiedJournalEntries :many
+SELECT * FROM journal_entries
+WHERE deleted_at IS NULL AND NOT verified
+ORDER BY created_at, id
+LIMIT $1;
+
+-- name: VerifyJournalEntry :one
+UPDATE journal_entries
+SET verified = true
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;

@@ -34,7 +34,7 @@ RETURNING *;
 -- name: ListUnverifiedCatalogItems :many
 SELECT * FROM catalog_items
 WHERE deleted_at IS NULL AND NOT verified
-ORDER BY id
+ORDER BY created_at, id
 LIMIT $1;
 
 -- name: VerifyCatalogItem :one

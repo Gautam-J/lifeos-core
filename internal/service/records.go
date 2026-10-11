@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -14,7 +15,7 @@ import (
 // caller that knows the type when it is compiled, such as a REST route,
 // calls the function of the type (GetItem, UpdateItem, DeleteItem). An MCP
 // tool gets the type as input and calls the functions in this file.
-var RecordTypes = []string{"item"}
+var RecordTypes = []string{"item", "journal"}
 
 func checkRecordType(recordType string) error {
 	if !slices.Contains(RecordTypes, recordType) {
@@ -23,17 +24,33 @@ func checkRecordType(recordType string) error {
 	return nil
 }
 
+// errNoCode means that a type is in RecordTypes and one of the functions
+// that take a type has no case for it.
+func errNoCode(recordType string) error {
+	return fmt.Errorf("no code for the record type %q", recordType)
+}
+
+// asRecord returns nil, not an empty struct, when there is an error.
+func asRecord[T any](record T, err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
 // Get returns one record. The value is the struct of the type: an Item for
-// the type item.
+// the type item, a JournalEntry for the type journal.
 func (s *Service) Get(ctx context.Context, recordType string, id int64) (any, error) {
 	if err := checkRecordType(recordType); err != nil {
 		return nil, err
 	}
-	item, err := s.GetItem(ctx, id)
-	if err != nil {
-		return nil, err
+	switch recordType {
+	case "item":
+		return asRecord(s.GetItem(ctx, id))
+	case "journal":
+		return asRecord(s.GetJournalEntry(ctx, id))
 	}
-	return item, nil
+	return nil, errNoCode(recordType)
 }
 
 // UpdateParams is the input of Update.
@@ -56,16 +73,26 @@ func (s *Service) Update(ctx context.Context, recordType string, id int64, p Upd
 	if err := checkRecordType(recordType); err != nil {
 		return nil, err
 	}
-	var params UpdateItemParams
-	if err := decodeFields(p.Fields, &params, recordType); err != nil {
-		return nil, err
+	switch recordType {
+	case "item":
+		var params UpdateItemParams
+		if err := decodeFields(p.Fields, &params, recordType); err != nil {
+			return nil, err
+		}
+		params.Clear, params.Actor, params.Inferred = p.Clear, p.Actor, p.Inferred
+		return asRecord(s.UpdateItem(ctx, id, params))
+	case "journal":
+		var params UpdateJournalEntryParams
+		if err := decodeFields(p.Fields, &params, recordType); err != nil {
+			return nil, err
+		}
+		if len(p.Clear) > 0 {
+			return nil, invalid("clear", "must be empty: a journal entry has no optional field")
+		}
+		params.Actor, params.Inferred = p.Actor, p.Inferred
+		return asRecord(s.UpdateJournalEntry(ctx, id, params))
 	}
-	params.Clear, params.Actor, params.Inferred = p.Clear, p.Actor, p.Inferred
-	item, err := s.UpdateItem(ctx, id, params)
-	if err != nil {
-		return nil, err
-	}
-	return item, nil
+	return nil, errNoCode(recordType)
 }
 
 // Delete marks one record as deleted.
@@ -73,7 +100,13 @@ func (s *Service) Delete(ctx context.Context, recordType string, id int64, p Del
 	if err := checkRecordType(recordType); err != nil {
 		return err
 	}
-	return s.DeleteItem(ctx, id, p)
+	switch recordType {
+	case "item":
+		return s.DeleteItem(ctx, id, p)
+	case "journal":
+		return s.DeleteJournalEntry(ctx, id, p)
+	}
+	return errNoCode(recordType)
 }
 
 // decodeFields copies fields into target. target is a pointer to a struct

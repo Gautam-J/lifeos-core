@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
@@ -31,25 +35,45 @@ type ReviewEntry struct {
 
 const maxVerifyRecords = 200
 
-// ReviewQueue returns the records that are not verified and not deleted,
-// oldest first. limit 0 means 50; the maximum is 200.
+// ReviewQueue returns the records of every type that are not verified and
+// not deleted, oldest first. limit 0 means 50; the maximum is 200.
 func (s *Service) ReviewQueue(ctx context.Context, limit int) ([]ReviewEntry, error) {
-	if limit == 0 {
-		limit = defaultListLimit
-	}
-	if limit < 1 || limit > maxListLimit {
-		return nil, invalid("limit", fmt.Sprintf("must be from 1 to %d", maxListLimit))
+	maxRows, err := checkLimit(limit)
+	if err != nil {
+		return nil, err
 	}
 
-	rows, err := store.New(s.pool).ListUnverifiedCatalogItems(ctx, int32(limit))
+	q := store.New(s.pool)
+	entries := []ReviewEntry{}
+	for _, unverified := range []func(context.Context, *store.Queries, int32) ([]ReviewEntry, error){
+		unverifiedItems,
+		unverifiedJournalEntries,
+	} {
+		more, err := unverified(ctx, q, maxRows)
+		if err != nil {
+			return nil, fmt.Errorf("review queue: %w", err)
+		}
+		entries = append(entries, more...)
+	}
+	// Each type gave its oldest records. Put them in one order.
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].CreatedAt.Before(entries[j].CreatedAt) })
+	if len(entries) > int(maxRows) {
+		entries = entries[:maxRows]
+	}
+	return entries, nil
+}
+
+// unverifiedItems returns the items that wait for review, oldest first.
+func unverifiedItems(ctx context.Context, q *store.Queries, limit int32) ([]ReviewEntry, error) {
+	rows, err := q.ListUnverifiedCatalogItems(ctx, limit)
 	if err != nil {
-		return nil, fmt.Errorf("review queue: %w", err)
+		return nil, err
 	}
 	entries := make([]ReviewEntry, 0, len(rows))
 	for _, row := range rows {
 		item, err := itemFromRow(row)
 		if err != nil {
-			return nil, fmt.Errorf("review queue: %w", err)
+			return nil, err
 		}
 		entries = append(entries, ReviewEntry{
 			Type:      "item",
@@ -75,6 +99,15 @@ func (i Item) summary() string {
 	return s
 }
 
+// shorten returns text as one line of at most max characters.
+func shorten(text string, max int) string {
+	line := strings.Join(strings.Fields(text), " ")
+	if utf8.RuneCountInString(line) <= max {
+		return line
+	}
+	return strings.TrimSpace(string([]rune(line)[:max])) + "…"
+}
+
 // Verify marks the records as verified and appends one verify event for
 // each record that it changes, in one transaction. A record that is
 // verified already is left as it is. When one record does not exist, Verify
@@ -90,8 +123,8 @@ func (s *Service) Verify(ctx context.Context, refs []RecordRef, actor Source) (i
 		return 0, invalid("records", fmt.Sprintf("must name at most %d records", maxVerifyRecords))
 	}
 	for _, ref := range refs {
-		if ref.Type != "item" {
-			return 0, invalid("records", fmt.Sprintf("%q is not a record type; the only type is item", ref.Type))
+		if !slices.Contains(RecordTypes, ref.Type) {
+			return 0, invalid("records", fmt.Sprintf("%q is not a record type; the types are: %s", ref.Type, strings.Join(RecordTypes, ", ")))
 		}
 	}
 
@@ -104,29 +137,17 @@ func (s *Service) Verify(ctx context.Context, refs []RecordRef, actor Source) (i
 
 	changed := 0
 	for _, ref := range refs {
-		current, err := q.GetCatalogItemForUpdate(ctx, ref.ID)
+		table, before, after, err := verifyRecord(ctx, q, ref)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, invalid("records", fmt.Sprintf("item %d does not exist", ref.ID))
+			return 0, invalid("records", fmt.Sprintf("%s %d does not exist", ref.Type, ref.ID))
 		}
 		if err != nil {
 			return 0, fmt.Errorf("verify: %w", err)
 		}
-		if current.Verified {
+		if before == nil {
 			continue
 		}
-		old, err := itemFromRow(current)
-		if err != nil {
-			return 0, fmt.Errorf("verify: %w", err)
-		}
-		stored, err := q.VerifyCatalogItem(ctx, ref.ID)
-		if err != nil {
-			return 0, fmt.Errorf("verify: %w", err)
-		}
-		item, err := itemFromRow(stored)
-		if err != nil {
-			return 0, fmt.Errorf("verify: %w", err)
-		}
-		if err := recordEvent(ctx, q, "verify", "catalog_items", ref.ID, actor, old, item); err != nil {
+		if err := recordEvent(ctx, q, "verify", table, ref.ID, actor, before, after); err != nil {
 			return 0, fmt.Errorf("verify: %w", err)
 		}
 		changed++
@@ -135,4 +156,39 @@ func (s *Service) Verify(ctx context.Context, refs []RecordRef, actor Source) (i
 		return 0, fmt.Errorf("verify: %w", err)
 	}
 	return changed, nil
+}
+
+// verifyRecord locks one record and sets verified when it is not set. It
+// returns the table of the record, and the record before and after the
+// change. before is nil when the record is verified already.
+func verifyRecord(ctx context.Context, q *store.Queries, ref RecordRef) (table string, before, after any, err error) {
+	switch ref.Type {
+	case "item":
+		before, after, err = verifyItem(ctx, q, ref.ID)
+		return "catalog_items", before, after, err
+	case "journal":
+		before, after, err = verifyJournalEntry(ctx, q, ref.ID)
+		return "journal_entries", before, after, err
+	}
+	return "", nil, nil, errNoCode(ref.Type)
+}
+
+func verifyItem(ctx context.Context, q *store.Queries, id int64) (before, after any, err error) {
+	current, err := q.GetCatalogItemForUpdate(ctx, id)
+	if err != nil || current.Verified {
+		return nil, nil, err
+	}
+	stored, err := q.VerifyCatalogItem(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	old, err := itemFromRow(current)
+	if err != nil {
+		return nil, nil, err
+	}
+	item, err := itemFromRow(stored)
+	if err != nil {
+		return nil, nil, err
+	}
+	return old, item, nil
 }
