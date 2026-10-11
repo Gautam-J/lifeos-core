@@ -16,8 +16,9 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/testdb"
 )
 
-// startServer runs serveOn on free ports with a new database. The servers
-// stop when the test ends.
+// startServer runs serveOn on free ports with a new database, a file store
+// in a temporary folder and the read-only query pool. The servers stop when
+// the test ends.
 func startServer(t *testing.T) (config.Config, *pgxpool.Pool) {
 	t.Helper()
 	pool := testdb.New(t)
@@ -26,9 +27,13 @@ func startServer(t *testing.T) (config.Config, *pgxpool.Pool) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
+	svc := service.New(pool).WithFiles(service.Files{Dir: t.TempDir(), Inbox: t.TempDir(), MaxBytes: 1 << 20})
+	if err := svc.UseQueryPool(context.Background(), testdb.QueryPool(t, pool)); err != nil {
+		t.Fatalf("UseQueryPool: %v", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- serveOn(ctx, httpListener, mcpListener, service.New(pool)) }()
+	go func() { done <- serveOn(ctx, httpListener, mcpListener, svc) }()
 	t.Cleanup(func() {
 		cancel()
 		<-done
