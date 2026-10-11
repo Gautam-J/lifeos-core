@@ -17,6 +17,7 @@ import (
 func NewServer(svc *service.Service) *sdk.Server {
 	server := sdk.NewServer(&sdk.Implementation{Name: "lifeos", Version: "0.1.0"}, nil)
 	registerItems(server, svc)
+	registerRecords(server, svc)
 	return server
 }
 

@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"errors"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -18,11 +17,6 @@ type addItemInput struct {
 	Dictated   bool           `json:"dictated,omitempty" jsonschema:"true only when the user stated this item directly. false when you inferred it from a source; the row then waits in the review queue."`
 }
 
-type getInput struct {
-	Type string `json:"type" jsonschema:"Record type. The only type is: item"`
-	ID   int64  `json:"id" jsonschema:"Record ID"`
-}
-
 func registerItems(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "add_item",
@@ -36,20 +30,6 @@ func registerItems(server *sdk.Server, svc *service.Service) {
 			Attrs:      in.Attrs,
 			Provenance: service.Provenance{Source: service.SourceAgent, Verified: in.Dictated},
 		})
-		if err != nil {
-			return nil, service.Item{}, toToolError(err)
-		}
-		return nil, item, nil
-	})
-
-	sdk.AddTool(server, &sdk.Tool{
-		Name:        "get",
-		Description: "Read one record by type and ID.",
-	}, func(ctx context.Context, _ *sdk.CallToolRequest, in getInput) (*sdk.CallToolResult, service.Item, error) {
-		if in.Type != "item" {
-			return nil, service.Item{}, errors.New("invalid input: type: must be item")
-		}
-		item, err := svc.GetItem(ctx, in.ID)
 		if err != nil {
 			return nil, service.Item{}, toToolError(err)
 		}
