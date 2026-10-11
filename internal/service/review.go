@@ -48,6 +48,7 @@ func (s *Service) ReviewQueue(ctx context.Context, limit int) ([]ReviewEntry, er
 	for _, unverified := range []func(context.Context, *store.Queries, int32) ([]ReviewEntry, error){
 		unverifiedItems,
 		unverifiedJournalEntries,
+		unverifiedTodos,
 	} {
 		more, err := unverified(ctx, q, maxRows)
 		if err != nil {
@@ -169,6 +170,9 @@ func verifyRecord(ctx context.Context, q *store.Queries, ref RecordRef) (table s
 	case "journal":
 		before, after, err = verifyJournalEntry(ctx, q, ref.ID)
 		return "journal_entries", before, after, err
+	case "todo":
+		before, after, err = verifyTodo(ctx, q, ref.ID)
+		return "todos", before, after, err
 	}
 	return "", nil, nil, errNoCode(ref.Type)
 }

@@ -171,3 +171,48 @@ func (s *Service) DeleteTodo(ctx context.Context, id int64, p DeleteParams) erro
 		return todoFromRow(row), nil
 	})
 }
+
+// summary is the one line that the review queue shows for a todo.
+func (t Todo) summary() string {
+	s := "todo: " + t.Title
+	if t.Project != "" {
+		s += ", project " + t.Project
+	}
+	if t.DueOn != "" {
+		s += ", due " + t.DueOn
+	}
+	return s
+}
+
+// unverifiedTodos returns the todos that wait for review, oldest first.
+func unverifiedTodos(ctx context.Context, q *store.Queries, limit int32) ([]ReviewEntry, error) {
+	rows, err := q.ListUnverifiedTodos(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]ReviewEntry, 0, len(rows))
+	for _, row := range rows {
+		todo := todoFromRow(row)
+		entries = append(entries, ReviewEntry{
+			Type:      "todo",
+			ID:        todo.ID,
+			Summary:   todo.summary(),
+			Source:    todo.Source,
+			CreatedAt: todo.CreatedAt,
+			UpdatedAt: todo.UpdatedAt,
+		})
+	}
+	return entries, nil
+}
+
+func verifyTodo(ctx context.Context, q *store.Queries, id int64) (before, after any, err error) {
+	current, err := q.GetTodoForUpdate(ctx, id)
+	if err != nil || current.Verified {
+		return nil, nil, err
+	}
+	stored, err := q.VerifyTodo(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return todoFromRow(current), todoFromRow(stored), nil
+}

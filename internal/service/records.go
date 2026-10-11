@@ -15,7 +15,7 @@ import (
 // caller that knows the type when it is compiled, such as a REST route,
 // calls the function of the type (GetItem, UpdateItem, DeleteItem). An MCP
 // tool gets the type as input and calls the functions in this file.
-var RecordTypes = []string{"item", "journal"}
+var RecordTypes = []string{"item", "journal", "todo"}
 
 func checkRecordType(recordType string) error {
 	if !slices.Contains(RecordTypes, recordType) {
@@ -39,7 +39,8 @@ func asRecord[T any](record T, err error) (any, error) {
 }
 
 // Get returns one record. The value is the struct of the type: an Item for
-// the type item, a JournalEntry for the type journal.
+// the type item, a JournalEntry for the type journal, a Todo for the type
+// todo.
 func (s *Service) Get(ctx context.Context, recordType string, id int64) (any, error) {
 	if err := checkRecordType(recordType); err != nil {
 		return nil, err
@@ -49,6 +50,8 @@ func (s *Service) Get(ctx context.Context, recordType string, id int64) (any, er
 		return asRecord(s.GetItem(ctx, id))
 	case "journal":
 		return asRecord(s.GetJournalEntry(ctx, id))
+	case "todo":
+		return asRecord(s.GetTodo(ctx, id))
 	}
 	return nil, errNoCode(recordType)
 }
@@ -91,6 +94,13 @@ func (s *Service) Update(ctx context.Context, recordType string, id int64, p Upd
 		}
 		params.Actor, params.Inferred = p.Actor, p.Inferred
 		return asRecord(s.UpdateJournalEntry(ctx, id, params))
+	case "todo":
+		var params UpdateTodoParams
+		if err := decodeFields(p.Fields, &params, recordType); err != nil {
+			return nil, err
+		}
+		params.Clear, params.Actor, params.Inferred = p.Clear, p.Actor, p.Inferred
+		return asRecord(s.UpdateTodo(ctx, id, params))
 	}
 	return nil, errNoCode(recordType)
 }
@@ -105,6 +115,8 @@ func (s *Service) Delete(ctx context.Context, recordType string, id int64, p Del
 		return s.DeleteItem(ctx, id, p)
 	case "journal":
 		return s.DeleteJournalEntry(ctx, id, p)
+	case "todo":
+		return s.DeleteTodo(ctx, id, p)
 	}
 	return errNoCode(recordType)
 }
