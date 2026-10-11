@@ -34,6 +34,11 @@ func (s *Service) WithFiles(files Files) *Service {
 	return s
 }
 
+// MaxFileBytes returns the largest file that Capture accepts.
+func (s *Service) MaxFileBytes() int64 {
+	return s.files.MaxBytes
+}
+
 // captureFile stores the file of p in the file store and its row in
 // sources. A file from the inbox leaves the inbox after the row is stored.
 func (s *Service) captureFile(ctx context.Context, p CaptureParams) (Capture, error) {

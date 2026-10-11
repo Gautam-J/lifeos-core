@@ -29,6 +29,7 @@ func Register(router chi.Router, svc *service.Service) {
 	registerJournal(api, svc)
 	registerTodos(api, svc)
 	registerHabits(api, svc)
+	registerSources(api, svc)
 }
 
 // toHTTPError turns a service error into a Huma error. where is the part of
