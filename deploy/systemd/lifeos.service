@@ -1,0 +1,29 @@
+[Unit]
+Description=LifeOS server (REST API, admin pages, MCP server)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+# Postgres starts slowly after a boot: ten starts in five minutes, then
+# the unit fails and ntfy gets a message.
+StartLimitIntervalSec=300
+StartLimitBurst=10
+OnFailure=lifeos-notify@%n.service
+
+[Service]
+User=gautam
+WorkingDirectory=/home/gautam/lifeos-core
+# The two database passwords. systemd reads KEY=value lines; it does not
+# run the file as a shell does.
+EnvironmentFile=/home/gautam/lifeos-core/deploy/.env
+ExecStart=/home/gautam/lifeos-core/bin/lifeos serve
+Restart=on-failure
+RestartSec=10
+# The server writes only to the file store and the inbox.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/lifeos
+
+[Install]
+WantedBy=multi-user.target
