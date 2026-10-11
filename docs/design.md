@@ -341,8 +341,8 @@ Scrape config, alert rules and the system dashboard live in `lifeos-core/monitor
 | Phase | Time | Work | Gate |
 | --- | --- | --- | --- |
 | 1 · Foundation | 1 weekend, about 8 h | SSD boot, Docker, Postgres, Cloudflare Tunnel and Access. Restic backups to B2 and a local disk. | A test restore succeeds |
-| 2 · Core data | 3 to 4 weekends, about 28 h | Go service layer, sqlc queries, admin pages, REST API, MCP. Bank, Letterboxd and Goodreads importers. | One week of daily logging through the admin |
-| 3 · Agents and phone | 1.5 weekends, about 12 h | AGENTS.md, seven skills, wiki repo on GitHub. MCP over HTTP with OAuth, Claude app connector, Remote Control. | Add a book and a habit from the phone |
+| 2 · Core data | 3 to 4 weekends, about 28 h | Go service layer, sqlc queries, admin pages, REST API, MCP. Bank, Letterboxd and Goodreads importers. | The three interfaces work on the Pi; the week of daily use is in the gate of Phase 3 |
+| 3 · Agents and phone | 1.5 weekends, about 12 h | AGENTS.md, seven skills, wiki repo on GitHub. MCP over HTTP with OAuth, Claude app connector, Remote Control. | One week of daily use from the phone through the agent |
 | 4 · Briefs and alerts | 1 day, about 6 h | ntfy, job runner on systemd timers. Morning, evening and weekly briefs; Kindle render. | Seven days of briefs arrive on time |
 | 5 · Connectors, dashboards | 2 weekends, about 16 h | Health Auto Export, CalDAV, IMAP, OwnTracks. Grafana dashboards for habits, money, health. | Dashboards show a full month of data |
 

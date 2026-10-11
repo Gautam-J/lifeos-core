@@ -25,9 +25,10 @@ ExecStart=/home/gautam/lifeos-core/bin/lifeos serve
 Restart=on-failure
 RestartSec=10
 # This is the one process that the internet reaches. It sees the binary
-# and the config, and it writes only to the file store and the inbox. It
-# does not see the rest of the home folder (deploy/.env, SSH keys, the
-# tunnel certificate) or the Docker socket.
+# and the config, and it writes only below /var/lib/lifeos: the file
+# store, the inbox and the git repository of the wiki. It does not see the
+# rest of the home folder (deploy/.env, SSH keys, the tunnel certificate)
+# or the Docker socket.
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true

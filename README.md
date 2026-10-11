@@ -13,8 +13,9 @@ This repo holds the service code only. It holds no personal data.
 | Phase | State |
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
-| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The gate is one week of daily logging. Money tables and imports are in [docs/backlog.md](docs/backlog.md). |
-| 3 to 5 | Not started. |
+| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are in [docs/backlog.md](docs/backlog.md). |
+| 3 · Agents and phone | In work. Built: the wiki tools. Not built: the public hostname of the MCP server and the connector of the Claude app. The gate is one week of daily use from the phone through the agent. |
+| 4 to 5 | Not started. |
 
 The section [Not built yet](#not-built-yet) lists what is missing.
 
@@ -69,7 +70,7 @@ Each record has a `source` (`manual`, `import`, `connector` or `agent`) and a `v
 
 ### 7. Event log
 
-Each write appends one row to the `events` table in the same transaction: the action (`create`, `update`, `delete`, `verify` or `purge`), the source, the old value and the new value. A call that changes no value appends nothing. The log only grows, with one exception: a permanent delete empties the values of the events of its record.
+Each write appends one row to the `events` table in the same transaction: the action (such as `create`, `update`, `delete`, `verify`, `purge` or `process`), the source, the old value and the new value. A write of a wiki page appends a row too: its value is the path and the hash of the page, and the text is in the git history of the wiki. A call that changes no value appends nothing. The log only grows, with one exception: a permanent delete empties the values of the events of its record.
 
 **Use case.** A rating looks wrong. Read the `events` rows of that record to see who changed the rating, when, and what the value was before.
 
@@ -129,6 +130,19 @@ A password in plain words and a bank account number have no pattern, so the serv
 - **Requests from another site.** The server refuses a request that changes data and that a browser sent from a different origin. A program, such as an iOS Shortcut, is not a browser and goes through.
 
 **Use case.** You add a hostname to the tunnel and forget its Access application. `deploy/check-access.sh` prints `OPEN` for that hostname and exits with an error.
+
+### 14. Wiki
+
+The wiki holds your analysis and your insights: what the facts mean and how they connect. A fact is a record in the database, and a wiki page cites the row, as `(journal:57)` or `(src:12)`. A page is a Markdown file in the git repository of `wiki_dir`, and each write is one commit there.
+
+- **Page types.** The folder gives the type: `people/`, `projects/`, `topics/` and `reviews/`. `index.md` lists each page with its summary; LifeOS writes it. `log.md` is the timeline of the work on the wiki.
+- **One writer.** Only the MCP tools change a page. The server sets the dates, checks the text for secrets, and refuses a new citation of a row that is not there.
+- **No lost change.** A change of a page needs the hash of the version that the agent read. When a different session changed the page, the write is refused, and the agent reads the page again and merges.
+- **Lint.** `wiki_lint` reports a file that is not a valid page, a citation of a deleted record, a broken link, a page that is marked as contested, a page that no other page links to, a page with no change for 90 days and a page of more than 150 lines. It changes nothing.
+- **Sources.** `mark_processed` records that the work on a source is complete.
+- **History.** The git history of the wiki keeps each version of each page, also of a deleted page.
+
+**Use case.** You tell the agent "journal - met Asha about the tunnel". The agent stores your words with `journal`. The result names the next step for the agent: it finds `people/asha-rao.md` with `wiki_search`, and it adds one dated line with `wiki_append` that cites the entry.
 
 ## Interfaces
 
@@ -195,15 +209,25 @@ A record that an MCP tool writes has the source `agent`. It is verified only whe
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
 | `review_queue` | Lists the records that wait for approval, oldest first. |
 | `verify` | Approves records that you approved in the conversation. |
+| `mark_processed` | Records that the work on a source is complete. |
+| `wiki_search` | Finds wiki pages by their words, or lists each page. |
+| `wiki_read` | Reads one page, `index.md` or `log.md`, with its hash. |
+| `wiki_write` | Creates a page, or replaces its text when the call has the hash of the stored page. |
+| `wiki_append` | Adds text at the end of a page or of `log.md`. |
+| `wiki_delete` | Deletes one page after you said yes (`confirmed: true`). |
+| `wiki_lint` | Reports the problems of the wiki that code can find. |
 
 The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo` and `log_habit` take an optional `source_ref`.
 
+The rules for an agent are in the tool descriptions. The results of `journal` and `capture` have a field `next` that names the next step. The server also sends short instructions when a client connects; Claude Code reads them, the Claude app does not.
+
 ## Run it
 
-You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store: `files_dir` and `inbox_dir` in `config/lifeos.yaml`.
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
 
 ```sh
 docker compose -f deploy/docker-compose.yml up -d   # Postgres and ntfy
+git clone git@github.com:Gautam-J/lifeos-wiki.git /var/lib/lifeos/lifeos-wiki   # one time: the wiki that the server writes
 make tools      # one time: install sqlc into ~/go/bin (linux/arm64 binary)
 make query-user # one time: make the read-only Postgres user lifeos_query
 make migrate    # generate, build, apply the migrations
@@ -229,7 +253,7 @@ The unit file holds the path `/home/gautam/lifeos-core` and the user `gautam`.
 | `make test` | Runs `deploy/test.sh`, `go vet` and all tests. Tests need the Postgres container. |
 | `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
 
-Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs and the file store. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.
+Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs, the file store and the wiki folder. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.
 
 ## Not built yet
 
@@ -237,6 +261,7 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 - **The inbox job** that reads each new source and proposes records from it.
 - **Lists in the REST API.** No route lists journal entries or sources. The admin pages list them, and the agent uses `search` and `query`.
 - **Money tables, the reconciliation with a bank statement and the one-time imports.** They are in [docs/backlog.md](docs/backlog.md). `lifeos import-csv` and `lifeos job` return "not implemented".
+- **A push of the wiki to GitHub.** Each write of a page is a commit on the Pi. The push comes with the public hostname of the MCP server.
 - **A public hostname for the MCP server.** It comes in Phase 3, with a login through Cloudflare Access and a check of the Access token in `lifeos`.
 - **A way to get a deleted record back.** The page `/admin/deleted` only removes.
 
