@@ -53,6 +53,8 @@ templ reviewList(entries []service.ReviewEntry, errorMessage string) {
 										<a href={ templ.URL(itemPath(entry.ID) + "/edit") }>Edit</a>
 									case "journal":
 										<a href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
+									case "todo":
+										<a href={ templ.URL(todoPath(entry.ID) + "/edit") }>Edit</a>
 								}
 							</td>
 						</tr>

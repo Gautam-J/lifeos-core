@@ -1,0 +1,130 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ todosPage(todos []service.Todo) {
+	@page("Todos") {
+		<h1>Todos</h1>
+		<form hx-post="/admin/todos" hx-target="#list" hx-swap="outerHTML" hx-on:todo-added="this.reset()">
+			<label>
+				Title
+				<input type="text" name="title" required maxlength="300" size="40"/>
+			</label>
+			<label>
+				Project
+				<input type="text" name="project" maxlength="100" size="15"/>
+			</label>
+			<label>
+				Due
+				<input type="date" name="due_on"/>
+			</label>
+			<button type="submit">Add</button>
+		</form>
+		@todosList(todos, "")
+	}
+}
+
+// todosList is the part of the page that a form post replaces.
+templ todosList(todos []service.Todo, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(todos) == 0 {
+			<p class="muted">No todos yet.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Title</th>
+						<th>Status</th>
+						<th>Project</th>
+						<th>Due</th>
+						<th>Source</th>
+						<th>Verified</th>
+						<th>Added (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, todo := range todos {
+						<tr>
+							<td>{ strconv.FormatInt(todo.ID, 10) }</td>
+							<td>{ todo.Title }</td>
+							<td>{ todo.Status }</td>
+							<td>{ todo.Project }</td>
+							<td>{ todo.DueOn }</td>
+							<td>{ string(todo.Source) }</td>
+							<td>{ formatVerified(todo.Verified) }</td>
+							<td>{ todo.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								if todo.Status == "open" {
+									<button hx-post={ todoPath(todo.ID) + "/done" } hx-target="#list" hx-swap="outerHTML">Done</button>
+								}
+								<a href={ templ.URL(todoPath(todo.ID) + "/edit") }>Edit</a>
+								<button
+									hx-post={ todoPath(todo.ID) + "/delete" }
+									hx-target="#list"
+									hx-swap="outerHTML"
+									hx-confirm={ "Delete " + todo.Title + "?" }
+								>Delete</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+// todoForm holds the values of the edit form as text. When the service
+// refuses a value, the form shows again what Gautam typed.
+type todoForm struct {
+	ID      int64
+	Title   string
+	Status  string
+	Project string
+	DueOn   string
+}
+
+templ editTodoPage(form todoForm, errorMessage string) {
+	@page("Edit todo") {
+		<h1>Edit todo { strconv.FormatInt(form.ID, 10) }</h1>
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		<form method="post" action={ templ.URL(todoPath(form.ID)) }>
+			<label>
+				Title
+				<input type="text" name="title" required maxlength="300" size="40" value={ form.Title }/>
+			</label>
+			<label>
+				Status
+				<select name="status" required>
+					for _, status := range service.TodoStatuses {
+						<option value={ status } selected?={ status == form.Status }>{ status }</option>
+					}
+				</select>
+			</label>
+			<label>
+				Project
+				<input type="text" name="project" maxlength="100" size="15" value={ form.Project }/>
+			</label>
+			<label>
+				Due
+				<input type="date" name="due_on" value={ form.DueOn }/>
+			</label>
+			<button type="submit">Save</button>
+			<a href="/admin/todos">Cancel</a>
+		</form>
+	}
+}
+
+func todoPath(id int64) string {
+	return "/admin/todos/" + strconv.FormatInt(id, 10)
+}
