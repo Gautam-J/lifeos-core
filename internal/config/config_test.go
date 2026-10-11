@@ -20,6 +20,7 @@ const valid = `
 http_addr: 127.0.0.1:8200
 mcp_addr: 127.0.0.1:8100
 database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable
+query_database_url: postgres://lifeos_query@127.0.0.1:5432/lifeos?sslmode=disable
 files_dir: /var/lib/lifeos/files
 inbox_dir: /var/lib/lifeos/inbox
 max_file_mb: 50
@@ -31,12 +32,13 @@ func TestLoadReadsAllKeys(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 	want := Config{
-		HTTPAddr:    "127.0.0.1:8200",
-		MCPAddr:     "127.0.0.1:8100",
-		DatabaseURL: "postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable",
-		FilesDir:    "/var/lib/lifeos/files",
-		InboxDir:    "/var/lib/lifeos/inbox",
-		MaxFileMB:   50,
+		HTTPAddr:         "127.0.0.1:8200",
+		MCPAddr:          "127.0.0.1:8100",
+		DatabaseURL:      "postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable",
+		QueryDatabaseURL: "postgres://lifeos_query@127.0.0.1:5432/lifeos?sslmode=disable",
+		FilesDir:         "/var/lib/lifeos/files",
+		InboxDir:         "/var/lib/lifeos/inbox",
+		MaxFileMB:        50,
 	}
 	if cfg != want {
 		t.Errorf("Load = %+v, want %+v", cfg, want)
@@ -68,6 +70,11 @@ func TestLoadRejectsBadFiles(t *testing.T) {
 			name:    "missing database url",
 			content: strings.Replace(valid, "database_url: postgres://lifeos@127.0.0.1:5432/lifeos?sslmode=disable", "", 1),
 			wantErr: "database_url",
+		},
+		{
+			name:    "missing query database url",
+			content: strings.Replace(valid, "query_database_url: postgres://lifeos_query@127.0.0.1:5432/lifeos?sslmode=disable", "", 1),
+			wantErr: "query_database_url",
 		},
 		{
 			name:    "file store that is not a full path",

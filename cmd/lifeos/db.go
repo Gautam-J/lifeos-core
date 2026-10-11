@@ -21,3 +21,18 @@ func poolConfig(cfg config.Config) (*pgxpool.Config, error) {
 	}
 	return pc, nil
 }
+
+// queryPoolConfig turns query_database_url into pool settings and adds the
+// password from the LIFEOS_QUERY_PASSWORD environment variable. Each query
+// uses a connection one time, so the pool is small.
+func queryPoolConfig(cfg config.Config) (*pgxpool.Config, error) {
+	pc, err := pgxpool.ParseConfig(cfg.QueryDatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("query_database_url: %w", err)
+	}
+	if password := os.Getenv("LIFEOS_QUERY_PASSWORD"); password != "" {
+		pc.ConnConfig.Password = password
+	}
+	pc.MaxConns = 2
+	return pc, nil
+}

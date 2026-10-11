@@ -41,6 +41,10 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	queryConfig, err := queryPoolConfig(cfg)
+	if err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -54,12 +58,22 @@ func serve(args []string) error {
 		return fmt.Errorf("database: %w", err)
 	}
 
+	queryPool, err := pgxpool.NewWithConfig(ctx, queryConfig)
+	if err != nil {
+		return fmt.Errorf("query_database_url: %w", err)
+	}
+	defer queryPool.Close()
+	svc := service.New(pool).WithFiles(files)
+	if err := svc.UseQueryPool(ctx, queryPool); err != nil {
+		return fmt.Errorf("query_database_url: %w", err)
+	}
+
 	httpListener, mcpListener, err := listen(cfg)
 	if err != nil {
 		return err
 	}
 	slog.Info("lifeos is listening", "http", httpListener.Addr().String(), "mcp", mcpListener.Addr().String())
-	return serveOn(ctx, httpListener, mcpListener, service.New(pool).WithFiles(files))
+	return serveOn(ctx, httpListener, mcpListener, svc)
 }
 
 // fileStore returns the settings of the file store. It checks that the two

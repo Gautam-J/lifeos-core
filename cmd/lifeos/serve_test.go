@@ -195,3 +195,21 @@ func TestFileStoreNeedsTheTwoFolders(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryPoolConfigTakesThePasswordFromTheEnvironment(t *testing.T) {
+	t.Setenv("LIFEOS_QUERY_PASSWORD", "from-the-environment")
+
+	pc, err := queryPoolConfig(config.Config{QueryDatabaseURL: "postgres://lifeos_query@127.0.0.1:5432/lifeos?sslmode=disable"})
+	if err != nil {
+		t.Fatalf("queryPoolConfig: %v", err)
+	}
+	if pc.ConnConfig.User != "lifeos_query" || pc.ConnConfig.Password != "from-the-environment" || pc.MaxConns != 2 {
+		t.Errorf("user, max connections = %q, %d; the password is from the environment: %v",
+			pc.ConnConfig.User, pc.MaxConns, pc.ConnConfig.Password == "from-the-environment")
+	}
+
+	_, err = queryPoolConfig(config.Config{QueryDatabaseURL: "not a url"})
+	if err == nil || !strings.Contains(err.Error(), "query_database_url") {
+		t.Errorf("error = %v, want an error that names query_database_url", err)
+	}
+}

@@ -19,6 +19,10 @@ type Config struct {
 	// DatabaseURL is the Postgres URL without a password. The password
 	// comes from the POSTGRES_PASSWORD environment variable.
 	DatabaseURL string `yaml:"database_url"`
+	// QueryDatabaseURL is the Postgres URL of the read-only user, for the
+	// query tool. The password comes from the LIFEOS_QUERY_PASSWORD
+	// environment variable.
+	QueryDatabaseURL string `yaml:"query_database_url"`
 	// FilesDir is the file store: the folder that holds the captured
 	// files.
 	FilesDir string `yaml:"files_dir"`
@@ -42,6 +46,9 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("config: %s: database_url is empty", path)
+	}
+	if cfg.QueryDatabaseURL == "" {
+		return Config{}, fmt.Errorf("config: %s: query_database_url is empty", path)
 	}
 	for key, addr := range map[string]string{"http_addr": cfg.HTTPAddr, "mcp_addr": cfg.MCPAddr} {
 		if err := checkLoopback(addr); err != nil {
