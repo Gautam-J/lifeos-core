@@ -13,7 +13,7 @@ This repo holds the service code only. It holds no personal data.
 | Phase | State |
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
-| 2 · Core data | In work. Lists, journal, todos, habits, the review queue and the three interfaces are built. Search, capture, money tables and CSV importers are not built. |
+| 2 · Core data | In work. Lists, journal, todos, habits, the review queue, capture, search, the read-only query and the three interfaces are built. Money tables and CSV importers are not built. |
 | 3 to 5 | Not started. |
 
 The section [Not built yet](#not-built-yet) lists what is missing.
@@ -21,6 +21,8 @@ The section [Not built yet](#not-built-yet) lists what is missing.
 ## What you can do
 
 Each function below has one use case. All three interfaces call the same service code, so the same checks apply to each of them.
+
+The record types are `item`, `journal`, `todo`, `habit_log` and `source`.
 
 ### 1. Lists: movies, books, places, games
 
@@ -70,9 +72,40 @@ Each write appends one row to the `events` table in the same transaction: the ac
 
 **Use case.** A rating looks wrong. Read the `events` rows of that record to see who changed the rating, when, and what the value was before.
 
-### 8. Backup, restore test and notifications
+### 8. Capture: sources
 
-- `deploy/backup.sh` dumps the database into two restic repositories: one on the Pi and one in Backblaze B2. A systemd timer runs it each night at 02:00.
+A source is a text, a link or a file that LifeOS keeps exactly as it comes. The same content a second time gives the source that exists. A source is always verified, and it has no field that you can change.
+
+- **Text:** stored as it is written, 1 MB at most.
+- **Link:** LifeOS stores the URL. It does not get the page.
+- **File:** stored in the file store, with its name, its type and its SHA-256. The limit is `max_file_mb` (50 MB). LifeOS does not read the text of a PDF.
+- A record that an agent takes from a source names the source in `source_ref`.
+
+**Use case.** You share an article link from the phone; a Shortcut posts it to `/api/ingest`. In a Claude Code session on the Pi you put a policy PDF in the inbox folder and say "ingest this"; the agent calls `capture` with the path.
+
+### 9. Search
+
+A search finds list items, journal entries, todos and sources by their words. A record matches when it has every word. Upper and lower case are the same, and a part of a word matches. The newest hit is first.
+
+**Use case.** You ask "when did I last go to Lonavala?". The agent calls `search` with `lonavala`, reads the hits, and answers with the date and the ID of the record.
+
+### 10. Read-only query
+
+The agent can run one SQL statement on the data. The statement runs as the Postgres user `lifeos_query`, which can only read, for 5 seconds at most. The answer has 200 rows at most.
+
+**Use case.** You ask "on how many days did I go to the gym this month?". The agent calls `query` with a `SELECT count(*)` on `habit_logs`.
+
+### 11. Secrets are refused
+
+The service refuses a text that holds a card number, an Aadhaar number, a PAN, a private key or an access token. It stores nothing, and the error names the kind of secret without the secret itself. This applies to each text field: a title, a journal body, an attr, a captured text and a text file.
+
+A password in plain words and a bank account number have no pattern, so the service cannot find them. A phone number in the form `91XXXXXXXXXX` is refused in about 1 of 10 cases, because it looks like an Aadhaar number: write it as `+91 XXXXX XXXXX`.
+
+**Use case.** You paste a note that has your card number into the journal form. The page shows "body: must not hold a card number" and keeps your text, so you can remove the number and save.
+
+### 12. Backup, restore test and notifications
+
+- `deploy/backup.sh` dumps the database and copies the file store into two restic repositories: one on the Pi and one in Backblaze B2. A systemd timer runs it each night at 02:00.
 - `deploy/restore-test.sh [local|b2]` loads the latest backup into a scratch database and compares the row count of each table with production.
 - `deploy/notify.sh <topic> <message>` sends a message to the ntfy server on the Pi. The backup unit sends its result this way.
 
@@ -97,6 +130,7 @@ There is no login yet. Do not put these listeners on a public address.
 | `/admin/journal` | Write an entry, see the entries, edit or delete an entry. |
 | `/admin/todos` | Add a todo, mark it done, edit or delete it. |
 | `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
+| `/admin/sources` | Capture a text or a link, see the sources, delete a source. |
 | `/admin/review` | See the records that wait, and approve them. |
 
 A record that the admin pages write is `manual` and verified.
@@ -111,6 +145,8 @@ The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/op
 | Journal | `POST /api/journal`, `GET`, `PATCH`, `DELETE /api/journal/{id}` |
 | Todos | `POST /api/todos`, `GET /api/todos?status=&limit=`, `GET`, `PATCH`, `DELETE /api/todos/{id}` |
 | Habits | `POST /api/habits/log`, `GET /api/habits/today`, `GET`, `DELETE /api/habits/logs/{id}` |
+| Sources | `POST /api/ingest` (a text or a link), `POST /api/ingest/file?name=` (the file is the body), `GET`, `DELETE /api/sources/{id}` |
+| Search | `GET /api/search?query=&types=&limit=` |
 | Review | `GET /api/review?limit=`, `POST /api/review/verify` |
 
 A list returns 50 rows by default; the maximum is 200.
@@ -131,21 +167,25 @@ A record that an MCP tool writes has the source `agent`. It is verified only whe
 | `journal` | Stores a journal entry, word for word. The entry is always verified. |
 | `todo` | Adds one todo. |
 | `log_habit` | Logs a habit for a day. A second call with `dictated: true` approves a proposed log. |
+| `capture` | Keeps a text, a link or a file from the inbox folder as a source. |
+| `search` | Finds records by their words, the newest first. |
+| `query` | Runs one read-only SQL statement. |
 | `get` | Reads one record by type and ID. |
 | `update` | Corrects one record. |
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
 | `review_queue` | Lists the records that wait for approval, oldest first. |
 | `verify` | Approves records that you approved in the conversation. |
 
-The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo` and `habit_log`.
+The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo` and `log_habit` take an optional `source_ref`.
 
 ## Run it
 
-You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`.
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD` and `NTFY_BASE_URL`. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store: `files_dir` and `inbox_dir` in `config/lifeos.yaml`.
 
 ```sh
 docker compose -f deploy/docker-compose.yml up -d   # Postgres and ntfy
 make tools      # one time: install sqlc into ~/go/bin (linux/arm64 binary)
+make query-user # one time: make the read-only Postgres user lifeos_query
 make migrate    # generate, build, apply the migrations
 make run        # run lifeos serve
 ```
@@ -159,13 +199,13 @@ Then open <http://127.0.0.1:8200/admin/items>.
 | `make test` | Runs `go vet` and all tests. Tests need the Postgres container. |
 | `make test PKG=./internal/api ARGS="-run TestName -v"` | Runs a part of the tests. |
 
-Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses and the database URL. The password comes from `POSTGRES_PASSWORD` in the environment.
+Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen addresses, the two database URLs and the file store. The passwords come from `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD` in the environment.
 
 ## Not built yet
 
-- **Search and lists for the agent.** No MCP tool lists or searches records. The REST API has no route that lists journal entries.
-- **Capture** of raw text into an inbox, and the read-only `query` database user.
-- **Rejection of secrets.** The service does not yet refuse passwords, card numbers or government ID numbers in text.
+- **The page of a link and the text of a file.** LifeOS stores a link as its URL and a file as its bytes. It does not get the page, and it does not read the text of a PDF. No page shows or downloads a stored file.
+- **The inbox job** that reads each new source and proposes records from it.
+- **Lists in the REST API.** No route lists journal entries or sources. The admin pages list them, and the agent uses `search` and `query`.
 - **Money tables and CSV importers.** `lifeos import-csv` and `lifeos job` return "not implemented".
 - **Login, tokens and the systemd unit** for `lifeos serve`, and permanent delete in the admin pages.
 
@@ -181,6 +221,6 @@ internal/config/     loads config/lifeos.yaml
 internal/testdb/     one migrated database for each test
 queries/             SQL that sqlc compiles into internal/store/
 migrations/          goose SQL migrations
-deploy/              docker-compose.yml, backup scripts, systemd units
+deploy/              docker-compose.yml, backup scripts, query-user.sh, systemd units
 docs/                design doc, backlog, implementation plans
 ```
