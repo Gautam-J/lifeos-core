@@ -1,0 +1,61 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ deletedPage(records []service.DeletedRecord) {
+	@page("Deleted") {
+		<h1>Deleted records</h1>
+		<p class="muted">A deleted record stays in the database until you remove it here. "Delete forever" removes the record, the content of its history and the file of a file source. You cannot get it back.</p>
+		@deletedList(records, "")
+	}
+}
+
+// deletedList is the part of the page that a removal replaces.
+templ deletedList(records []service.DeletedRecord, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(records) == 0 {
+			<p class="muted">No record is deleted.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Type</th>
+						<th>ID</th>
+						<th>Record</th>
+						<th>Deleted (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, record := range records {
+						<tr>
+							<td>{ record.Type }</td>
+							<td>{ strconv.FormatInt(record.ID, 10) }</td>
+							<td>{ record.Summary }</td>
+							<td>{ record.DeletedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								<form
+									hx-post="/admin/deleted/purge"
+									hx-target="#list"
+									hx-swap="outerHTML"
+									hx-confirm={ "Delete " + record.Type + " " + strconv.FormatInt(record.ID, 10) + " forever? You cannot get it back." }
+								>
+									<input type="hidden" name="type" value={ record.Type }/>
+									<input type="hidden" name="id" value={ strconv.FormatInt(record.ID, 10) }/>
+									<button type="submit">Delete forever</button>
+								</form>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
