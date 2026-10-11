@@ -1,0 +1,89 @@
+package admin
+
+import (
+	"strconv"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+templ sourcesPage(captures []service.Capture) {
+	@page("Sources") {
+		<h1>Sources</h1>
+		<p class="muted">A source is a text or a link that LifeOS keeps exactly as it is. Fill in the text or the link, not the two.</p>
+		<form hx-post="/admin/sources" hx-target="#list" hx-swap="outerHTML" hx-on:source-added="this.reset()">
+			<label>
+				Text
+				<textarea name="text" cols="60" rows="6"></textarea>
+			</label>
+			<label>
+				Link
+				<input type="url" name="url" size="40" placeholder="https://"/>
+			</label>
+			<label>
+				Title (optional)
+				<input type="text" name="title" maxlength="300" size="30"/>
+			</label>
+			<button type="submit">Capture</button>
+		</form>
+		@sourcesList(captures, "")
+	}
+}
+
+// sourcesList is the part of the page that a form post replaces.
+templ sourcesList(captures []service.Capture, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		if len(captures) == 0 {
+			<p class="muted">No sources yet.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Kind</th>
+						<th>Title</th>
+						<th>Content</th>
+						<th>Source</th>
+						<th>Captured (IST)</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, capture := range captures {
+						<tr>
+							<td>{ strconv.FormatInt(capture.ID, 10) }</td>
+							<td>{ capture.Kind }</td>
+							<td>{ capture.Title }</td>
+							<td>
+								switch capture.Kind {
+									case "link":
+										<a href={ templ.URL(capture.URL) } rel="noreferrer">{ capture.URL }</a>
+									case "file":
+										{ capture.MediaType }, { fileSize(capture.SizeBytes) }
+									default:
+										{ preview(capture.Content) }
+								}
+							</td>
+							<td>{ string(capture.Source) }</td>
+							<td>{ capture.CreatedAt.In(service.IST).Format("2 Jan 2006 15:04") }</td>
+							<td>
+								<button
+									hx-post={ sourcePath(capture.ID) + "/delete" }
+									hx-target="#list"
+									hx-swap="outerHTML"
+									hx-confirm={ "Delete source " + strconv.FormatInt(capture.ID, 10) + "?" }
+								>Delete</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+func sourcePath(id int64) string {
+	return "/admin/sources/" + strconv.FormatInt(id, 10)
+}

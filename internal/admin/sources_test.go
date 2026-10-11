@@ -1,0 +1,167 @@
+package admin_test
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
+
+func TestSourcesPageShowsTheFormAndAnEmptyList(t *testing.T) {
+	h, _ := newTestAdmin(t)
+
+	rec := get(h, "/admin/sources")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`hx-post="/admin/sources"`, `<textarea name="text"`, `name="url"`, `name="title"`, "No sources yet.", `href="/admin/sources"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page does not contain %q", want)
+		}
+	}
+}
+
+// A browser sends each line break of a textarea as CR LF. The stored text
+// must have the line breaks that Gautam typed.
+func TestAddSourceStoresTheTextOfTheForm(t *testing.T) {
+	h, pool := newTestAdmin(t)
+
+	rec := postForm(h, "/admin/sources", url.Values{"text": {"  Renewal on 12 March.\r\n\r\nCall first.  \r\n"}, "url": {""}, "title": {"Insurance"}})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200\n%s", rec.Code, rec.Body)
+	}
+	if got := rec.Header().Get("HX-Trigger"); got != "source-added" {
+		t.Errorf("HX-Trigger = %q, want source-added so that the form resets", got)
+	}
+	page := rec.Body.String()
+	if !strings.HasPrefix(strings.TrimSpace(page), `<div id="list">`) {
+		t.Errorf("the response is not the #list fragment:\n%s", page)
+	}
+	for _, want := range []string{"Insurance", "Renewal on 12 March.", "text", "manual"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the list does not contain %q", want)
+		}
+	}
+
+	var content, source string
+	var verified bool
+	if err := pool.QueryRow(t.Context(), "SELECT content, source, verified FROM sources").Scan(&content, &source, &verified); err != nil {
+		t.Fatalf("read the row (want exactly one): %v", err)
+	}
+	if content != "  Renewal on 12 March.\n\nCall first.  \n" {
+		t.Errorf("stored content = %q", content)
+	}
+	if source != "manual" || !verified {
+		t.Errorf("source, verified = %q, %v, want manual, true", source, verified)
+	}
+}
+
+func TestAddSourceStoresALink(t *testing.T) {
+	h, pool := newTestAdmin(t)
+
+	rec := postForm(h, "/admin/sources", url.Values{"text": {""}, "url": {"https://example.com/article"}})
+
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="https://example.com/article"`) {
+		t.Errorf("status = %d, want 200 and the link in the list\n%s", rec.Code, rec.Body)
+	}
+	var kind string
+	if err := pool.QueryRow(t.Context(), "SELECT kind FROM sources").Scan(&kind); err != nil || kind != "link" {
+		t.Errorf("kind = %q, %v, want link", kind, err)
+	}
+}
+
+func TestAddSourceShowsWhyTheServiceRefusedTheInput(t *testing.T) {
+	tests := []struct {
+		name     string
+		form     url.Values
+		wantText string
+	}{
+		{"nothing", url.Values{"text": {""}, "url": {""}}, "text: give one of these"},
+		{"a text and a link", url.Values{"text": {"a note"}, "url": {"https://example.com"}}, "text: give one of these"},
+		{"a card number", url.Values{"text": {"card 4111 1111 1111 1111"}}, "text: must not hold a card number"},
+		{"a link with no scheme", url.Values{"url": {"example.com"}}, "url: must start with http:// or https://"},
+	}
+	h, pool := newTestAdmin(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := postForm(h, "/admin/sources", tt.form)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 so that htmx swaps the list", rec.Code)
+			}
+			if !strings.Contains(rec.Body.String(), tt.wantText) {
+				t.Errorf("the response does not contain %q:\n%s", tt.wantText, rec.Body)
+			}
+			if rec.Header().Get("HX-Trigger") != "" {
+				t.Error("HX-Trigger is set, so the form loses what Gautam typed")
+			}
+			if strings.Contains(rec.Body.String(), "4111 1111") {
+				t.Error("the page repeats the card number")
+			}
+		})
+	}
+	var n int
+	if err := pool.QueryRow(t.Context(), "SELECT count(*) FROM sources").Scan(&n); err != nil || n != 0 {
+		t.Errorf("sources = %d, %v, want 0", n, err)
+	}
+}
+
+// The list shows the start of a long text, and a file by its name.
+func TestSourcesListShowsEachKind(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	svc := service.New(pool).WithFiles(service.Files{Dir: t.TempDir(), Inbox: t.TempDir(), MaxBytes: 4096})
+	long := "Start of the article. " + strings.Repeat("word ", 100) + "THE END"
+	for _, p := range []service.CaptureParams{
+		{Text: long, Source: service.SourceAgent},
+		{Upload: bytes.NewReader([]byte("%PDF-1.7\n")), FileName: "policy.pdf", Source: service.SourceManual},
+	} {
+		if _, err := svc.Capture(t.Context(), p); err != nil {
+			t.Fatalf("Capture: %v", err)
+		}
+	}
+
+	page := get(h, "/admin/sources").Body.String()
+
+	for _, want := range []string{"Start of the article.", "…", "agent", "policy.pdf", "application/pdf", "9 bytes"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the list does not contain %q", want)
+		}
+	}
+	if strings.Contains(page, "THE END") {
+		t.Error("the list shows the end of a long text")
+	}
+}
+
+func TestDeleteSourceRemovesItFromTheList(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	capture, err := service.New(pool).Capture(t.Context(), service.CaptureParams{Text: "a note to delete", Source: service.SourceManual})
+	if err != nil {
+		t.Fatalf("Capture: %v", err)
+	}
+	path := fmt.Sprintf("/admin/sources/%d/delete", capture.ID)
+
+	rec := postForm(h, path, nil)
+
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "a note to delete") || !strings.Contains(rec.Body.String(), "No sources yet.") {
+		t.Errorf("status = %d, want 200 and an empty list\n%s", rec.Code, rec.Body)
+	}
+	if _, err := service.New(pool).GetCapture(t.Context(), capture.ID); err != service.ErrNotFound {
+		t.Errorf("GetCapture after the delete: error = %v, want ErrNotFound", err)
+	}
+
+	// A second click, or a click in a stale tab.
+	rec = postForm(h, path, nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "is not in the list") {
+		t.Errorf("second delete: status = %d\n%s", rec.Code, rec.Body)
+	}
+	if rec := postForm(h, "/admin/sources/abc/delete", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("delete with a bad ID: status = %d, want 404", rec.Code)
+	}
+}
