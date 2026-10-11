@@ -177,6 +177,11 @@ func verifyRecord(ctx context.Context, q *store.Queries, ref RecordRef) (table s
 	case "habit_log":
 		before, after, err = verifyHabitLog(ctx, q, ref.ID)
 		return "habit_logs", before, after, err
+	case "source":
+		// A source is verified from the start, so there is nothing to
+		// approve. The read finds a source that does not exist.
+		_, err = q.GetSource(ctx, ref.ID)
+		return "sources", nil, nil, err
 	}
 	return "", nil, nil, errNoCode(ref.Type)
 }

@@ -18,3 +18,9 @@ SELECT * FROM sources
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC, id DESC
 LIMIT $1;
+
+-- name: SoftDeleteSource :one
+UPDATE sources
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
