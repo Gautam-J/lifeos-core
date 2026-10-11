@@ -81,23 +81,32 @@ func TestUpdateClearsAField(t *testing.T) {
 	}
 }
 
-// A change that the model inferred must wait for review. The safe default
-// when the model leaves out "dictated" is not verified.
-func TestUpdateThatIsNotDictatedSendsTheRecordToReview(t *testing.T) {
+// A change that the model inferred must not replace a value that the user
+// approved. The safe default when the model leaves out "dictated" is a
+// refusal that tells the model to ask the user.
+func TestUpdateThatIsNotDictatedCannotChangeAVerifiedRecord(t *testing.T) {
 	session, _ := connect(t)
 	id := addItem(t, session, "Dune", true)
 
-	updated := structured(t, call(t, session, "update", map[string]any{
+	result := call(t, session, "update", map[string]any{
 		"type": "item", "id": id, "fields": map[string]any{"rating": 2},
-	}))
+	})
 
-	if updated["verified"] != false {
-		t.Errorf("verified = %v, want false when dictated is absent", updated["verified"])
+	if !result.IsError || !strings.Contains(text(result), "dictated") {
+		t.Fatalf("IsError = %v, text = %q; want an error that names dictated", result.IsError, text(result))
 	}
-	queue := structured(t, call(t, session, "review_queue", map[string]any{}))
-	entries := queue["entries"].([]any)
-	if len(entries) != 1 || entries[0].(map[string]any)["id"] != id {
-		t.Errorf("review queue = %v, want the changed item", entries)
+	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
+	if got["rating"] != float64(4) || got["verified"] != true {
+		t.Errorf("a refused update changed the record: %v", got)
+	}
+
+	// The model can correct a record that still waits for review.
+	waits := addItem(t, session, "Waits", false)
+	updated := structured(t, call(t, session, "update", map[string]any{
+		"type": "item", "id": waits, "fields": map[string]any{"rating": 2},
+	}))
+	if updated["rating"] != float64(2) || updated["verified"] != false {
+		t.Errorf("update of a record that waits = %v, want rating 2 and verified false", updated)
 	}
 }
 

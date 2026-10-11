@@ -116,14 +116,22 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 		t.Fatalf("MCP get after the approval: %+v", got.StructuredContent)
 	}
 
-	// 6. MCP: a change that the agent inferred sends the record back to
-	// the queue.
-	updated := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}})
-	if updated.IsError || updated.StructuredContent.(map[string]any)["verified"] != false {
+	// 6. MCP: the record is approved now, so the service refuses a
+	// change that the agent inferred. A change that Gautam stated goes
+	// through, and the record stays approved.
+	refused := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}})
+	if !refused.IsError {
+		t.Fatalf("MCP update with no dictated flag changed an approved record: %+v", refused.StructuredContent)
+	}
+	updated := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}, "dictated": true})
+	if updated.IsError || updated.StructuredContent.(map[string]any)["verified"] != true {
 		t.Fatalf("MCP update: %+v", updated.StructuredContent)
 	}
-	if _, body := send(t, "GET", rest+"/api/review", "", ""); !strings.Contains(body, "Changed through MCP") {
-		t.Errorf("the review queue does not show the changed record: %s", body)
+	if _, body := send(t, "GET", rest+"/api/review", "", ""); strings.Contains(body, "Changed through MCP") {
+		t.Errorf("the review queue shows a record that is approved: %s", body)
+	}
+	if _, body := send(t, "GET", rest+"/admin/items", "", ""); !strings.Contains(body, "Changed through MCP") {
+		t.Errorf("the items page does not show the changed record")
 	}
 
 	// 7. Admin: delete. REST and MCP must not find the record after that.

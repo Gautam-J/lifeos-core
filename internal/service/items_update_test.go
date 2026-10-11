@@ -246,40 +246,68 @@ func TestUpdateItemReturnsNotFound(t *testing.T) {
 	}
 }
 
-// A change that an agent inferred is not Gautam's word. The row must go
-// back to the review queue, and reports must not count it until he
-// approves it. A change that he stated must not change the flag.
-func TestUpdateItemSendsAnInferredChangeBackToReview(t *testing.T) {
+// A change that an agent inferred is not Gautam's word. It must not
+// replace a value that he approved: the service refuses it, and the agent
+// must ask him. No update approves a row.
+func TestUpdateItemRefusesAnInferredChangeToAVerifiedRow(t *testing.T) {
+	s, pool := newTestService(t)
+	ctx := context.Background()
+	verified, err := s.AddItem(ctx, dune())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = s.UpdateItem(ctx, verified.ID, UpdateItemParams{Rating: ptr(3.0), Actor: SourceAgent, Inferred: true})
+
+	var invalid *ValidationError
+	if !errors.As(err, &invalid) || invalid.Field != "dictated" {
+		t.Fatalf("error = %v, want a ValidationError for dictated", err)
+	}
+	stored, err := s.GetItem(ctx, verified.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *stored.Rating != 4.5 || !stored.Verified || !stored.UpdatedAt.Equal(verified.UpdatedAt) {
+		t.Errorf("a refused update changed the row: %+v", stored)
+	}
+	if n := countRows(t, pool, "events"); n != 1 {
+		t.Errorf("events = %d, want 1 (the create)", n)
+	}
+
+	// A change that Gautam stated goes through, and the row stays verified.
+	stated, err := s.UpdateItem(ctx, verified.ID, UpdateItemParams{Rating: ptr(3.0), Actor: SourceAgent})
+	if err != nil {
+		t.Fatalf("stated change: %v", err)
+	}
+	if *stated.Rating != 3 || !stated.Verified {
+		t.Errorf("stated change: rating, verified = %v, %v; want 3, true", *stated.Rating, stated.Verified)
+	}
+}
+
+// A row that waits for review is the agent's own guess. The agent can
+// correct it, with or without Gautam's words, and the row keeps waiting.
+func TestUpdateItemKeepsAnUnverifiedRowUnverified(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
-	verified := dune()
-	unverified := dune()
-	unverified.Verified = false
-
-	tests := []struct {
-		name     string
-		start    AddItemParams
-		inferred bool
-		want     bool
-	}{
-		{"inferred change to a verified row", verified, true, false},
-		{"stated change to a verified row", verified, false, true},
-		{"stated change to an unverified row", unverified, false, false},
+	p := dune()
+	p.Verified = false
+	added, err := s.AddItem(ctx, p)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			added, err := s.AddItem(ctx, tt.start)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{Rating: ptr(3.0), Actor: SourceAgent, Inferred: tt.inferred})
-			if err != nil {
-				t.Fatalf("UpdateItem: %v", err)
-			}
-			if got.Verified != tt.want {
-				t.Errorf("verified = %v, want %v", got.Verified, tt.want)
-			}
-		})
+
+	for _, inferred := range []bool{true, false} {
+		rating := 1.0
+		if inferred {
+			rating = 2.0
+		}
+		got, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{Rating: &rating, Actor: SourceAgent, Inferred: inferred})
+		if err != nil {
+			t.Fatalf("inferred %v: UpdateItem: %v", inferred, err)
+		}
+		if *got.Rating != rating || got.Verified {
+			t.Errorf("inferred %v: rating, verified = %v, %v; want %v, false", inferred, *got.Rating, got.Verified, rating)
+		}
 	}
 }
 

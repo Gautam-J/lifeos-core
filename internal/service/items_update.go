@@ -27,7 +27,7 @@ type UpdateItemParams struct {
 	// of the row stays as it is.
 	Actor Source `json:"-"`
 	// Inferred is true when an agent makes a change that Gautam did not
-	// state. The row then waits in the review queue again.
+	// state. The service refuses such a change to a verified row.
 	Inferred bool `json:"-"`
 }
 
@@ -74,6 +74,10 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 	if reflect.DeepEqual(changed, old) {
 		return old, nil
 	}
+	// A guess must not replace a value that Gautam approved.
+	if p.Inferred && old.Verified {
+		return Item{}, invalid("dictated", "must be true to change a verified record: ask the user to confirm the change, then send it again")
+	}
 	stored, err := q.UpdateCatalogItem(ctx, store.UpdateCatalogItemParams{
 		ID:         id,
 		Kind:       row.Kind,
@@ -81,7 +85,7 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 		Rating:     row.Rating,
 		OccurredOn: row.OccurredOn,
 		Attrs:      row.Attrs,
-		Verified:   old.Verified && !p.Inferred,
+		Verified:   old.Verified,
 	})
 	if err != nil {
 		return Item{}, fmt.Errorf("update item: %w", err)

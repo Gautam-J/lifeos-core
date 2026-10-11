@@ -46,7 +46,7 @@ type UpdateParams struct {
 	// Actor is who makes the change.
 	Actor Source
 	// Inferred is true when an agent makes a change that Gautam did not
-	// state.
+	// state. Update refuses such a change to a verified record.
 	Inferred bool
 }
 

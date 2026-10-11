@@ -53,7 +53,9 @@ func TestRecordFunctionsRejectAnUnknownType(t *testing.T) {
 func TestUpdateChangesTheNamedFields(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
-	added, err := s.AddItem(ctx, dune())
+	p := dune()
+	p.Verified = false
+	added, err := s.AddItem(ctx, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +81,7 @@ func TestUpdateChangesTheNamedFields(t *testing.T) {
 		t.Errorf("attrs = %v", item.Attrs)
 	}
 	if item.Verified {
-		t.Error("an inferred change left the row verified")
+		t.Error("an inferred change verified the row")
 	}
 	events := allEvents(t, pool)
 	if last := events[len(events)-1]; last.Action != "update" || last.Source != "agent" {
