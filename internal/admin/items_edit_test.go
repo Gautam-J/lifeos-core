@@ -211,3 +211,24 @@ func TestDeleteItemRemovesTheItemFromTheList(t *testing.T) {
 		t.Errorf("the list lost the item %d", kept.ID)
 	}
 }
+
+// A click on Save with no change is not a write.
+func TestSaveItemWithNoChangeWritesNoEvent(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	item := addStored(t, pool, "Dune", true)
+
+	rec := postForm(h, fmt.Sprintf("/admin/items/%d", item.ID), url.Values{
+		"kind": {"movie"}, "title": {"Dune"}, "rating": {"4.5"}, "occurred_on": {"2024-03-01"},
+	})
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303\n%s", rec.Code, rec.Body)
+	}
+	var events int
+	if err := pool.QueryRow(t.Context(), "SELECT count(*) FROM events").Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Errorf("events = %d, want 1 (the create)", events)
+	}
+}

@@ -247,3 +247,35 @@ func TestDatabaseFailureOnARecordToolGivesAPlainError(t *testing.T) {
 		}
 	}
 }
+
+// An update that names nothing, or that sends null, must not report
+// success. It must also leave a verified record verified.
+func TestUpdateRejectsANullValueAndAnEmptyUpdate(t *testing.T) {
+	session, pool := connect(t)
+	id := addItem(t, session, "Dune", true)
+
+	for name, args := range map[string]map[string]any{
+		"no fields":       {"type": "item", "id": id},
+		"null in fields":  {"type": "item", "id": id, "fields": map[string]any{"rating": nil}},
+		"an empty fields": {"type": "item", "id": id, "fields": map[string]any{}},
+	} {
+		result := call(t, session, "update", args)
+		if !result.IsError {
+			t.Errorf("%s: IsError = false, want an error result", name)
+		}
+		if !strings.Contains(text(result), "clear") {
+			t.Errorf("%s: error text %q does not point to clear", name, text(result))
+		}
+	}
+	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
+	if got["verified"] != true || got["rating"] != float64(4) {
+		t.Errorf("a refused update changed the record: %v", got)
+	}
+	var events int
+	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM events").Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Errorf("events = %d after refused calls, want 1 (the create)", events)
+	}
+}

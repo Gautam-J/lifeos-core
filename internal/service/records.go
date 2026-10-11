@@ -78,9 +78,15 @@ func (s *Service) Delete(ctx context.Context, recordType string, id int64, p Del
 
 // decodeFields copies fields into target. target is a pointer to a struct
 // that has a json tag for each field that a caller can change. A name that
-// target does not have, or a value of the wrong type, gives a
-// ValidationError that names the field.
+// target does not have, a value of the wrong type, or a null gives a
+// ValidationError that names the field. A null is refused because a caller
+// can mean "empty this field" by it; that is what Clear is for.
 func decodeFields(fields map[string]any, target any, recordType string) error {
+	for name, value := range fields {
+		if value == nil {
+			return invalid(name, "must not be null; to empty an optional field, put its name in clear")
+		}
+	}
 	raw, err := json.Marshal(fields)
 	if err != nil {
 		return invalid("fields", "must be a JSON object")

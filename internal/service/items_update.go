@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/jackc/pgx/v5"
@@ -35,7 +36,8 @@ var clearableItemFields = []string{"rating", "occurred_on"}
 
 // UpdateItem changes the given fields of one catalog item and appends an
 // update event that holds the old row, in one transaction. It locks the
-// row first, so two updates at the same moment do not lose a field.
+// row first, so two updates at the same moment do not lose a field. A call
+// that changes no value writes nothing and appends no event.
 func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) (Item, error) {
 	if err := p.check(); err != nil {
 		return Item{}, err
@@ -61,9 +63,16 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 	}
 
 	// The changed row goes through the same checks as a new row.
-	row, err := p.applyTo(old).toRow(s.now())
+	next := p.applyTo(old)
+	row, err := next.toRow(s.now())
 	if err != nil {
 		return Item{}, err
+	}
+	changed := old
+	changed.Kind, changed.Title, changed.Rating = row.Kind, row.Title, row.Rating
+	changed.OccurredOn, changed.Attrs = next.OccurredOn, next.Attrs
+	if reflect.DeepEqual(changed, old) {
+		return old, nil
 	}
 	stored, err := q.UpdateCatalogItem(ctx, store.UpdateCatalogItemParams{
 		ID:         id,
@@ -72,7 +81,7 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 		Rating:     row.Rating,
 		OccurredOn: row.OccurredOn,
 		Attrs:      row.Attrs,
-		Verified:   row.Verified,
+		Verified:   old.Verified && !p.Inferred,
 	})
 	if err != nil {
 		return Item{}, fmt.Errorf("update item: %w", err)
@@ -94,6 +103,9 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 func (p UpdateItemParams) check() error {
 	if err := (Provenance{Source: p.Actor}).validate(); err != nil {
 		return err
+	}
+	if p.Kind == nil && p.Title == nil && p.Rating == nil && p.OccurredOn == nil && p.Attrs == nil && len(p.Clear) == 0 {
+		return invalid("fields", "must name at least one field to change, or a field to empty in clear")
 	}
 	for _, name := range p.Clear {
 		if !slices.Contains(clearableItemFields, name) {
@@ -145,9 +157,6 @@ func (p UpdateItemParams) applyTo(old Item) AddItemParams {
 	}
 	if slices.Contains(p.Clear, "occurred_on") {
 		next.OccurredOn = ""
-	}
-	if p.Inferred {
-		next.Verified = false
 	}
 	return next
 }

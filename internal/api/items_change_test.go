@@ -149,3 +149,38 @@ func TestDeleteItem(t *testing.T) {
 		t.Errorf("events = %d, want 2 (create, one delete)", n)
 	}
 }
+
+// A null or an empty body must not answer 200 and change nothing.
+func TestPatchItemRejectsANullAndAnEmptyBody(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantInBody string
+	}{
+		{"null for a number", `{"rating":null}`, "rating"},
+		{"null for text", `{"title":null}`, "title"},
+		{"a value and a null", `{"title":"New","occurred_on":null}`, "occurred_on"},
+		{"empty object", `{}`, "body.fields"},
+	}
+	h, pool := newTestAPI(t)
+	path := addDune(t, h)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, _, raw := do(t, h, "PATCH", path, tt.body)
+
+			if status != http.StatusUnprocessableEntity {
+				t.Errorf("status = %d, want 422\n%s", status, raw)
+			}
+			if !strings.Contains(raw, tt.wantInBody) {
+				t.Errorf("body does not name %q:\n%s", tt.wantInBody, raw)
+			}
+		})
+	}
+	_, got, raw := do(t, h, "GET", path, "")
+	if got["rating"] != 4.5 || got["title"] != "Dune: Part Two" {
+		t.Errorf("a refused PATCH changed the item: %s", raw)
+	}
+	if n := countEvents(t, pool); n != 1 {
+		t.Errorf("events = %d after refused requests, want 1 (the create)", n)
+	}
+}

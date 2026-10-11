@@ -157,3 +157,41 @@ func TestDeleteDeletesARecordByType(t *testing.T) {
 		t.Errorf("Get after delete: error = %v, want ErrNotFound", err)
 	}
 }
+
+// A model or a Shortcut can send null to empty a field. Update must not
+// accept that as a change that does nothing: it must say how to empty a
+// field.
+func TestUpdateRejectsANullValue(t *testing.T) {
+	s, pool := newTestService(t)
+	ctx := context.Background()
+	added, err := s.AddItem(ctx, dune())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for name, fields := range map[string]map[string]any{
+		"only a null":           {"rating": nil},
+		"a value and a null":    {"title": "New", "rating": nil},
+		"null for a text field": {"title": nil},
+	} {
+		_, err := s.Update(ctx, "item", added.ID, UpdateParams{Fields: fields, Actor: SourceAgent, Inferred: true})
+
+		var invalid *ValidationError
+		if !errors.As(err, &invalid) {
+			t.Fatalf("%s: error = %v, want a ValidationError", name, err)
+		}
+		if invalid.Field == "" || !strings.Contains(invalid.Message, "clear") {
+			t.Errorf("%s: error = %q, want it to name the field and to point to clear", name, err)
+		}
+	}
+	stored, err := s.GetItem(ctx, added.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Title != "Dune: Part Two" || stored.Rating == nil || !stored.Verified {
+		t.Errorf("a refused update changed the row: %+v", stored)
+	}
+	if n := countRows(t, pool, "events"); n != 1 {
+		t.Errorf("events = %d, want 1 (the create)", n)
+	}
+}

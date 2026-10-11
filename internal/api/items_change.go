@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -19,6 +20,9 @@ type updateItemInput struct {
 		Attrs      map[string]any `json:"attrs,omitempty" doc:"Replaces every attr of the item"`
 		Clear      []string       `json:"clear,omitempty" doc:"Optional fields to empty: rating, occurred_on"`
 	}
+	// RawBody is the body as it came. Body cannot tell a null from a
+	// field that is absent, and the service refuses a null.
+	RawBody []byte
 }
 
 func registerItemChanges(api huma.API, svc *service.Service) {
@@ -29,21 +33,24 @@ func registerItemChanges(api huma.API, svc *service.Service) {
 		Summary:     "Correct a list item",
 		Description: "Changes the fields in the body. A field that is not in the body keeps its value.",
 	}, func(ctx context.Context, in *updateItemInput) (*itemOutput, error) {
+		// Huma checked the names and the types of the body already.
+		var fields map[string]any
+		if err := json.Unmarshal(in.RawBody, &fields); err != nil {
+			return nil, huma.Error400BadRequest("the body is not a JSON object")
+		}
+		delete(fields, "clear")
 		// A request to the REST API comes from Gautam's own devices, so
 		// the change is his and the verified flag stays as it is.
-		item, err := svc.UpdateItem(ctx, in.ID, service.UpdateItemParams{
-			Kind:       in.Body.Kind,
-			Title:      in.Body.Title,
-			Rating:     in.Body.Rating,
-			OccurredOn: in.Body.OccurredOn,
-			Attrs:      in.Body.Attrs,
-			Clear:      in.Body.Clear,
-			Actor:      service.SourceManual,
+		record, err := svc.Update(ctx, "item", in.ID, service.UpdateParams{
+			Fields: fields,
+			Clear:  in.Body.Clear,
+			Actor:  service.SourceManual,
 		})
 		if err != nil {
 			return nil, toHTTPError("body", err)
 		}
-		return &itemOutput{Body: item}, nil
+		// Update returns an Item for the type item.
+		return &itemOutput{Body: record.(service.Item)}, nil
 	})
 
 	huma.Register(api, huma.Operation{

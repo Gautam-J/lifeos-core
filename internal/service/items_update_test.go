@@ -347,3 +347,73 @@ func TestUpdateItemReportsADatabaseFailure(t *testing.T) {
 		t.Errorf("error = %q, want the prefix \"update item:\"", err)
 	}
 }
+
+// "Remove the rating" with no field named must not report success. It
+// must also not take a verified row out of the reports.
+func TestUpdateItemRejectsAnUpdateThatNamesNoField(t *testing.T) {
+	s, pool := newTestService(t)
+	ctx := context.Background()
+	added, err := s.AddItem(ctx, dune())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = s.UpdateItem(ctx, added.ID, UpdateItemParams{Actor: SourceAgent, Inferred: true})
+
+	var invalid *ValidationError
+	if !errors.As(err, &invalid) || invalid.Field != "fields" {
+		t.Fatalf("error = %v, want a ValidationError for fields", err)
+	}
+	stored, err := s.GetItem(ctx, added.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stored.Verified || !stored.UpdatedAt.Equal(added.UpdatedAt) {
+		t.Errorf("a refused update changed the row: %+v", stored)
+	}
+	if n := countRows(t, pool, "events"); n != 1 {
+		t.Errorf("events = %d, want 1 (the create)", n)
+	}
+}
+
+// A Save on the edit form with no change, or an agent that sends the
+// stored values again, is not a write: no event, no new updated_at, and
+// the row stays verified.
+func TestUpdateItemWritesNothingWhenNoValueChanges(t *testing.T) {
+	s, pool := newTestService(t)
+	ctx := context.Background()
+	added, err := s.AddItem(ctx, dune())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{
+		Kind:       ptr("movie"),
+		Title:      ptr("  Dune: Part Two "),
+		Rating:     ptr(4.5),
+		OccurredOn: ptr("2026-10-09"),
+		Actor:      SourceAgent,
+		Inferred:   true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateItem: %v", err)
+	}
+
+	if !got.Verified || !got.UpdatedAt.Equal(added.UpdatedAt) || got.Title != "Dune: Part Two" {
+		t.Errorf("an update with no change wrote the row: %+v", got)
+	}
+	if n := countRows(t, pool, "events"); n != 1 {
+		t.Errorf("events = %d, want 1 (the create)", n)
+	}
+
+	// The same holds for a clear of a field that is empty already.
+	if _, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{Clear: []string{"rating"}, Actor: SourceManual}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{Clear: []string{"rating"}, Actor: SourceManual}); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, pool, "events"); n != 2 {
+		t.Errorf("events = %d, want 2 (create, one update)", n)
+	}
+}
