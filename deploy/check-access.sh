@@ -21,28 +21,30 @@ fi
 
 failed=0
 
-# guarded <url>: a request that has no login must stop at Cloudflare Access.
-# Access answers 302 to its login page, or 401 or 403. LifeOS gives none of
-# these to a GET.
+# guarded <kind> <url>: a request that has no login must stop at Cloudflare
+# Access. Only an answer that Access alone gives is proof:
+#   login  the application asks a person to log in: 302 to the login page
+#          of Access.
+#   token  the application takes a service token: 401, or the same 302.
+# A 403 is no proof. A firewall rule of Cloudflare can give it to curl and
+# let a browser through.
 guarded() {
-    local url=$1 code target
+    local kind=$1 url=$2 code target
     read -r code target < <(curl -s -o /dev/null --max-time 20 -w '%{http_code} %{redirect_url}\n' "$url" || true)
-    case "$code" in
-        302)
-            if [[ $target == https://*.cloudflareaccess.com/* ]]; then
-                echo "ok    $url: Access asks for a login"
-                return
-            fi ;;
-        401|403)
-            echo "ok    $url: Access refuses the request ($code)"
-            return ;;
-        000)
-            echo "FAIL  $url: no answer"
-            failed=1
-            return ;;
-    esac
-    echo "OPEN  $url: status $code for a request that has no login"
+    if [ "$code" = 302 ] && [[ $target =~ ^https://[a-z0-9-]+\.cloudflareaccess\.com/ ]]; then
+        echo "ok    $url: Access asks for a login"
+        return
+    fi
+    if [ "$code" = 401 ] && [ "$kind" = token ]; then
+        echo "ok    $url: Access refuses the request (401)"
+        return
+    fi
     failed=1
+    if [ "$code" = 000 ]; then
+        echo "FAIL  $url: no answer"
+        return
+    fi
+    echo "OPEN  $url: status $code for a request that has no login"
 }
 
 # with_token <url> <status>: a request that has the service token must get
@@ -61,12 +63,12 @@ with_token() {
 }
 
 if [ -n "${LIFEOS_ADMIN_HOST:-}" ]; then
-    guarded "https://$LIFEOS_ADMIN_HOST/admin/items"
-    # The admin hostname gives no API route.
-    guarded "https://$LIFEOS_ADMIN_HOST/api/items"
+    guarded login "https://$LIFEOS_ADMIN_HOST/admin/items"
+    # Access guards each path of the hostname, not only the admin pages.
+    guarded login "https://$LIFEOS_ADMIN_HOST/api/items"
 fi
 if [ -n "${LIFEOS_API_HOST:-}" ]; then
-    guarded "https://$LIFEOS_API_HOST/api/items"
+    guarded token "https://$LIFEOS_API_HOST/api/items"
     if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
         with_token "https://$LIFEOS_API_HOST/api/items" 200
         # The API hostname gives no admin page.

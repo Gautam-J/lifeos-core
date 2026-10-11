@@ -33,6 +33,7 @@ build: generate
 	go build -o bin/lifeos ./cmd/lifeos
 
 test: generate
+	deploy/test.sh
 	go vet ./...
 	go test $(PKG) $(ARGS)
 
