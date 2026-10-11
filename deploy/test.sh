@@ -36,16 +36,18 @@ login=https://team.cloudflareaccess.com/cdn-cgi/access/login/x
 cat > "$tmp/hosts.env" <<'ENV'
 LIFEOS_ADMIN_HOST=admin.test
 LIFEOS_API_HOST=api.test
+LIFEOS_MCP_HOST=mcp.test
 CF_ACCESS_CLIENT_ID=id
 CF_ACCESS_CLIENT_SECRET=secret
 ENV
 
 # check <name> <want exit> <want text> <answers>: runs check-access.sh
-# against the table of answers.
+# against the table of answers, with the env file $hosts.
+hosts=$tmp/hosts.env
 check() {
     local name=$1 want_exit=$2 want_text=$3 output status=0
     printf '%s\n' "$4" > "$tmp/answers"
-    output=$(ANSWERS="$tmp/answers" PATH="$tmp/bin:$PATH" ./check-access.sh "$tmp/hosts.env" 2>&1) || status=$?
+    output=$(ANSWERS="$tmp/answers" PATH="$tmp/bin:$PATH" ./check-access.sh "$hosts" 2>&1) || status=$?
     if [ "$status" != "$want_exit" ] || [[ $output != *"$want_text"* ]]; then
         echo "FAIL  check-access: $name: exit $status, want $want_exit with the text '$want_text'"
         echo "$output" | sed 's/^/      /'
@@ -56,8 +58,11 @@ check() {
 good="https://admin.test/admin/items 302 $login
 https://admin.test/api/items 302 $login
 https://api.test/api/items 401
+https://mcp.test/mcp 401
+https://mcp.test/ 401
 token:https://api.test/api/items 200
-token:https://api.test/admin/items 404"
+token:https://api.test/admin/items 404
+token:https://mcp.test/mcp 200"
 
 check "each hostname is guarded" 0 "status 200 with the service token" "$good"
 check "the admin hostname answers" 1 "OPEN  https://admin.test/admin/items" "${good/admin.test\/admin\/items 302 $login/admin.test\/admin\/items 200}"
@@ -72,6 +77,21 @@ check "the API hostname asks for a login" 0 "ok    https://api.test/api/items: A
 check "the service token does not get through" 1 "FAIL  https://api.test/api/items: status 403 with the service token" "${good/token:https:\/\/api.test\/api\/items 200/token:https:\/\/api.test\/api\/items 403}"
 check "the API hostname gives an admin page" 1 "FAIL  https://api.test/admin/items: status 200 with the service token" "${good/token:https:\/\/api.test\/admin\/items 404/token:https:\/\/api.test\/admin\/items 200}"
 check "no answer" 1 "FAIL  https://admin.test/admin/items: no answer" "nothing 000"
+
+# The MCP hostname. The MCP server checks the token of Access itself and
+# answers 403 to a request that has no valid token. So a 403 here shows
+# that a request came past Access: the hostname is not guarded.
+check "the MCP hostname is guarded" 0 "ok    https://mcp.test/mcp: Access refuses the request (401)" "$good"
+check "the MCP server answers the service token" 0 "ok    https://mcp.test/mcp: status 200 with the service token" "$good"
+check "the MCP hostname answers" 1 "OPEN  https://mcp.test/mcp" "${good/mcp.test\/mcp 401/mcp.test\/mcp 200}"
+check "only the MCP server refuses" 1 "OPEN  https://mcp.test/mcp: status 403" "${good/mcp.test\/mcp 401/mcp.test\/mcp 403}"
+check "a different path of the MCP hostname answers" 1 "OPEN  https://mcp.test/: status 404" "${good/mcp.test\/ 401/mcp.test\/ 404}"
+check "the MCP server refuses the service token" 1 "FAIL  https://mcp.test/mcp: status 403 with the service token" "${good/token:https:\/\/mcp.test\/mcp 200/token:https:\/\/mcp.test\/mcp 403}"
+# The MCP hostname alone is a hostname to check.
+printf 'LIFEOS_MCP_HOST=mcp.test\n' > "$tmp/mcp.env"
+hosts=$tmp/mcp.env
+check "only the MCP hostname is set" 1 "OPEN  https://mcp.test/mcp" "https://mcp.test/mcp 200"
+hosts=$tmp/hosts.env
 
 # The server gets only the two database passwords and the two values of
 # Cloudflare Access for the token check of the MCP server. Each other key

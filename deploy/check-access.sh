@@ -4,17 +4,18 @@
 # has no login is open to the internet. Run this after each change of the
 # tunnel or of an Access application; deploy.sh runs it after each deploy.
 #
-# Needs LIFEOS_ADMIN_HOST and LIFEOS_API_HOST in deploy/.env. With
-# CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (an Access service token),
-# it also checks that the API answers a request that has the token, and
-# that the API hostname gives no admin page.
+# Needs LIFEOS_ADMIN_HOST, LIFEOS_API_HOST and LIFEOS_MCP_HOST in
+# deploy/.env. With CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (an
+# Access service token), it also checks that the API and the MCP server
+# answer a request that has the token, and that the API hostname gives no
+# admin page.
 # Usage: check-access.sh [env-file]   (default: deploy/.env)
 set -euo pipefail
 
 env_file=$(realpath "${1:-$(dirname "$0")/.env}")
 set -a; . "$env_file"; set +a
 
-if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ]; then
+if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ] && [ -z "${LIFEOS_MCP_HOST:-}" ]; then
     echo "no public hostname is set in $env_file: nothing to check"
     exit 0
 fi
@@ -47,13 +48,14 @@ guarded() {
     echo "OPEN  $url: status $code for a request that has no login"
 }
 
-# with_token <url> <status>: a request that has the service token must get
-# this status from LifeOS.
+# with_token <url> <status> [curl option...]: a request that has the
+# service token must get this status from LifeOS.
 with_token() {
     local url=$1 want=$2 code
+    shift 2
     code=$(curl -s -o /dev/null --max-time 20 -w '%{http_code}' \
         -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
-        -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" "$url" || true)
+        -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" "$@" "$url" || true)
     if [ "$code" = "$want" ]; then
         echo "ok    $url: status $code with the service token"
     else
@@ -73,6 +75,22 @@ if [ -n "${LIFEOS_API_HOST:-}" ]; then
         with_token "https://$LIFEOS_API_HOST/api/items" 200
         # The API hostname gives no admin page.
         with_token "https://$LIFEOS_API_HOST/admin/items" 404
+    fi
+fi
+if [ -n "${LIFEOS_MCP_HOST:-}" ]; then
+    # The MCP server checks the token of Access itself and answers 403 to a
+    # request that has no valid token. A 403 here is thus no proof, as for
+    # each hostname: it shows a request that came past Access.
+    guarded token "https://$LIFEOS_MCP_HOST/mcp"
+    # The tunnel sends only the path /mcp to the server. Access guards each
+    # path of the hostname.
+    guarded token "https://$LIFEOS_MCP_HOST/"
+    if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+        # The first request of an MCP client. 200 shows the full way: the
+        # tunnel, the token check of the server and the MCP server.
+        with_token "https://$LIFEOS_MCP_HOST/mcp" 200 \
+            -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check-access","version":"1"}}}'
     fi
 fi
 
