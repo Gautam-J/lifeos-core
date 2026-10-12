@@ -36,8 +36,12 @@ generate:
 	$(SQLC) generate
 	go tool templ generate
 
+# The binary gets its release from the tags: v0.1.0 for a build of that
+# tag, v0.1.0-3-gabc1234 for a build three commits later.
+VERSION := $(shell git describe --tags --always --dirty)
+
 build: generate
-	go build -o bin/lifeos ./cmd/lifeos
+	go build -ldflags "-X github.com/Gautam-J/lifeos-core/internal/version.Version=$(VERSION)" -o bin/lifeos ./cmd/lifeos
 
 test: generate
 	deploy/test.sh

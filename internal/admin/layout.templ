@@ -1,5 +1,7 @@
 package admin
 
+import "github.com/Gautam-J/lifeos-core/internal/version"
+
 // menu holds the pages of the top menu, in their order.
 var menu = []struct{ Path, Name string }{
 	{"/admin", "Today"},
@@ -80,7 +82,7 @@ templ page(title, section string) {
 						<a href="/admin/review">Review</a>
 						<a href="/admin/deleted">Deleted</a>
 					</nav>
-					<p>Each time is in India Standard Time.</p>
+					<p>Each time is in India Standard Time. Release { version.Version }.</p>
 					<div class="theme" role="radiogroup" aria-label="Theme">
 						<button type="button" role="radio" aria-checked="false" data-theme-set="system">System</button>
 						<button type="button" role="radio" aria-checked="false" data-theme-set="light">Light</button>

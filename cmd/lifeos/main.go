@@ -5,7 +5,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+
+	"github.com/Gautam-J/lifeos-core/internal/version"
 )
 
 var errNotImplemented = errors.New("not implemented")
@@ -22,6 +25,7 @@ var commands = []command{
 	{"migrate", "migrate", "apply goose migrations", migrate},
 	{"job", "job <name>", "run one scheduled job", job},
 	{"import-csv", "import-csv <importer> <file>", "import a CSV export", importCSV},
+	{"version", "version", "print the release of this binary", printVersion},
 }
 
 func main() {
@@ -50,6 +54,15 @@ func usage() {
 	for _, c := range commands {
 		fmt.Fprintf(os.Stderr, "  %-30s %s\n", c.usage, c.summary)
 	}
+}
+
+func printVersion(args []string) error {
+	writeVersion(os.Stdout)
+	return nil
+}
+
+func writeVersion(w io.Writer) {
+	fmt.Fprintln(w, "lifeos", version.Version)
 }
 
 func job(args []string) error       { return errNotImplemented }
