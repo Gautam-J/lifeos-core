@@ -1,0 +1,46 @@
+name: Bug
+description: A part of LifeOS does not work as it must.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Keep personal content out of an issue. Write no journal text and no hostname, and add no screenshot that shows your records.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The steps that you did, and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: input
+    id: release
+    attributes:
+      label: Release
+      description: From the footer of an admin page, or from `lifeos version`.
+      placeholder: v0.1.0
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Admin pages
+        - Agent (MCP tools)
+        - REST API or Shortcut
+        - Wiki
+        - Backup, deploy or notifications
+        - Other
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      description: For a problem of the display.
+      multiple: true
+      options:
+        - iPhone
+        - iPad
+        - MacBook
+        - External monitor

@@ -1,0 +1,29 @@
+name: Feature request
+description: A change or a new function that you want.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Keep personal content out of an issue. Write no journal text and no hostname, and add no screenshot that shows your records.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The use case. What can you not do now?
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Admin pages
+        - Agent (MCP tools)
+        - REST API or Shortcut
+        - Wiki
+        - Backup, deploy or notifications
+        - Other
