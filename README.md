@@ -8,6 +8,20 @@ This repo holds the service code only. It holds no personal data.
 - **Rules for code changes:** [AGENTS.md](AGENTS.md)
 - **Work that is not planned yet:** [docs/backlog.md](docs/backlog.md)
 
+## Architecture
+
+![The system design of LifeOS: three clients, Cloudflare Access and the tunnel, the lifeos binary on the Raspberry Pi with its three adapters and its service layer, the three stores, and the backup, the push of the wiki and the notifications](assets/architecture.svg)
+
+Read the diagram from the top to the bottom:
+
+1. **Clients.** A browser, a program and an AI agent each use one hostname.
+2. **Cloudflare.** Access guards each hostname. The tunnel carries a request to the Pi only after Access let it pass.
+3. **The `lifeos` binary.** The admin pages, the REST API and the MCP server are thin adapters. Each one calls the service layer, which holds all logic and is the only write path.
+4. **Storage.** Postgres holds the records and the event log. The file store holds the captured files. A git repository holds the wiki.
+5. **Operations.** A timer makes the backup each night, a timer pushes the wiki to GitHub each hour, and ntfy sends a message when a unit fails.
+
+A box with a dashed border shows a part that is not built yet.
+
 ## Status
 
 | Phase | State |
@@ -297,4 +311,5 @@ deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.s
 skills/              drafts of agent skills; no agent loads them
 prompts/             the prompts of the brief jobs
 docs/                design doc, backlog, implementation plans
+assets/              the pictures of this file: architecture.svg
 ```

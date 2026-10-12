@@ -43,6 +43,7 @@ skills/                drafts of agent skills; no agent loads them (skills/READM
 prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported
 DESIGN.md              the look of the admin pages: colors, type, spacing, components
+assets/                the pictures of README.md; architecture.svg is the system design, so change it when a part of the system changes
 ```
 
 Create a folder when its first file lands; do not add empty packages.
