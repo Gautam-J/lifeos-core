@@ -1,0 +1,15 @@
+# commitizen makes a release: it reads the commits after the last tag,
+# raises the version, writes CHANGELOG.md, makes one commit and one tag.
+# Run `cz bump`. AGENTS.md has the steps.
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.0.0"
+version_scheme = "semver"
+tag_format = "v$version"
+annotated_tag = true
+# Before 1.0.0, a breaking change raises the minor number, not the major one.
+major_version_zero = true
+update_changelog_on_bump = true
+# Keep the text of the earlier releases as it is.
+changelog_incremental = true
+bump_message = "chore(release): v$new_version"

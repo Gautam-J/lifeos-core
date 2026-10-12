@@ -7,6 +7,7 @@ This repo holds the service code only. It holds no personal data.
 - **Design:** [docs/design.md](docs/design.md)
 - **Rules for code changes:** [AGENTS.md](AGENTS.md)
 - **Work that is not planned yet:** [docs/backlog.md](docs/backlog.md)
+- **Changes of each release:** [CHANGELOG.md](CHANGELOG.md)
 
 ## Architecture
 
@@ -142,6 +143,7 @@ A password in plain words and a bank account number have no pattern, so the serv
 - **Public hostnames.** The Cloudflare Tunnel gives the admin pages one hostname, the REST API a second one and the MCP server a third one. Cloudflare Access guards each: a login with an email code for the admin pages, an Access service token for each device for the API, and an OAuth login for an MCP client. LifeOS has no login of its own, so Access is the only lock. `cloudflared` checks the token of Access on each request of the three hostnames, so a hostname stays closed when its Access application is removed.
 - **MCP server.** The MCP server also checks the token of Access itself. It answers 403 to each request that has no valid token, also to a request from the Pi. The agent in the Claude app and Claude Code on the Pi use the same hostname.
 - **Check.** `deploy/check-access.sh` fails when a hostname answers a request that has no login.
+- **Release.** `lifeos version` prints the release of the binary, such as `v0.1.0`. The footer of each admin page shows it too, so a bug report can name the release. A build that comes after a release has a longer name, such as `v0.1.0-3-gabc1234`: three commits after `v0.1.0`.
 - **Requests from another site.** The server refuses a request that changes data and that a browser sent from a different origin. A program, such as an iOS Shortcut, is not a browser and goes through.
 
 **Use case.** You add a hostname to the tunnel and forget its Access application. `deploy/check-access.sh` prints `OPEN` for that hostname and exits with an error.
@@ -297,12 +299,13 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 ## Repository layout
 
 ```
-cmd/lifeos/          main package: serve, migrate
+cmd/lifeos/          main package: serve, migrate, version
 internal/service/    all logic: validation, provenance, events
 internal/api/        REST handlers (chi + Huma)
 internal/mcp/        MCP tools
 internal/admin/      admin pages (templ + htmx)
 internal/config/     loads config/lifeos.yaml
+internal/version/    the release of the binary; the Makefile sets it
 internal/testdb/     one migrated database for each test
 internal/testaccess/ a stand-in for Cloudflare Access, for tests
 queries/             SQL that sqlc compiles into internal/store/
@@ -312,4 +315,5 @@ skills/              drafts of agent skills; no agent loads them
 prompts/             the prompts of the brief jobs
 docs/                design doc, backlog, implementation plans
 assets/              the pictures of this file: architecture.svg
+CHANGELOG.md         the changes of each release; `cz bump` writes it
 ```

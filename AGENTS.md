@@ -21,10 +21,11 @@ One Go binary, `lifeos`, runs on a Raspberry Pi 4 (linux/arm64) against Postgres
 ## Layout
 
 ```
-cmd/lifeos/            main package: serve, migrate, job, import-csv
+cmd/lifeos/            main package: serve, migrate, job, import-csv, version
 internal/service/      all logic: validation, provenance, events
 internal/store/        sqlc-generated queries, from queries/*.sql (not in git)
 internal/config/       loads config/lifeos.yaml
+internal/version/      the release of the binary; the Makefile sets it from `git describe`
 internal/testdb/       test helper: one migrated database for each test
 internal/testaccess/   test helper: a stand-in for Cloudflare Access that signs tokens
 internal/api/          chi + Huma handlers
@@ -43,6 +44,8 @@ skills/                drafts of agent skills; no agent loads them (skills/READM
 prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported
 DESIGN.md              the look of the admin pages: colors, type, spacing, components
+CHANGELOG.md           the changes of each release; `cz bump` writes it
+.cz.toml               the commitizen settings and the number of the last release
 assets/                the pictures of README.md; architecture.svg is the system design, so change it when a part of the system changes
 ```
 
@@ -92,6 +95,24 @@ make run        # build, then run lifeos serve
 - **Narrow a test run** with `make test PKG=./internal/api ARGS="-run TestName -v"`.
 
 `lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. On the Pi it runs as the systemd unit `deploy/systemd/lifeos.service`; `make run` is for work on the code. It needs the folders `files_dir`, `inbox_dir` and `wiki_dir` of the config file, the program `git`, and four values in the environment: the two passwords `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.
+
+## Releases
+
+The version comes from the commit messages, so each commit must follow the conventional format. commitizen (`cz`) makes a release; its settings are in `.cz.toml`.
+
+- **Which number changes.** A `fix` raises the patch number: 0.1.0 to 0.1.1. A `feat` raises the minor number: 0.1.1 to 0.2.0. A `docs`, `chore`, `test` or `build` commit alone makes no release. Before 1.0.0, a breaking change raises the minor number too.
+- **One deploy is one release.** When the commits of a change are on `main` and `make test` passes, run `cz bump`. It writes the new number into `.cz.toml`, adds the release to `CHANGELOG.md`, makes the commit `chore(release): v<number>` and makes the tag `v<number>`. Then run `deploy/deploy.sh`. Push with `git push --follow-tags`, so that the tag goes with the commit.
+- **Tag first, then build.** The Makefile gives the result of `git describe` to `internal/version`. `lifeos version` prints it, and the footer of the admin pages shows it. A build that comes before `cz bump` has the name of the release before, with the number of commits after it.
+- **Do not add a release to `CHANGELOG.md` by hand.** `cz bump` adds it. A correction of the text of an earlier release stays, because `cz bump` only adds.
+- **1.0.0 is a manual step**, for the time when each planned feature is live. Remove `major_version_zero` from `.cz.toml`, then run `cz bump 1.0.0`.
+
+Install commitizen one time, for your user only (Debian refuses a system-wide `pip install`):
+
+```sh
+python3 -m venv ~/.local/share/commitizen
+~/.local/share/commitizen/bin/pip install commitizen
+ln -s ~/.local/share/commitizen/bin/cz ~/.local/bin/cz
+```
 
 ## Migrations
 
