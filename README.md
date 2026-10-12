@@ -6,7 +6,7 @@ This repo holds the service code only. It holds no personal data.
 
 - **Design:** [docs/design.md](docs/design.md)
 - **Rules for code changes:** [AGENTS.md](AGENTS.md)
-- **Work that is not planned yet:** [docs/backlog.md](docs/backlog.md)
+- **Bugs and feature requests:** [the issues on GitHub](https://github.com/Gautam-J/lifeos-core/issues). A bug has the label `bug`, and a request has the label `enhancement`.
 - **Changes of each release:** [CHANGELOG.md](CHANGELOG.md)
 
 ## Architecture
@@ -28,7 +28,7 @@ A box with a dashed border shows a part that is not built yet.
 | Phase | State |
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
-| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are in [docs/backlog.md](docs/backlog.md). |
+| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are [issues](https://github.com/Gautam-J/lifeos-core/issues). |
 | 3 · Agents and phone | Built: the wiki tools, the public hostname of the MCP server with the login of Cloudflare Access, and the push of the wiki to GitHub. The gate is open: one week of daily use from the phone through the agent. |
 | 4 to 5 | Not started. |
 
@@ -293,7 +293,7 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 - **The page of a link and the text of a file.** LifeOS stores a link as its URL and a file as its bytes. It does not get the page, and it does not read the text of a PDF. No page shows or downloads a stored file.
 - **The inbox job** that reads each new source and proposes records from it.
 - **Lists in the REST API.** No route lists journal entries or sources. The admin pages list them, and the agent uses `search` and `query`.
-- **Money tables, the reconciliation with a bank statement and the one-time imports.** They are in [docs/backlog.md](docs/backlog.md). `lifeos import-csv` and `lifeos job` return "not implemented".
+- **Money tables, the reconciliation with a bank statement and the one-time imports.** They are [issues](https://github.com/Gautam-J/lifeos-core/issues) 5, 6 and 7. `lifeos import-csv` and `lifeos job` return "not implemented".
 - **A way to get a deleted record back.** The page `/admin/deleted` only removes.
 
 ## Repository layout
@@ -313,7 +313,8 @@ migrations/          goose SQL migrations
 deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, systemd units
 skills/              drafts of agent skills; no agent loads them
 prompts/             the prompts of the brief jobs
-docs/                design doc, backlog, implementation plans
+docs/                design doc, implementation plans
+.github/             the forms of a GitHub issue: bug, feature request
 assets/              the pictures of this file: architecture.svg
 CHANGELOG.md         the changes of each release; `cz bump` writes it
 ```

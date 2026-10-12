@@ -43,6 +43,7 @@ deploy/                docker-compose.yml, systemd units and timers, backup scri
 skills/                drafts of agent skills; no agent loads them (skills/README.md)
 prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported
+.github/               the forms of a GitHub issue: bug, feature request
 DESIGN.md              the look of the admin pages: colors, type, spacing, components
 CHANGELOG.md           the changes of each release; `cz bump` writes it
 .cz.toml               the commitizen settings and the number of the last release
@@ -95,6 +96,15 @@ make run        # build, then run lifeos serve
 - **Narrow a test run** with `make test PKG=./internal/api ARGS="-run TestName -v"`.
 
 `lifeos serve` runs the API and admin pages on `http_addr` and the MCP server on `mcp_addr`, path `/mcp`. On the Pi it runs as the systemd unit `deploy/systemd/lifeos.service`; `make run` is for work on the code. It needs the folders `files_dir`, `inbox_dir` and `wiki_dir` of the config file, the program `git`, and four values in the environment: the two passwords `POSTGRES_PASSWORD` and `LIFEOS_QUERY_PASSWORD`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. `lifeos migrate`, `lifeos job <name>` and `lifeos import-csv <importer> <file>` are run by hand or by systemd timers. Each command reads `config/lifeos.yaml`, or the file given with `-config`.
+
+## Issues
+
+The GitHub issues of this repository are the one list of the work that is in no plan: each bug and each feature request. No file of the repository holds a backlog.
+
+- **One issue for one problem or one request.** A bug has the label `bug`. A request has the label `enhancement`. The two forms in `.github/ISSUE_TEMPLATE/` set the label.
+- **Read the list with `gh issue list`.** Correct a bug with a test that fails first.
+- **The commit closes the issue.** Put `Fixes #12` into the body of the commit message, or `Closes #12` for a request. GitHub closes the issue when the commit is on `main` there.
+- **Keep private content out of an issue**: no journal text, no hostname, no domain and no value of Cloudflare Access. An issue becomes public when the repository becomes public.
 
 ## Releases
 
