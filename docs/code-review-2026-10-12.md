@@ -60,7 +60,7 @@ No Go file is near 1,000 lines.
 - **A2. A retry of `POST /api/journal` stores a duplicate.** The standard is an `Idempotency-Key` header. `capture` and `log_habit` are safe already. 2 h.
 - **A3. Search uses `ILIKE '%word%'` with no index and no rank.** The standard is a `pg_trgm` index, or `tsvector` with `ts_rank`. It is fast enough today. Do it before issue #13. 3 h.
 - **A4. An event records only `manual` or `agent`.** The Access token names the email or the device. Also, `verify` from an agent has no guard like `confirmed` on `delete`. Show the approvals that came through an agent on the Review page. 2 h.
-- **A5. Each test makes a database and runs all migrations.** Migrate one template database, then copy it. That cuts the 2.5 GB of writes. 1 h.
+- **A5. Each test makes a database and runs all migrations.** A template database removes the time of the migrations (1 h). It does not cut the 2.5 GB of writes: each `CREATE DATABASE` copies 7.7 MB, and a template keeps that copy. One database for each test package, emptied between tests, cuts the time and the writes (3 h). Issue #23 has the two options.
 
 ## 6. Small hardening (each below 1 hour)
 
