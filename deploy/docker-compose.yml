@@ -114,6 +114,10 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_AUTH_BASIC_ENABLED: "false"
+      # Grafana checks the origin of a write only when it has a login cookie.
+      # With no login, a page of a different site could then write with the
+      # Access cookie of the browser. This turns the check on for each write.
+      GF_SECURITY_CSRF_ALWAYS_CHECK: "true"
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
