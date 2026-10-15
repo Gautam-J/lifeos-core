@@ -80,6 +80,9 @@ services:
       # Delete no data. Without this flag Prometheus keeps 15 days. No
       # retention.size: a size limit deletes the oldest data.
       - --storage.tsdb.retention.time=100y
+      # The OTel collector writes the metrics of Claude Code to
+      # /api/v1/otlp. The port is on 127.0.0.1 only.
+      - --web.enable-otlp-receiver
     ports:
       - "127.0.0.1:9090:9090"
     volumes:

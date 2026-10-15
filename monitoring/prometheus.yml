@@ -4,6 +4,19 @@ global:
   scrape_interval: 60s
   evaluation_interval: 60s
 
+# The OTel collector sends the metrics of Claude Code here (OTLP). The two
+# resource attributes become labels, so a query can group by machine and
+# by repository.
+otlp:
+  promote_resource_attributes:
+    - host.name
+    - vcs.repository.name
+
+storage:
+  tsdb:
+    # Clients send at different times; take samples up to 30 minutes late.
+    out_of_order_time_window: 30m
+
 scrape_configs:
   - job_name: prometheus
     static_configs:
