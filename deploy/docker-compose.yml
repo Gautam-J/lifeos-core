@@ -92,6 +92,32 @@ services:
       timeout: 5s
       retries: 3
 
+  # The health of the Pi: CPU, memory, file systems, temperature, systemd
+  # units, and the throttle flags that lifeos-throttled.timer writes. It
+  # reads the host through read-only mounts. It is on the Compose network
+  # with no published port: Prometheus scrapes it there. The network
+  # counters are of the container, not of the Pi.
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    user: "1000:1000"
+    pid: host
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.systemd
+      - --collector.systemd.unit-include=.+\.(service|timer)
+      - --collector.textfile.directory=/textfile
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+      - /run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+      - /run/udev:/run/udev:ro
+      - /var/lib/lifeos-monitoring/node-exporter:/textfile:ro
+    mem_limit: 64m
+
   # The dashboards. The public hostname dash.<domain> has an Access login.
   # Grafana has no login of its own, so Access is the one login.
   grafana:
@@ -122,6 +148,7 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../dashboards:/var/lib/grafana-dashboards:ro
       - /var/lib/lifeos-monitoring/grafana:/var/lib/grafana
     depends_on:
       - prometheus

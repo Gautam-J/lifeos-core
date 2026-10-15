@@ -1,0 +1,10 @@
+# Grafana loads the dashboards of dashboards/. A change in Grafana is not
+# saved; change the JSON file in git.
+apiVersion: 1
+providers:
+  - name: lifeos
+    folder: LifeOS
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana-dashboards
