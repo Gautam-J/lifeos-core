@@ -318,8 +318,8 @@ Prometheus collects system and app metrics on the Pi, Grafana shows them beside 
 
 | Watches | Collected by | Notes |
 | --- | --- | --- |
-| CPU, RAM, disk, temperature, systemd service state | node_exporter | Thermal and systemd collectors on |
-| Undervoltage and throttling | node_exporter textfile collector | A one-minute timer writes `vcgencmd get_throttled` to a file |
+| CPU, RAM, disk, temperature, systemd service state | node_exporter | Thermal and systemd collectors on. In Docker on the Compose network, with read-only mounts of the host and no published port, so the network counters are of the container |
+| Undervoltage and throttling | node_exporter textfile collector | A one-minute timer (`lifeos-throttled.timer`, `deploy/pi-throttled.sh`) writes `vcgencmd get_throttled` to a file |
 | Postgres connections, size, slow queries | postgres_exporter | Read-only monitoring user |
 | Public hostnames (`api.`, `mcp.`, `ntfy.`, `dash.`) | blackbox_exporter | Probes through the tunnel every minute |
 | Request latency, errors, tool calls, job runs, connector last sync | `/metrics` on `lifeos`, Prometheus Go client | Same numbers feed the LifeOS health dashboard |

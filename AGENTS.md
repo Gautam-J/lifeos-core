@@ -40,7 +40,7 @@ sqlc.yaml              sqlc settings
 Makefile               tools, query-user, generate, build, test, migrate, run
 dashboards/            Grafana definitions, versioned with the schema they query
 monitoring/            the config files of Prometheus and Grafana, and later of the other monitoring services
-deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, postgres-test-init.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, test.sh
+deploy/                docker-compose.yml, systemd units and timers, backup scripts, query-user.sh, postgres-test-init.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, pi-throttled.sh, test.sh
 skills/                drafts of agent skills; no agent loads them (skills/README.md)
 prompts/               the prompts of the brief jobs (Phase 4)
 docs/design.md         the design doc, exported

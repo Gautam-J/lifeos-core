@@ -310,8 +310,9 @@ internal/testdb/     one migrated database for each test
 internal/testaccess/ a stand-in for Cloudflare Access, for tests
 queries/             SQL that sqlc compiles into internal/store/
 migrations/          goose SQL migrations
-deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, systemd units
+deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, pi-throttled.sh, systemd units
 monitoring/          the config files of Prometheus and Grafana
+dashboards/          the Grafana dashboards; Grafana loads them at its start
 skills/              drafts of agent skills; no agent loads them
 prompts/             the prompts of the brief jobs
 docs/                design doc, implementation plans
