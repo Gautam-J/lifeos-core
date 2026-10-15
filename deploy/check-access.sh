@@ -5,10 +5,10 @@
 # tunnel or of an Access application; deploy.sh runs it after each deploy.
 #
 # Needs LIFEOS_ADMIN_HOST, LIFEOS_API_HOST, LIFEOS_MCP_HOST and
-# LIFEOS_DASH_HOST in deploy/.env. With CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (an
-# Access service token), it also checks that the API and the MCP server
-# answer a request that has the token, and that the API hostname gives no
-# admin page.
+# LIFEOS_DASH_HOST in deploy/.env. With CF_ACCESS_CLIENT_ID and
+# CF_ACCESS_CLIENT_SECRET (an Access service token), it also checks that
+# the API and the MCP server answer a request that has the token, and that
+# the API hostname gives no admin page.
 # Usage: check-access.sh [env-file]   (default: deploy/.env)
 set -euo pipefail
 

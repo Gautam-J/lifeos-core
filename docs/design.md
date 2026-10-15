@@ -271,12 +271,12 @@ Each hostname gets two locks where possible: Cloudflare checks the visitor first
 
 | Hostname | Points to | Cloudflare check | App check |
 | --- | --- | --- | --- |
-| `admin.` | lifeos `:8000`, `/admin` only | Access login (email code or GitHub) | Admin password |
+| `admin.` | lifeos `:8200`, `/admin` only | Access login (email code or GitHub) | None: Access is the one login |
 | `dash.` | Grafana `:3000` | Access login | None: Access is the one login |
 | `ssh.` | `ssh://localhost:22` | Access login, via `cloudflared access ssh` | SSH key |
-| `api.` | lifeos `:8000`, `/api` only | Access service token in request headers | Per-device API token |
+| `api.` | lifeos `:8200`, `/api` only | Access service token in request headers | None: Access is the one lock |
 | `mcp.` | lifeos MCP `:8100`, `/mcp` only | Access login through OAuth (managed OAuth), which the Claude app and Claude Code can do | The server checks the token of Access |
-| `ntfy.` | ntfy `:8080` | None: the iOS app cannot do a browser login | ntfy users, everyone else denied |
+| `ntfy.` | ntfy `:2586` | None: the iOS app cannot do a browser login | ntfy users, everyone else denied |
 
 ```yaml
 # /etc/cloudflared/config.yml
