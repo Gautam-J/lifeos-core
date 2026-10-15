@@ -10,7 +10,9 @@ failed=0
 
 # A curl that answers from a table. Each line of $ANSWERS is
 # "<url> <status> [<redirect target>]"; a request that has the header of
-# an Access service token looks for "token:<url>".
+# an Access service token looks for "token:<url>", one with the bearer
+# token "wrong" for "wrong:<url>", one with a different bearer token for
+# "bearer:<url>".
 mkdir "$tmp/bin"
 cat > "$tmp/bin/curl" <<'STUB'
 #!/bin/bash
@@ -20,6 +22,8 @@ format=code
 for arg in "$@"; do
     case $arg in
         CF-Access-Client-Id:*) key="token:$url" ;;
+        "Authorization: Bearer wrong") key="wrong:$url" ;;
+        "Authorization: Bearer "*) key="bearer:$url" ;;
         *redirect_url*) format=both ;;
     esac
 done
@@ -38,6 +42,8 @@ LIFEOS_ADMIN_HOST=admin.test
 LIFEOS_API_HOST=api.test
 LIFEOS_MCP_HOST=mcp.test
 LIFEOS_DASH_HOST=dash.test
+LIFEOS_OTEL_HOST=otel.test
+OTEL_BEARER_TOKEN=tok
 CF_ACCESS_CLIENT_ID=id
 CF_ACCESS_CLIENT_SECRET=secret
 ENV
@@ -64,7 +70,11 @@ https://mcp.test/ 401
 token:https://api.test/api/items 200
 token:https://api.test/admin/items 404
 token:https://mcp.test/mcp 200
-https://dash.test/ 302 $login"
+https://dash.test/ 302 $login
+https://otel.test/v1/logs 401
+wrong:https://otel.test/v1/logs 401
+bearer:https://otel.test/v1/logs 200
+bearer:https://otel.test/ 404"
 
 check "each hostname is guarded" 0 "status 200 with the service token" "$good"
 check "the admin hostname answers" 1 "OPEN  https://admin.test/admin/items" "${good/admin.test\/admin\/items 302 $login/admin.test\/admin\/items 200}"
@@ -103,6 +113,19 @@ check "the dash hostname gives 401" 1 "OPEN  https://dash.test/" "${good/dash.te
 printf 'LIFEOS_DASH_HOST=dash.test\n' > "$tmp/dash.env"
 hosts=$tmp/dash.env
 check "only the dash hostname is set" 1 "OPEN  https://dash.test/" "https://dash.test/ 200"
+hosts=$tmp/hosts.env
+
+# The OTel hostname has no Access application: the OTel collector checks a
+# bearer token. Only a request that has the token gets through, and the
+# tunnel sends no other path.
+check "the OTel hostname wants the bearer token" 0 "ok    https://otel.test/v1/logs: status 200 with the token" "$good"
+check "the OTel hostname answers with no token" 1 "FAIL  https://otel.test/v1/logs: status 200 with no token, want 401" "${good/https:\/\/otel.test\/v1\/logs 401/https:\/\/otel.test\/v1\/logs 200}"
+check "the OTel hostname answers a wrong token" 1 "FAIL  https://otel.test/v1/logs: status 200 with a wrong token, want 401" "${good/wrong:https:\/\/otel.test\/v1\/logs 401/wrong:https:\/\/otel.test\/v1\/logs 200}"
+check "the collector refuses the token" 1 "FAIL  https://otel.test/v1/logs: status 401 with the token, want 200" "${good/bearer:https:\/\/otel.test\/v1\/logs 200/bearer:https:\/\/otel.test\/v1\/logs 401}"
+check "a different path of the OTel hostname answers" 1 "FAIL  https://otel.test/: status 200 with the token, want 404" "${good/bearer:https:\/\/otel.test\/ 404/bearer:https:\/\/otel.test\/ 200}"
+printf 'LIFEOS_OTEL_HOST=otel.test\n' > "$tmp/otel.env"
+hosts=$tmp/otel.env
+check "the OTel hostname without the token" 1 "FAIL  https://otel.test: OTEL_BEARER_TOKEN is not set" "$good"
 hosts=$tmp/hosts.env
 
 # The server gets only the two database passwords and the two values of

@@ -9,13 +9,17 @@
 # CF_ACCESS_CLIENT_SECRET (an Access service token), it also checks that
 # the API and the MCP server answer a request that has the token, and that
 # the API hostname gives no admin page.
+#
+# The OTel hostname (LIFEOS_OTEL_HOST) has no Access application: the OTel
+# collector checks the bearer token OTEL_BEARER_TOKEN. The check sends a
+# request with no token, with a wrong token and with the token.
 # Usage: check-access.sh [env-file]   (default: deploy/.env)
 set -euo pipefail
 
 env_file=$(realpath "${1:-$(dirname "$0")/.env}")
 set -a; . "$env_file"; set +a
 
-if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ] && [ -z "${LIFEOS_MCP_HOST:-}" ] && [ -z "${LIFEOS_DASH_HOST:-}" ]; then
+if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ] && [ -z "${LIFEOS_MCP_HOST:-}" ] && [ -z "${LIFEOS_DASH_HOST:-}" ] && [ -z "${LIFEOS_OTEL_HOST:-}" ]; then
     echo "no public hostname is set in $env_file: nothing to check"
     exit 0
 fi
@@ -64,6 +68,23 @@ with_token() {
     fi
 }
 
+# with_bearer <url> <token> <name> <status> [curl option...]: the OTel
+# collector must give this status to a request with this bearer token. An
+# empty token sends no Authorization header. <name> says which token, so
+# that the output never shows it.
+with_bearer() {
+    local url=$1 token=$2 name=$3 want=$4 code
+    shift 4
+    code=$(curl -s -o /dev/null --max-time 20 -w '%{http_code}' \
+        ${token:+-H "Authorization: Bearer $token"} "$@" "$url" || true)
+    if [ "$code" = "$want" ]; then
+        echo "ok    $url: status $code with $name"
+    else
+        echo "FAIL  $url: status $code with $name, want $want"
+        failed=1
+    fi
+}
+
 if [ -n "${LIFEOS_ADMIN_HOST:-}" ]; then
     guarded login "https://$LIFEOS_ADMIN_HOST/admin/items"
     # Access guards each path of the hostname, not only the admin pages.
@@ -96,6 +117,21 @@ fi
 if [ -n "${LIFEOS_DASH_HOST:-}" ]; then
     # Grafana has no login of its own: Access is the one lock.
     guarded login "https://$LIFEOS_DASH_HOST/"
+fi
+if [ -n "${LIFEOS_OTEL_HOST:-}" ]; then
+    # No Access application, as for ntfy: the 401 comes from the OTel
+    # collector, not from Access, so these checks do not use guarded.
+    if [ -z "${OTEL_BEARER_TOKEN:-}" ]; then
+        echo "FAIL  https://$LIFEOS_OTEL_HOST: OTEL_BEARER_TOKEN is not set"
+        failed=1
+    else
+        logs=(-X POST -H 'Content-Type: application/json' -d '{}')
+        with_bearer "https://$LIFEOS_OTEL_HOST/v1/logs" "" "no token" 401 "${logs[@]}"
+        with_bearer "https://$LIFEOS_OTEL_HOST/v1/logs" wrong "a wrong token" 401 "${logs[@]}"
+        with_bearer "https://$LIFEOS_OTEL_HOST/v1/logs" "$OTEL_BEARER_TOKEN" "the token" 200 "${logs[@]}"
+        # The tunnel sends only /v1/metrics, /v1/logs and /v1/traces.
+        with_bearer "https://$LIFEOS_OTEL_HOST/" "$OTEL_BEARER_TOKEN" "the token" 404
+    fi
 fi
 
 exit "$failed"
