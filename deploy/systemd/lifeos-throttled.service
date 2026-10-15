@@ -1,0 +1,10 @@
+[Unit]
+Description=LifeOS throttle flags of the Pi for node_exporter
+# No OnFailure: the unit runs each minute, and each failure would send a
+# message. A failure removes the file, so the metric pi_throttled is absent.
+
+[Service]
+Type=oneshot
+User=gautam
+ExecStart=/home/gautam/lifeos-core/deploy/pi-throttled.sh /var/lib/lifeos-monitoring/node-exporter
+TimeoutStartSec=30s

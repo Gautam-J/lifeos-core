@@ -350,5 +350,48 @@ if [[ $test_service != *"tmpfs:"* ]] || [[ $test_service == *"pgdata"* ]]; then
     failed=1
 fi
 
+# pi-throttled.sh writes the flags of `vcgencmd get_throttled` for the
+# textfile collector of node_exporter. A stub vcgencmd gives the value.
+mkdir -p "$tmp/vc" "$tmp/textfile"
+throttled_check() {
+    local name=$1 answer=$2 want_exit=$3 status=0
+    shift 3
+    printf '#!/bin/sh\n%s\n' "$answer" > "$tmp/vc/vcgencmd"
+    chmod +x "$tmp/vc/vcgencmd"
+    PATH="$tmp/vc:$PATH" ./pi-throttled.sh "$tmp/textfile" >/dev/null 2>&1 || status=$?
+    if [ "$status" != "$want_exit" ]; then
+        echo "FAIL  pi-throttled: $name: exit $status, want $want_exit"
+        failed=1
+        return
+    fi
+    for line in "$@"; do
+        if [ "$line" = absent ]; then
+            if [ -e "$tmp/textfile/pi_throttled.prom" ]; then
+                echo "FAIL  pi-throttled: $name: the file is there, want no file"
+                failed=1
+            fi
+        elif ! grep -qxF -- "$line" "$tmp/textfile/pi_throttled.prom" 2>/dev/null; then
+            echo "FAIL  pi-throttled: $name: no line '$line'"
+            failed=1
+        fi
+    done
+}
+# 0x50005: under-voltage and throttled now, and both since the boot.
+throttled_check "flags set" "echo throttled=0x50005" 0 \
+    'pi_throttled{flag="under_voltage"} 1' \
+    'pi_throttled{flag="arm_frequency_capped"} 0' \
+    'pi_throttled{flag="throttled"} 1' \
+    'pi_throttled{flag="soft_temperature_limit"} 0' \
+    'pi_throttled_since_boot{flag="under_voltage"} 1' \
+    'pi_throttled_since_boot{flag="arm_frequency_capped"} 0' \
+    'pi_throttled_since_boot{flag="throttled"} 1' \
+    'pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
+throttled_check "no flag" "echo throttled=0x0" 0 \
+    'pi_throttled{flag="under_voltage"} 0' \
+    'pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
+# A value that the script cannot read must not stay as an old good value.
+throttled_check "vcgencmd fails" "exit 1" 1 absent
+throttled_check "the answer is not a value" "echo error" 1 absent
+
 [ "$failed" = 0 ] && echo "ok    deploy/test.sh"
 exit "$failed"
