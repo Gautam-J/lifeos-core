@@ -260,6 +260,8 @@ Every service listens only on `127.0.0.1`; the Cloudflare Tunnel, which makes ou
 | `lifeos serve` (API, admin pages, MCP server) | systemd service, one Go binary | `127.0.0.1:8200` (API, admin), `127.0.0.1:8100` (MCP) |
 | Prometheus | Docker container | `127.0.0.1:9090` |
 | Grafana | Docker container | `127.0.0.1:3000` |
+| OTel collector (Claude Code telemetry) | Docker container | `127.0.0.1:4318` |
+| Loki, Tempo | Docker containers | no published port: only the collector and Grafana reach them, on the Compose network |
 | ntfy | Docker container | `127.0.0.1:2586` |
 | cloudflared | systemd service | outbound only |
 | Claude Code (`claude remote-control`) | systemd service | outbound only |
@@ -277,6 +279,7 @@ Each hostname gets two locks where possible: Cloudflare checks the visitor first
 | `api.` | lifeos `:8200`, `/api` only | Access service token in request headers | None: Access is the one lock |
 | `mcp.` | lifeos MCP `:8100`, `/mcp` only | Access login through OAuth (managed OAuth), which the Claude app and Claude Code can do | The server checks the token of Access |
 | `ntfy.` | ntfy `:2586` | None: the iOS app cannot do a browser login | ntfy users, everyone else denied |
+| `otel.` | OTel collector `:4318`, `/v1/metrics`, `/v1/logs` and `/v1/traces` only | None: Claude Code sends one header only, the bearer token | The collector checks the bearer token |
 
 ```yaml
 # /etc/cloudflared/config.yml
@@ -296,7 +299,7 @@ If an app cannot send the service-token headers, turn off the Cloudflare check f
 
 If the tunnel or Cloudflare is down, nothing is reachable from outside the home network.
 
-Backups: the wiki is pushed to a private GitHub repo each hour, by a job that is not the server. Postgres dumps, the file store and the data of Grafana and Prometheus go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
+Backups: the wiki is pushed to a private GitHub repo each hour, by a job that is not the server. Postgres dumps, the file store and the data of Grafana, Prometheus, Loki and Tempo go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
 
 Approximate memory on the 8 GB Pi:
 
@@ -306,9 +309,10 @@ Approximate memory on the 8 GB Pi:
 | `lifeos` binary (API, admin pages, MCP server) | about 50 MB (estimate) |
 | Grafana | 200 MB |
 | Prometheus | 250 MB |
+| OTel collector, Loki, Tempo | 500 MB |
 | ntfy, cloudflared | 100 MB |
 | Claude Code, Remote Control server | up to 1 GB |
-| Total | about 2.1 GB, leaving headroom |
+| Total | about 2.6 GB, leaving headroom |
 
 Claude Code runs as `claude remote-control` under systemd, signed in with a full claude.ai login; a long-lived setup token cannot start Remote Control. Move to the N100 first: anything with a local model, OCR, photo indexing or Metabase.
 
@@ -335,6 +339,8 @@ Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds (node_exporter 
 | Job missed | A job's last success is older than its schedule plus 30 minutes |
 | Connector stale | No Health sync for 3 hours, or no calendar sync for 1 hour |
 | Backup missed | No successful restic run in 26 hours |
+
+Each Claude Code session (terminal, `claude -p`, the Agent SDK, the desktop app, Remote Control) sends its OpenTelemetry metrics, events and traces to the OTel collector on the Pi, with a bearer token. The collector removes secrets (the patterns of rule 7) and sends the metrics to Prometheus, the events (prompts, replies, tool calls, API requests) to Loki and the traces to Tempo. None of the three deletes data. The dashboard "Claude usage" shows them. Setup and use: [telemetry.md](telemetry.md).
 
 Scrape config, alert rules and the system dashboard live in `lifeos-core/monitoring/` as provisioning files. Logs stay in the systemd journal (`journalctl -u lifeos`), and `lifeos` writes structured logs.
 

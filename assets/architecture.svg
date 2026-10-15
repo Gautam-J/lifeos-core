@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 2078" width="1280" height="2078" role="img" aria-labelledby="title desc">
   <title id="title">LifeOS system design</title>
-  <desc id="desc">A browser, a program and an AI agent reach three hostnames. Cloudflare Access guards each hostname, and the Cloudflare Tunnel carries a request to cloudflared on a Raspberry Pi 4. The lifeos binary has three adapters: the admin pages, the REST API and the MCP server. Each adapter calls the service layer, which is the only code that writes Postgres, the file store and the git repository of the wiki. A timer backs the data up to restic and Backblaze B2, a timer pushes the wiki to GitHub, and ntfy sends a message when a unit fails. Prometheus, Grafana and node_exporter run in Docker on the Pi, and Prometheus keeps all data; Grafana is at the dash hostname, behind the Access login only.</desc>
+  <desc id="desc">A browser, a program and an AI agent reach three hostnames. Cloudflare Access guards each hostname, and the Cloudflare Tunnel carries a request to cloudflared on a Raspberry Pi 4. The lifeos binary has three adapters: the admin pages, the REST API and the MCP server. Each adapter calls the service layer, which is the only code that writes Postgres, the file store and the git repository of the wiki. A timer backs the data up to restic and Backblaze B2, a timer pushes the wiki to GitHub, and ntfy sends a message when a unit fails. Prometheus, Grafana and node_exporter run in Docker on the Pi, and Prometheus keeps all data; Grafana is at the dash hostname, behind the Access login only. Each Claude Code session sends its telemetry with a bearer token to the OTel collector, which sends metrics to Prometheus, events to Loki and traces to Tempo.</desc>
   <defs>
     <marker id="head" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L9 4L0 8z" fill="#6c6a64"/></marker>
     <marker id="head-dark" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0L9 4L0 8z" fill="#a09d96"/></marker>
@@ -225,12 +225,15 @@
   <text x="957" y="1710">The server holds no key</text>
 
   <!-- Outside the Pi -->
-  <rect x="68" y="1758" width="271" height="128" rx="12" fill="#faf9f5" stroke="#e6dfd8" stroke-width="1.5"/>
+  <rect x="68" y="1758" width="271" height="188" rx="12" fill="#faf9f5" stroke="#e6dfd8" stroke-width="1.5"/>
   <text x="84" y="1787" class="h">Monitoring</text>
   <text x="84" y="1810">Prometheus, Grafana, node_exporter</text>
   <text x="84" y="1830"><tspan class="m">127.0.0.1:9090</tspan>, <tspan class="m">127.0.0.1:3000</tspan></text>
   <text x="84" y="1850">Keep all data. Grafana is at the</text>
   <text x="84" y="1870">dash hostname: Access only</text>
+  <text x="84" y="1894">Claude Code telemetry: the OTel</text>
+  <text x="84" y="1914">collector <tspan class="m">127.0.0.1:4318</tspan>, Loki,</text>
+  <text x="84" y="1934">Tempo; otel hostname: a token</text>
   <path d="M494.5 1738L494.5 1962" class="a" marker-end="url(#head)"/>
   <text x="504.5" y="1937" class="l">restic</text>
   <rect x="359" y="1962" width="271" height="76" rx="12" fill="#ffffff" stroke="#e6dfd8" stroke-width="1.5"/>
