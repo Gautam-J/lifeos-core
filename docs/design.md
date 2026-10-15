@@ -319,13 +319,13 @@ Prometheus collects system and app metrics on the Pi, Grafana shows them beside 
 | Watches | Collected by | Notes |
 | --- | --- | --- |
 | CPU, RAM, disk, temperature, systemd service state | node_exporter | Thermal and systemd collectors on. In Docker on the Compose network, with read-only mounts of the host and no published port, so the network counters are of the container |
-| Undervoltage and throttling | node_exporter textfile collector | A one-minute timer (`lifeos-throttled.timer`, `deploy/pi-throttled.sh`) writes `vcgencmd get_throttled` to a file |
+| Undervoltage and throttling; platform and private IP address | node_exporter textfile collector | A one-minute timer (`lifeos-textfile.timer`, `deploy/pi-textfile.sh`) writes `vcgencmd get_throttled`, the platform and the IP address to files: the container cannot see them |
 | Postgres connections, size, slow queries | postgres_exporter | Read-only monitoring user |
 | Public hostnames (`api.`, `mcp.`, `ntfy.`, `dash.`) | blackbox_exporter | Probes through the tunnel every minute |
 | Request latency, errors, tool calls, job runs, connector last sync | `/metrics` on `lifeos`, Prometheus Go client | Same numbers feed the LifeOS health dashboard |
 | Pi alive, tunnel reachable | Healthchecks.io (hosted, free tier) | One check pinged by the Pi every 5 minutes; one pinged only after a successful public probe of `api.<domain>`. Silence emails Gautam |
 
-Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds and deletes no data: the retention is 100 years, with no size limit. The nightly backup has its data. cAdvisor is left out because it is CPU-heavy on a Pi. If memory gets tight, VictoriaMetrics replaces Prometheus with the same scrape config and queries.
+Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds (node_exporter every 5 seconds, for the live values of the Pi dashboard) and deletes no data: the retention is 100 years, with no size limit. The nightly backup has its data. cAdvisor is left out because it is CPU-heavy on a Pi. If memory gets tight, VictoriaMetrics replaces Prometheus with the same scrape config and queries.
 
 | Alert (Grafana alerting to ntfy) | Fires when |
 | --- | --- |
