@@ -83,6 +83,13 @@ services:
       # The OTel collector writes the metrics of Claude Code to
       # /api/v1/otlp. The port is on 127.0.0.1 only.
       - --web.enable-otlp-receiver
+      # Each session of Claude Code is a new counter, and a short session
+      # sends one sample only. This writes a 0 at the start time of the
+      # counter, so increase() counts the first value too.
+      - --enable-feature=created-timestamp-zero-ingestion
+      # increase(x[1d] anchored) gives the exact change, with no
+      # extrapolation. A later release of Prometheus has it on by default.
+      - --enable-feature=promql-extended-range-selectors
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
