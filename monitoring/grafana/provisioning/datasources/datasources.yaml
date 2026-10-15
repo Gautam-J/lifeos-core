@@ -7,3 +7,7 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+    jsonData:
+      # The shortest scrape interval (the job node). Grafana takes 15s by
+      # default and then shows a new value only each 15 seconds.
+      timeInterval: 5s
