@@ -12,12 +12,13 @@ export RESTIC_REPOSITORY=/var/backups/lifeos/restic
 dump_dir=/var/backups/lifeos/dump
 # The captured files: files_dir in config/lifeos.yaml.
 files_dir=/var/lib/lifeos/files
-# The data of Grafana and Prometheus (docker-compose.yml). Prometheus
-# deletes no data, so this copy is the only one after a loss of the disk.
-# Its blocks do not change after they are written; a copy of the running
-# server can cut only the write-ahead log, which Prometheus repairs at the
-# start.
-monitoring_dirs=(/var/lib/lifeos-monitoring/grafana /var/lib/lifeos-monitoring/prometheus)
+# The data of Grafana, Prometheus, Loki and Tempo (docker-compose.yml).
+# Prometheus, Loki and Tempo delete no data, so this copy is the only one
+# after a loss of the disk. Their blocks do not change after they are
+# written; a copy of a running server can cut only the newest data in the
+# write-ahead log, which each one repairs at the start.
+monitoring_dirs=(/var/lib/lifeos-monitoring/grafana /var/lib/lifeos-monitoring/prometheus
+    /var/lib/lifeos-monitoring/loki /var/lib/lifeos-monitoring/tempo)
 # Grafana downloads its plugins again at the start (about 450 MB).
 skip_plugins=(--exclude /var/lib/lifeos-monitoring/grafana/plugins)
 mkdir -p "$dump_dir"
