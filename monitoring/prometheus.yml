@@ -1,0 +1,10 @@
+# Prometheus of LifeOS. The design doc, section "Monitoring", lists the
+# targets that come later; each gets a scrape job here.
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
