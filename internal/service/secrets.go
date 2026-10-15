@@ -10,6 +10,10 @@ import (
 // (AGENTS.md rule 7). The functions in this file find the ones that have a
 // pattern. A password in plain words and a bank account number have no
 // pattern, so no code can find them.
+//
+// monitoring/otel-collector.yaml has a copy of these patterns: it removes
+// the secrets from the telemetry of Claude Code. A change of a pattern here
+// needs the same change there.
 
 var (
 	privateKeyPattern = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)

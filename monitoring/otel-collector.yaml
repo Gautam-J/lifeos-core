@@ -1,0 +1,70 @@
+# OpenTelemetry Collector for the Claude Code telemetry. It refuses each
+# request without the bearer token, removes secrets from the text and sends
+# each signal to its store. A later store (#45) is one more exporter here.
+extensions:
+  bearertokenauth:
+    token: ${env:OTEL_BEARER_TOKEN}
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        # 0.0.0.0 inside the container; Docker publishes it on 127.0.0.1 only.
+        endpoint: 0.0.0.0:4318
+        max_request_body_size: 4194304
+        auth:
+          authenticator: bearertokenauth
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+    spike_limit_mib: 50
+  # A copy of the patterns of internal/service/secrets.go (rule 7 of
+  # AGENTS.md), with the same names of the kinds. A regular expression
+  # cannot do the Luhn and the Verhoeff check, and it does not look for
+  # the word Aadhaar, so some other long numbers are removed too. The card
+  # pattern runs first: 13 to 19 digits are a card number, 12 an Aadhaar
+  # number.
+  transform/secrets:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements: &secrets
+          - 'replace_all_patterns(attributes, "value", "(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\\z)", "[removed: private key]")'
+          - 'replace_all_patterns(attributes, "value", "\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b", "[removed: access key or token]")'
+          - 'replace_all_patterns(attributes, "value", "\\bgh[pousr]_[A-Za-z0-9]{36,}", "[removed: access key or token]")'
+          - 'replace_all_patterns(attributes, "value", "\\bgithub_pat_[A-Za-z0-9_]{22,}", "[removed: access key or token]")'
+          - 'replace_all_patterns(attributes, "value", "\\bxox[abprs]-[A-Za-z0-9-]{10,}", "[removed: access key or token]")'
+          - 'replace_all_patterns(attributes, "value", "\\bsk-[A-Za-z0-9_-]{20,}", "[removed: access key or token]")'
+          - 'replace_all_patterns(attributes, "value", "\\b[A-Z]{3}[ABCFGHJLPT][A-Z][0-9]{4}[A-Z]\\b", "[removed: PAN]")'
+          - 'replace_all_patterns(attributes, "value", "\\b(?:[0-9][ -]?){12,18}[0-9]\\b", "[removed: card number]")'
+          - 'replace_all_patterns(attributes, "value", "\\b[2-9][0-9]{3}[ -]?[0-9]{4}[ -]?[0-9]{4}\\b", "[removed: Aadhaar number]")'
+    trace_statements:
+      - context: span
+        statements: *secrets
+  batch: {}
+
+exporters:
+  otlp_http/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+  otlp_http/tempo:
+    endpoint: http://tempo:4318
+
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/secrets, batch]
+      exporters: [otlp_http/loki]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/secrets, batch]
+      exporters: [otlp_http/tempo]
