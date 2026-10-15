@@ -1,5 +1,5 @@
 [Unit]
-Description=Write the throttle flags of the Pi each minute
+Description=Write the facts of the Pi for node_exporter each minute
 
 [Timer]
 OnCalendar=minutely

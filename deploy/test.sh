@@ -350,48 +350,68 @@ if [[ $test_service != *"tmpfs:"* ]] || [[ $test_service == *"pgdata"* ]]; then
     failed=1
 fi
 
-# pi-throttled.sh writes the flags of `vcgencmd get_throttled` for the
-# textfile collector of node_exporter. A stub vcgencmd gives the value.
+# pi-textfile.sh writes facts of the host for the textfile collector of
+# node_exporter: the throttle flags of `vcgencmd get_throttled`, the
+# platform and the private IP address. Stubs give vcgencmd and ip; two
+# variables name the files that tell the platform.
 mkdir -p "$tmp/vc" "$tmp/textfile"
-throttled_check() {
-    local name=$1 answer=$2 want_exit=$3 status=0
+printf '12.10\n' > "$tmp/debian_version"
+: > "$tmp/raspi-config"
+printf '#!/bin/sh\necho "3: wlan0    inet 192.168.1.100/24 brd 192.168.1.255 scope global wlan0"\necho "4: docker0    inet 172.17.0.1/16 scope global docker0"\n' > "$tmp/vc/ip"
+chmod +x "$tmp/vc/ip"
+# textfile_check <name> <vcgencmd body> <want exit> <file:line|file:absent>...
+textfile_check() {
+    local name=$1 answer=$2 want_exit=$3 status=0 file line
     shift 3
     printf '#!/bin/sh\n%s\n' "$answer" > "$tmp/vc/vcgencmd"
     chmod +x "$tmp/vc/vcgencmd"
-    PATH="$tmp/vc:$PATH" ./pi-throttled.sh "$tmp/textfile" >/dev/null 2>&1 || status=$?
+    PATH="$tmp/vc:$PATH" DEBIAN_VERSION="$tmp/debian_version" RASPI_CONFIG="${RASPI:-$tmp/raspi-config}" \
+        ./pi-textfile.sh "$tmp/textfile" >/dev/null 2>&1 || status=$?
     if [ "$status" != "$want_exit" ]; then
-        echo "FAIL  pi-throttled: $name: exit $status, want $want_exit"
+        echo "FAIL  pi-textfile: $name: exit $status, want $want_exit"
         failed=1
         return
     fi
-    for line in "$@"; do
+    for want in "$@"; do
+        file=$tmp/textfile/${want%%:*}
+        line=${want#*:}
         if [ "$line" = absent ]; then
-            if [ -e "$tmp/textfile/pi_throttled.prom" ]; then
-                echo "FAIL  pi-throttled: $name: the file is there, want no file"
+            if [ -e "$file" ]; then
+                echo "FAIL  pi-textfile: $name: ${want%%:*} is there, want no file"
                 failed=1
             fi
-        elif ! grep -qxF -- "$line" "$tmp/textfile/pi_throttled.prom" 2>/dev/null; then
-            echo "FAIL  pi-throttled: $name: no line '$line'"
+        elif ! grep -qxF -- "$line" "$file" 2>/dev/null; then
+            echo "FAIL  pi-textfile: $name: no line '$line' in ${want%%:*}"
             failed=1
         fi
     done
 }
 # 0x50005: under-voltage and throttled now, and both since the boot.
-throttled_check "flags set" "echo throttled=0x50005" 0 \
-    'pi_throttled{flag="under_voltage"} 1' \
-    'pi_throttled{flag="arm_frequency_capped"} 0' \
-    'pi_throttled{flag="throttled"} 1' \
-    'pi_throttled{flag="soft_temperature_limit"} 0' \
-    'pi_throttled_since_boot{flag="under_voltage"} 1' \
-    'pi_throttled_since_boot{flag="arm_frequency_capped"} 0' \
-    'pi_throttled_since_boot{flag="throttled"} 1' \
-    'pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
-throttled_check "no flag" "echo throttled=0x0" 0 \
-    'pi_throttled{flag="under_voltage"} 0' \
-    'pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
+textfile_check "flags set" "echo throttled=0x50005" 0 \
+    'pi_throttled.prom:pi_throttled{flag="under_voltage"} 1' \
+    'pi_throttled.prom:pi_throttled{flag="arm_frequency_capped"} 0' \
+    'pi_throttled.prom:pi_throttled{flag="throttled"} 1' \
+    'pi_throttled.prom:pi_throttled{flag="soft_temperature_limit"} 0' \
+    'pi_throttled.prom:pi_throttled_since_boot{flag="under_voltage"} 1' \
+    'pi_throttled.prom:pi_throttled_since_boot{flag="arm_frequency_capped"} 0' \
+    'pi_throttled.prom:pi_throttled_since_boot{flag="throttled"} 1' \
+    'pi_throttled.prom:pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
+textfile_check "no flag" "echo throttled=0x0" 0 \
+    'pi_throttled.prom:pi_throttled{flag="under_voltage"} 0' \
+    'pi_throttled.prom:pi_throttled_since_boot{flag="soft_temperature_limit"} 0'
 # A value that the script cannot read must not stay as an old good value.
-throttled_check "vcgencmd fails" "exit 1" 1 absent
-throttled_check "the answer is not a value" "echo error" 1 absent
+# The facts of the host do not depend on vcgencmd.
+textfile_check "vcgencmd fails" "exit 1" 1 'pi_throttled.prom:absent' \
+    'pi_host.prom:pi_private_ip_info{interface="wlan0",address="192.168.1.100"} 1'
+textfile_check "the answer is not a value" "echo error" 1 'pi_throttled.prom:absent'
+# The platform as sysinfo (gopsutil) names it: raspbian when raspi-config
+# is installed, with the version of /etc/debian_version. The private IP
+# address is the first global IPv4 address.
+textfile_check "the host" "echo throttled=0x0" 0 \
+    'pi_host.prom:pi_platform_info{platform="raspbian",platform_version="12.10"} 1' \
+    'pi_host.prom:pi_private_ip_info{interface="wlan0",address="192.168.1.100"} 1'
+RASPI=$tmp/no-raspi-config textfile_check "a Debian without raspi-config" "echo throttled=0x0" 0 \
+    'pi_host.prom:pi_platform_info{platform="debian",platform_version="12.10"} 1'
 
 [ "$failed" = 0 ] && echo "ok    deploy/test.sh"
 exit "$failed"

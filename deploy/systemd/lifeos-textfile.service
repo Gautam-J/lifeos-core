@@ -1,0 +1,11 @@
+[Unit]
+Description=LifeOS facts of the Pi for node_exporter: throttle flags, platform, IP address
+# No OnFailure: the unit runs each minute, and each failure would send a
+# message. A failure removes the file of the fact that it cannot read, so
+# its metric is absent.
+
+[Service]
+Type=oneshot
+User=gautam
+ExecStart=/home/gautam/lifeos-core/deploy/pi-textfile.sh /var/lib/lifeos-monitoring/node-exporter
+TimeoutStartSec=30s
