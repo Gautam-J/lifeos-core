@@ -21,7 +21,7 @@ WorkingDirectory=/home/gautam/lifeos-core
 # deploy/.env.example.
 EnvironmentFile=/home/gautam/lifeos-core/deploy/.env
 UnsetEnvironment=RESTIC_PASSWORD B2_BUCKET B2_ENDPOINT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-UnsetEnvironment=CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN NTFY_BASE_URL NTFY_TOKEN
+UnsetEnvironment=CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN NTFY_BASE_URL NTFY_TOKEN GRAFANA_ADMIN_PASSWORD
 UnsetEnvironment=LIFEOS_ADMIN_HOST LIFEOS_API_HOST LIFEOS_MCP_HOST CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 ExecStart=/home/gautam/lifeos-core/bin/lifeos serve
 Restart=on-failure
