@@ -105,6 +105,14 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SERVER_ROOT_URL: https://${LIFEOS_DASH_HOST:?set LIFEOS_DASH_HOST in deploy/.env}/
+      # One login: Cloudflare Access. Grafana has no login of its own: each
+      # request is the anonymous user, with the role Admin. Grafana listens
+      # on 127.0.0.1 only, as the admin pages of lifeos do.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
     ports:
       - "127.0.0.1:3000:3000"
     volumes:

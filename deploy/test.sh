@@ -37,6 +37,7 @@ cat > "$tmp/hosts.env" <<'ENV'
 LIFEOS_ADMIN_HOST=admin.test
 LIFEOS_API_HOST=api.test
 LIFEOS_MCP_HOST=mcp.test
+LIFEOS_DASH_HOST=dash.test
 CF_ACCESS_CLIENT_ID=id
 CF_ACCESS_CLIENT_SECRET=secret
 ENV
@@ -62,7 +63,8 @@ https://mcp.test/mcp 401
 https://mcp.test/ 401
 token:https://api.test/api/items 200
 token:https://api.test/admin/items 404
-token:https://mcp.test/mcp 200"
+token:https://mcp.test/mcp 200
+https://dash.test/ 302 $login"
 
 check "each hostname is guarded" 0 "status 200 with the service token" "$good"
 check "the admin hostname answers" 1 "OPEN  https://admin.test/admin/items" "${good/admin.test\/admin\/items 302 $login/admin.test\/admin\/items 200}"
@@ -91,6 +93,16 @@ check "the MCP server refuses the service token" 1 "FAIL  https://mcp.test/mcp: 
 printf 'LIFEOS_MCP_HOST=mcp.test\n' > "$tmp/mcp.env"
 hosts=$tmp/mcp.env
 check "only the MCP hostname is set" 1 "OPEN  https://mcp.test/mcp" "https://mcp.test/mcp 200"
+hosts=$tmp/hosts.env
+
+# The dash hostname: Grafana has no login of its own, so Access is the one
+# lock. Each request that has no login must get the login page of Access.
+check "the dash hostname is guarded" 0 "ok    https://dash.test/: Access asks for a login" "$good"
+check "the dash hostname answers" 1 "OPEN  https://dash.test/" "${good/dash.test\/ 302 $login/dash.test\/ 200}"
+check "the dash hostname gives 401" 1 "OPEN  https://dash.test/" "${good/dash.test\/ 302 $login/dash.test\/ 401}"
+printf 'LIFEOS_DASH_HOST=dash.test\n' > "$tmp/dash.env"
+hosts=$tmp/dash.env
+check "only the dash hostname is set" 1 "OPEN  https://dash.test/" "https://dash.test/ 200"
 hosts=$tmp/hosts.env
 
 # The server gets only the two database passwords and the two values of
