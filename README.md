@@ -246,10 +246,10 @@ The rules for an agent are in the tool descriptions. The results of `journal` an
 
 ## Run it
 
-You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD`, `NTFY_BASE_URL`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD`, `NTFY_BASE_URL`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. Docker Compose also needs `GRAFANA_ADMIN_PASSWORD` and `LIFEOS_DASH_HOST` for Grafana. The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
 
 ```sh
-docker compose -f deploy/docker-compose.yml up -d   # Postgres, the Postgres server of the tests, and ntfy
+docker compose -f deploy/docker-compose.yml up -d   # Postgres, the Postgres server of the tests, ntfy, Prometheus and Grafana
 git clone git@github.com:Gautam-J/lifeos-wiki.git /var/lib/lifeos/lifeos-wiki   # one time: the wiki that the server writes
 make tools      # one time: install sqlc into ~/go/bin (linux/arm64 binary)
 make query-user # one time: make the read-only Postgres user lifeos_query
@@ -311,6 +311,7 @@ internal/testaccess/ a stand-in for Cloudflare Access, for tests
 queries/             SQL that sqlc compiles into internal/store/
 migrations/          goose SQL migrations
 deploy/              docker-compose.yml, backup scripts, query-user.sh, deploy.sh, check-access.sh, wiki-push.sh, wiki-push-repair.sh, systemd units
+monitoring/          the config files of Prometheus and Grafana
 skills/              drafts of agent skills; no agent loads them
 prompts/             the prompts of the brief jobs
 docs/                design doc, implementation plans

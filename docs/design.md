@@ -257,9 +257,10 @@ Every service listens only on `127.0.0.1`; the Cloudflare Tunnel, which makes ou
 | Component | Runs as | Listens on |
 | --- | --- | --- |
 | Postgres | Docker container | `127.0.0.1:5432` |
-| `lifeos serve` (API, admin pages, MCP server) | systemd service, one Go binary | `127.0.0.1:8000` (API, admin), `127.0.0.1:8100` (MCP) |
+| `lifeos serve` (API, admin pages, MCP server) | systemd service, one Go binary | `127.0.0.1:8200` (API, admin), `127.0.0.1:8100` (MCP) |
+| Prometheus | Docker container | `127.0.0.1:9090` |
 | Grafana | Docker container | `127.0.0.1:3000` |
-| ntfy | Docker container | `127.0.0.1:8080` |
+| ntfy | Docker container | `127.0.0.1:2586` |
 | cloudflared | systemd service | outbound only |
 | Claude Code (`claude remote-control`) | systemd service | outbound only |
 | Scheduled jobs (`lifeos job <name>`) | systemd timers | none |
@@ -271,7 +272,7 @@ Each hostname gets two locks where possible: Cloudflare checks the visitor first
 | Hostname | Points to | Cloudflare check | App check |
 | --- | --- | --- | --- |
 | `admin.` | lifeos `:8000`, `/admin` only | Access login (email code or GitHub) | Admin password |
-| `dash.` | Grafana `:3000` | Access login | Grafana login |
+| `dash.` | Grafana `:3000` | Access login | None: Access is the one login |
 | `ssh.` | `ssh://localhost:22` | Access login, via `cloudflared access ssh` | SSH key |
 | `api.` | lifeos `:8000`, `/api` only | Access service token in request headers | Per-device API token |
 | `mcp.` | lifeos MCP `:8100`, `/mcp` only | Access login through OAuth (managed OAuth), which the Claude app and Claude Code can do | The server checks the token of Access |
@@ -295,7 +296,7 @@ If an app cannot send the service-token headers, turn off the Cloudflare check f
 
 If the tunnel or Cloudflare is down, nothing is reachable from outside the home network.
 
-Backups: the wiki is pushed to a private GitHub repo each hour, by a job that is not the server. Postgres dumps and the file store go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
+Backups: the wiki is pushed to a private GitHub repo each hour, by a job that is not the server. Postgres dumps, the file store and the data of Grafana and Prometheus go nightly, encrypted by restic, to Backblaze B2; GitHub never holds the database. A restore is tested once a month.
 
 Approximate memory on the 8 GB Pi:
 
@@ -304,9 +305,10 @@ Approximate memory on the 8 GB Pi:
 | Postgres | 500 MB |
 | `lifeos` binary (API, admin pages, MCP server) | about 50 MB (estimate) |
 | Grafana | 200 MB |
+| Prometheus | 250 MB |
 | ntfy, cloudflared | 100 MB |
 | Claude Code, Remote Control server | up to 1 GB |
-| Total | about 1.85 GB, leaving headroom |
+| Total | about 2.1 GB, leaving headroom |
 
 Claude Code runs as `claude remote-control` under systemd, signed in with a full claude.ai login; a long-lived setup token cannot start Remote Control. Move to the N100 first: anything with a local model, OCR, photo indexing or Metabase.
 
@@ -323,7 +325,7 @@ Prometheus collects system and app metrics on the Pi, Grafana shows them beside 
 | Request latency, errors, tool calls, job runs, connector last sync | `/metrics` on `lifeos`, Prometheus Go client | Same numbers feed the LifeOS health dashboard |
 | Pi alive, tunnel reachable | Healthchecks.io (hosted, free tier) | One check pinged by the Pi every 5 minutes; one pinged only after a successful public probe of `api.<domain>`. Silence emails Gautam |
 
-Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds and keeps 30 days. cAdvisor is left out because it is CPU-heavy on a Pi. If memory gets tight, VictoriaMetrics replaces Prometheus with the same scrape config and queries.
+Prometheus listens on `127.0.0.1:9090`, scrapes every 60 seconds and deletes no data: the retention is 100 years, with no size limit. The nightly backup has its data. cAdvisor is left out because it is CPU-heavy on a Pi. If memory gets tight, VictoriaMetrics replaces Prometheus with the same scrape config and queries.
 
 | Alert (Grafana alerting to ntfy) | Fires when |
 | --- | --- |
@@ -482,7 +484,7 @@ Claude app, Code tab, Pi session: "reorganise my reading notes into one page per
 
 **S17 · Dashboard in a browser**
 
-1. Gautam opens `dash.<domain>`; Cloudflare Access asks for the email code, then Grafana asks for its login.
+1. Gautam opens `dash.<domain>`; Cloudflare Access asks for the email code; Grafana has no login of its own.
 2. Panels query Postgres live as the read-only user; no model is involved.
 
 **S18 · Kindle e-ink dashboard**
