@@ -159,6 +159,29 @@ services:
       - prometheus
     mem_limit: 384m
 
+  # The events of Claude Code. Only the OTel collector writes here and only
+  # Grafana reads, both on the Compose network, so no port is published.
+  loki:
+    image: grafana/loki:3.7.8
+    restart: unless-stopped
+    user: "1000:1000"
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ../monitoring/loki.yaml:/etc/loki/config.yaml:ro
+      - /var/lib/lifeos-monitoring/loki:/loki
+    mem_limit: 384m
+
+  # The traces of Claude Code. As Loki: no published port.
+  tempo:
+    image: grafana/tempo:3.1.0
+    restart: unless-stopped
+    user: "1000:1000"
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ../monitoring/tempo.yaml:/etc/tempo/config.yaml:ro
+      - /var/lib/lifeos-monitoring/tempo:/var/tempo
+    mem_limit: 384m
+
 volumes:
   pgdata:
   ntfydata:

@@ -1,0 +1,52 @@
+# Loki stores the events of Claude Code: one line for each prompt, reply,
+# tool result and API request. It deletes nothing: the compactor has no
+# retention, and limits_config has no retention_period.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  path_prefix: /loki
+  # One Loki in a container: the ring needs no address of the network.
+  instance_addr: 127.0.0.1
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+
+compactor:
+  working_directory: /loki/compactor
+  # Delete no data.
+  retention_enabled: false
+
+schema_config:
+  configs:
+    - from: 2026-10-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  allow_structured_metadata: true
+  # A reply can be 61,440 characters; the default of 64 KB refuses it.
+  max_structured_metadata_size: 256KB
+  volume_enabled: true
+  otlp_config:
+    resource_attributes:
+      # The machine is a label, so {host_name="pi"} selects its lines. The
+      # default labels, such as service_name, stay.
+      attributes_config:
+        - action: index_label
+          attributes:
+            - host.name
+
+analytics:
+  reporting_enabled: false

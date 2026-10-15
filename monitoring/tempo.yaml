@@ -1,0 +1,41 @@
+# Tempo stores the traces of Claude Code. It deletes nothing in practice:
+# the default retention is 14 days, so block_retention is 100 years. In
+# Tempo 3 the backend scheduler and the backend worker delete old blocks,
+# and the value of the overrides goes first; all three have the 100 years.
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+backend_scheduler:
+  provider:
+    compaction:
+      compaction:
+        block_retention: 876000h
+
+backend_worker:
+  compaction:
+    block_retention: 876000h
+
+overrides:
+  defaults:
+    compaction:
+      block_retention: 876000h
+
+usage_report:
+  reporting_enabled: false
