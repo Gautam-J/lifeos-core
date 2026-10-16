@@ -74,24 +74,18 @@ func dueLine(view service.Overview, todo service.Todo) (line string, late bool) 
 	return "Due " + shortDay(todo.DueOn), false
 }
 
-// recordNames gives the word for a row of each table in the activity.
-var recordNames = map[string]string{
-	"catalog_items":   "item",
-	"journal_entries": "journal entry",
-	"todos":           "todo",
-	"habits":          "habit",
-	"habit_logs":      "habit log",
-	"sources":         "source",
-}
-
 // activityRecord names the record of one event, and gives the address of
 // its edit page when the record has one and is not deleted.
 func activityRecord(a service.Activity) (name, href string) {
 	if a.RecordType == "wiki" {
 		return "wiki " + a.Path, ""
 	}
-	word, ok := recordNames[a.RecordType]
-	if !ok {
+	word, ok := service.RecordWord(a.RecordType)
+	switch {
+	case a.RecordType == "habits":
+		// A habit is a definition, not a record type.
+		word = "habit"
+	case !ok:
 		word = a.RecordType
 	}
 	name = word + " " + strconv.FormatInt(a.RecordID, 10)

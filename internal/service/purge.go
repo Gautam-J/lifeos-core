@@ -27,7 +27,8 @@ import (
 // of a file source leaves the file store, unless a different source uses
 // it.
 func (s *Service) Purge(ctx context.Context, recordType string, id int64) error {
-	if err := checkRecordType(recordType); err != nil {
+	t, err := lookupRecordType(recordType)
+	if err != nil {
 		return err
 	}
 
@@ -38,7 +39,8 @@ func (s *Service) Purge(ctx context.Context, recordType string, id int64) error 
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
 
-	table, file, err := purgeRow(ctx, q, recordType, id)
+	table := t.table
+	file, err := t.purge(ctx, q, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -75,29 +77,6 @@ func (s *Service) Purge(ctx context.Context, recordType string, id int64) error 
 		return fmt.Errorf("purge from %s: %w", table, err)
 	}
 	return nil
-}
-
-// purgeRow removes the row of one deleted record. It returns the table of
-// the record, and the path of its file when the record is a file source.
-func purgeRow(ctx context.Context, q *store.Queries, recordType string, id int64) (table string, file *string, err error) {
-	switch recordType {
-	case "item":
-		_, err = q.PurgeCatalogItem(ctx, id)
-		return "catalog_items", nil, err
-	case "journal":
-		_, err = q.PurgeJournalEntry(ctx, id)
-		return "journal_entries", nil, err
-	case "todo":
-		_, err = q.PurgeTodo(ctx, id)
-		return "todos", nil, err
-	case "habit_log":
-		_, err = q.PurgeHabitLog(ctx, id)
-		return "habit_logs", nil, err
-	case "source":
-		row, err := q.PurgeSource(ctx, id)
-		return "sources", row.FilePath, err
-	}
-	return "", nil, errNoCode(recordType)
 }
 
 // removeStoredFile removes one file of the file store. path is the path

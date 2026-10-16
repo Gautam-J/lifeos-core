@@ -12,10 +12,6 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/store"
 )
 
-// SearchTypes are the record types that Search looks in. A habit log has no
-// text; the query tool answers a question about habits.
-var SearchTypes = []string{"item", "journal", "todo", "source"}
-
 const (
 	maxQueryLength = 200
 	maxQueryWords  = 10
@@ -102,48 +98,10 @@ func (s *Service) Search(ctx context.Context, p SearchParams) ([]SearchHit, erro
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // searchType returns the newest hits of one record type.
-func searchType(ctx context.Context, q *store.Queries, recordType string, patterns []string, maxRows int32) ([]SearchHit, error) {
-	var hits []SearchHit
-	switch recordType {
-	case "item":
-		rows, err := q.SearchCatalogItems(ctx, store.SearchCatalogItemsParams{Patterns: patterns, MaxRows: maxRows})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			item, err := itemFromRow(row)
-			if err != nil {
-				return nil, err
-			}
-			hits = append(hits, SearchHit{"item", item.ID, item.summary(), item.CreatedAt})
-		}
-	case "journal":
-		rows, err := q.SearchJournalEntries(ctx, store.SearchJournalEntriesParams{Patterns: patterns, MaxRows: maxRows})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			entry := journalEntryFromRow(row)
-			hits = append(hits, SearchHit{"journal", entry.ID, entry.summary(), entry.CreatedAt})
-		}
-	case "todo":
-		rows, err := q.SearchTodos(ctx, store.SearchTodosParams{Patterns: patterns, MaxRows: maxRows})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			todo := todoFromRow(row)
-			hits = append(hits, SearchHit{"todo", todo.ID, todo.summary(), todo.CreatedAt})
-		}
-	case "source":
-		rows, err := q.SearchSources(ctx, store.SearchSourcesParams{Patterns: patterns, MaxRows: maxRows})
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			capture := captureFromRow(row)
-			hits = append(hits, SearchHit{"source", capture.ID, capture.summary(), capture.CreatedAt})
-		}
+func searchType(ctx context.Context, q *store.Queries, name string, patterns []string, maxRows int32) ([]SearchHit, error) {
+	t, err := lookupRecordType(name)
+	if err != nil {
+		return nil, err
 	}
-	return hits, nil
+	return t.search(ctx, q, patterns, maxRows)
 }

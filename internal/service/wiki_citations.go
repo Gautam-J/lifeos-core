@@ -15,10 +15,6 @@ import (
 // (src:12), (movie:3). The prefix of a list item is its kind.
 var wikiCitationPattern = regexp.MustCompile(`\(([a-z]+):([0-9]+)\)`)
 
-// WikiCitationPrefixes are the prefixes that a citation can have. The
-// description of the wiki_write tool lists them.
-var WikiCitationPrefixes = append([]string{"src", "journal", "todo", "habitlog"}, ItemKinds...)
-
 // wikiCitations returns each citation in text one time, as it is written.
 func wikiCitations(text string) []string {
 	var cites []string
@@ -64,21 +60,11 @@ func citationIsLive(ctx context.Context, q *store.Queries, cite string) (bool, e
 	if err != nil {
 		return false, nil
 	}
-	var live bool
-	switch {
-	case prefix == "src":
-		live, err = q.LiveSourceExists(ctx, id)
-	case prefix == "journal":
-		live, err = q.LiveJournalEntryExists(ctx, id)
-	case prefix == "todo":
-		live, err = q.LiveTodoExists(ctx, id)
-	case prefix == "habitlog":
-		live, err = q.LiveHabitLogExists(ctx, id)
-	case slices.Contains(ItemKinds, prefix):
-		live, err = q.LiveItemOfKindExists(ctx, store.LiveItemOfKindExistsParams{ID: id, Kind: prefix})
-	default:
+	t, ok := recordTypeOfPrefix(prefix)
+	if !ok {
 		return false, nil
 	}
+	live, err := t.live(ctx, q, prefix, id)
 	if err != nil {
 		return false, fmt.Errorf("wiki: check the citation %s: %w", cite, err)
 	}
