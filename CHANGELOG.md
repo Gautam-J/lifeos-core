@@ -1,3 +1,9 @@
+## v0.6.0 (2026-10-16)
+
+### Feat
+
+- **admin**: the Write button puts the cursor in the journal text box
+
 ## v0.5.2 (2026-10-16)
 
 ### Fix
