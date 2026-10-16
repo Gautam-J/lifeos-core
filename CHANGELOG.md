@@ -1,3 +1,9 @@
+## v0.5.2 (2026-10-16)
+
+### Fix
+
+- **admin**: show a whole source on its own page
+
 ## v0.5.1 (2026-10-16)
 
 ### Fix
