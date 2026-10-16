@@ -8,10 +8,10 @@ import (
 )
 
 // hitRefs returns the type and the ID of each hit, in order.
-func hitRefs(hits []SearchHit) []RecordRef {
-	refs := []RecordRef{}
+func hitRefs(hits []SearchHit) []recordRef {
+	refs := []recordRef{}
 	for _, hit := range hits {
-		refs = append(refs, RecordRef{hit.Type, hit.ID})
+		refs = append(refs, recordRef{hit.Type, hit.ID})
 	}
 	return refs
 }
@@ -25,7 +25,7 @@ func search(t *testing.T, s *Service, query string, types ...string) []SearchHit
 	return hits
 }
 
-func wantHits(t *testing.T, name string, got []SearchHit, want ...RecordRef) {
+func wantHits(t *testing.T, name string, got []SearchHit, want ...recordRef) {
 	t.Helper()
 	refs := hitRefs(got)
 	if len(refs) != len(want) {
@@ -64,23 +64,23 @@ func TestSearchFindsARecordOfEachType(t *testing.T) {
 		t.Fatalf("Capture: %v", err)
 	}
 
-	wantHits(t, "a word of a title", search(t, s, "dune"), RecordRef{"item", item.ID})
-	wantHits(t, "a word of an attr", search(t, s, "villeneuve"), RecordRef{"item", item.ID})
-	wantHits(t, "the kind and a word", search(t, s, "movie dune"), RecordRef{"item", item.ID})
-	wantHits(t, "a word of a body", search(t, s, "rained"), RecordRef{"journal", entry.ID})
-	wantHits(t, "the day of an entry", search(t, s, "2026-10-09"), RecordRef{"journal", entry.ID})
-	wantHits(t, "a project", search(t, s, "home"), RecordRef{"todo", todo.ID})
-	wantHits(t, "a word of a text", search(t, s, "renews"), RecordRef{"source", text.ID})
-	wantHits(t, "a part of a link", search(t, s, "example.com"), RecordRef{"source", link.ID})
+	wantHits(t, "a word of a title", search(t, s, "dune"), recordRef{"item", item.ID})
+	wantHits(t, "a word of an attr", search(t, s, "villeneuve"), recordRef{"item", item.ID})
+	wantHits(t, "the kind and a word", search(t, s, "movie dune"), recordRef{"item", item.ID})
+	wantHits(t, "a word of a body", search(t, s, "rained"), recordRef{"journal", entry.ID})
+	wantHits(t, "the day of an entry", search(t, s, "2026-10-09"), recordRef{"journal", entry.ID})
+	wantHits(t, "a project", search(t, s, "home"), recordRef{"todo", todo.ID})
+	wantHits(t, "a word of a text", search(t, s, "renews"), recordRef{"source", text.ID})
+	wantHits(t, "a part of a link", search(t, s, "example.com"), recordRef{"source", link.ID})
 
 	// The newest record is first.
-	wantHits(t, "a word in two types", search(t, s, "insurance"), RecordRef{"source", text.ID}, RecordRef{"todo", todo.ID})
-	wantHits(t, "a part of a word, in a different case", search(t, s, "LONAV"), RecordRef{"source", link.ID}, RecordRef{"journal", entry.ID})
-	wantHits(t, "one type", search(t, s, "lonavala", "journal"), RecordRef{"journal", entry.ID})
-	wantHits(t, "two types", search(t, s, "insurance", "todo", "item"), RecordRef{"todo", todo.ID})
+	wantHits(t, "a word in two types", search(t, s, "insurance"), recordRef{"source", text.ID}, recordRef{"todo", todo.ID})
+	wantHits(t, "a part of a word, in a different case", search(t, s, "LONAV"), recordRef{"source", link.ID}, recordRef{"journal", entry.ID})
+	wantHits(t, "one type", search(t, s, "lonavala", "journal"), recordRef{"journal", entry.ID})
+	wantHits(t, "two types", search(t, s, "insurance", "todo", "item"), recordRef{"todo", todo.ID})
 
 	// Every word must be in the record. The words can be in any order.
-	wantHits(t, "two words far apart", search(t, s, "rained lonavala"), RecordRef{"journal", entry.ID})
+	wantHits(t, "two words far apart", search(t, s, "rained lonavala"), recordRef{"journal", entry.ID})
 	wantHits(t, "a word that no record has", search(t, s, "lonavala snow"))
 
 	hits := search(t, s, "dune")
@@ -105,7 +105,7 @@ func TestSearchLeavesOutADeletedRecordAndShowsARecordThatWaits(t *testing.T) {
 	}
 
 	hits := search(t, s, "dune")
-	wantHits(t, "dune", hits, RecordRef{"item", waits.ID})
+	wantHits(t, "dune", hits, recordRef{"item", waits.ID})
 	if hits[0].Verified {
 		t.Error("the hit says that the record is verified, but it waits for review")
 	}
@@ -118,9 +118,9 @@ func TestSearchTakesTheQueryLiterally(t *testing.T) {
 	underscore := addTodo(t, s, "Rename max_file_mb")
 	addTodo(t, s, "Buy a domain")
 
-	wantHits(t, "a percent sign", search(t, s, "50%"), RecordRef{"todo", percent.ID})
-	wantHits(t, "only a percent sign", search(t, s, "%"), RecordRef{"todo", percent.ID})
-	wantHits(t, "an underscore", search(t, s, "max_file"), RecordRef{"todo", underscore.ID})
+	wantHits(t, "a percent sign", search(t, s, "50%"), recordRef{"todo", percent.ID})
+	wantHits(t, "only a percent sign", search(t, s, "%"), recordRef{"todo", percent.ID})
+	wantHits(t, "an underscore", search(t, s, "max_file"), recordRef{"todo", underscore.ID})
 	wantHits(t, "a backslash", search(t, s, `\`))
 	wantHits(t, "a quote", search(t, s, `'; DROP TABLE todos; --`))
 	// A search stores nothing, so the rule on secrets does not apply.
@@ -138,8 +138,8 @@ func TestSearchReturnsTheNewestHitsUpToTheLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	wantHits(t, "limit 2", hits, RecordRef{"todo", last.ID}, RecordRef{"journal", entry.ID})
-	wantHits(t, "no limit", search(t, s, "bank"), RecordRef{"todo", last.ID}, RecordRef{"journal", entry.ID}, RecordRef{"todo", first.ID})
+	wantHits(t, "limit 2", hits, recordRef{"todo", last.ID}, recordRef{"journal", entry.ID})
+	wantHits(t, "no limit", search(t, s, "bank"), recordRef{"todo", last.ID}, recordRef{"journal", entry.ID}, recordRef{"todo", first.ID})
 
 	none := search(t, s, "nothing-has-this-word")
 	if none == nil || len(none) != 0 {
@@ -185,7 +185,7 @@ func TestSearchShowsTheStatusOfATodoThatIsNotOpen(t *testing.T) {
 	setStatus(t, s, done.ID, "done")
 
 	hits := search(t, s, "bank")
-	wantHits(t, "bank", hits, RecordRef{"todo", done.ID}, RecordRef{"todo", open.ID})
+	wantHits(t, "bank", hits, recordRef{"todo", done.ID}, recordRef{"todo", open.ID})
 	// The test helper gives each todo a project and a due day.
 	if hits[0].Summary != "todo: Call the bank about the card, done, project lifeos, due 2026-10-20" || hits[1].Summary != "todo: Call the bank, project lifeos, due 2026-10-20" {
 		t.Errorf("summaries = %q, %q", hits[0].Summary, hits[1].Summary)
@@ -200,8 +200,21 @@ func TestSearchShowsAFileByItsName(t *testing.T) {
 	}
 
 	hits := search(t, s, "policy")
-	wantHits(t, "policy", hits, RecordRef{"source", file.ID})
+	wantHits(t, "policy", hits, recordRef{"source", file.ID})
 	if hits[0].Summary != "file: policy-2026.pdf (application/pdf)" {
 		t.Errorf("summary = %q", hits[0].Summary)
 	}
+}
+
+// addUnverified stores one item that an agent inferred.
+func addUnverified(t *testing.T, s *Service, title string) Item {
+	t.Helper()
+	p := dune()
+	p.Title = title
+	p.Verified = false
+	item, err := s.AddItem(context.Background(), p)
+	if err != nil {
+		t.Fatalf("AddItem(%q): %v", title, err)
+	}
+	return item
 }

@@ -274,31 +274,3 @@ func TestDatabaseFailureOnTheHabitPages(t *testing.T) {
 		}
 	}
 }
-
-// A habit log has no edit page. The review queue links to the habits page,
-// where Gautam can delete a log that is wrong.
-func TestReviewPageLinksAHabitLogToTheHabitsPage(t *testing.T) {
-	h, pool := newTestAdmin(t)
-	addStoredHabit(t, pool, "gym")
-	log := logStored(t, pool, "gym", false)
-
-	body := get(h, "/admin/review").Body.String()
-
-	for _, want := range []string{
-		"habit: gym on " + todayIST(),
-		`name="type" value="habit_log"`,
-		`<a href="/admin/habits">Habits</a>`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the page does not contain %s", want)
-		}
-	}
-	if strings.Contains(body, fmt.Sprintf(`/%d/edit"`, log.ID)) {
-		t.Error("the habit log has an Edit link, and no edit page exists for it")
-	}
-
-	rec := postForm(h, "/admin/review/verify", url.Values{"type": {"habit_log"}, "id": {fmt.Sprint(log.ID)}})
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "No record waits for review.") {
-		t.Errorf("after the approval the queue must be empty:\n%s", rec.Body)
-	}
-}

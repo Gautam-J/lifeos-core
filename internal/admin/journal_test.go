@@ -280,37 +280,3 @@ func TestDatabaseFailureOnTheJournalPages(t *testing.T) {
 		}
 	}
 }
-
-// The review queue has records of more than one type. The Edit link of a
-// journal entry must go to the journal, not to the item with the same ID.
-func TestReviewPageLinksAJournalEntryToItsEditPage(t *testing.T) {
-	h, pool := newTestAdmin(t)
-	item := addStored(t, pool, "Dune", false)
-	entry, err := service.New(pool).AddJournalEntry(t.Context(), service.AddJournalEntryParams{
-		Body: "an entry that is not verified", Provenance: service.Provenance{Source: service.SourceAgent},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry.ID != item.ID {
-		t.Fatalf("the test needs one ID for the two records; got %d and %d", entry.ID, item.ID)
-	}
-
-	body := get(h, "/admin/review").Body.String()
-
-	for _, want := range []string{
-		fmt.Sprintf(`href="/admin/items/%d/edit"`, item.ID),
-		fmt.Sprintf(`href="/admin/journal/%d/edit"`, entry.ID),
-		`name="type" value="journal"`,
-		"journal " + todayIST() + ": an entry that is not verified",
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the page does not contain %s", want)
-		}
-	}
-
-	rec := postForm(h, "/admin/review/verify", url.Values{"type": {"journal"}, "id": {fmt.Sprint(entry.ID)}})
-	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "an entry that is not verified") || !strings.Contains(rec.Body.String(), "Dune") {
-		t.Errorf("after the approval the queue must show the item and not the entry:\n%s", rec.Body)
-	}
-}

@@ -75,3 +75,24 @@ func TestInstructionsIsTheTextThatTheServerSends(t *testing.T) {
 		t.Errorf("the server sends instructions that are not mcp.Instructions()")
 	}
 }
+
+// #40: no approval step, so no tool lists a queue or approves a record.
+func TestNoToolForTheReviewQueue(t *testing.T) {
+	session, _ := connect(t)
+
+	list, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range list.Tools {
+		if tool.Name == "review_queue" || tool.Name == "verify" {
+			t.Errorf("the server has the tool %s", tool.Name)
+		}
+	}
+	instructions := session.InitializeResult().Instructions
+	for _, word := range []string{"review_queue", "verify", "Review:"} {
+		if strings.Contains(instructions, word) {
+			t.Errorf("the instructions name %q", word)
+		}
+	}
+}

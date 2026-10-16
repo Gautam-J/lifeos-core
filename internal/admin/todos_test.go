@@ -286,30 +286,3 @@ func TestDatabaseFailureOnTheTodoPages(t *testing.T) {
 		}
 	}
 }
-
-// A todo that an agent proposed waits in the review queue. Its Edit link
-// must go to the todo.
-func TestReviewPageLinksATodoToItsEditPage(t *testing.T) {
-	h, pool := newTestAdmin(t)
-	todo := addStoredTodo(t, pool, "Renew the insurance", false)
-
-	body := get(h, "/admin/review").Body.String()
-
-	for _, want := range []string{
-		"todo: Renew the insurance, project lifeos, due 2026-10-20",
-		`name="type" value="todo"`,
-		fmt.Sprintf(`href="/admin/todos/%d/edit"`, todo.ID),
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the page does not contain %s", want)
-		}
-	}
-	if strings.Contains(body, fmt.Sprintf(`href="/admin/items/%d/edit"`, todo.ID)) {
-		t.Error("the Edit link of the todo goes to the item with the same ID")
-	}
-
-	rec := postForm(h, "/admin/review/verify", url.Values{"type": {"todo"}, "id": {fmt.Sprint(todo.ID)}})
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "No record waits for review.") {
-		t.Errorf("after the approval the queue must be empty:\n%s", rec.Body)
-	}
-}

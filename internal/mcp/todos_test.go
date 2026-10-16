@@ -35,34 +35,6 @@ func TestTodoStoresATodoThatTheUserDictated(t *testing.T) {
 	}
 }
 
-// A todo that the agent finds in a journal entry or a document is a
-// proposal. It must wait in the review queue until the user approves it.
-func TestTodoIsAProposalUnlessDictated(t *testing.T) {
-	session, _ := connect(t)
-
-	added := structured(t, call(t, session, "todo", map[string]any{"title": "Renew the insurance", "due_on": "2026-12-01"}))
-
-	if added["verified"] != false {
-		t.Fatalf("verified = %v, want false when dictated is absent", added["verified"])
-	}
-	queue := structured(t, call(t, session, "review_queue", map[string]any{}))
-	entries := queue["entries"].([]any)
-	if len(entries) != 1 {
-		t.Fatalf("queue = %v, want the todo", queue)
-	}
-	entry := entries[0].(map[string]any)
-	if entry["type"] != "todo" || entry["id"] != added["id"] || entry["summary"] != "todo: Renew the insurance, due 2026-12-01" {
-		t.Errorf("entry = %v", entry)
-	}
-
-	verified := structured(t, call(t, session, "verify", map[string]any{
-		"records": []map[string]any{{"type": "todo", "id": added["id"]}},
-	}))
-	if verified["verified"] != float64(1) {
-		t.Errorf("verify returned %v, want 1", verified)
-	}
-}
-
 // The tool todo adds. The tool update changes a todo and marks it done.
 func TestUpdateMarksATodoDone(t *testing.T) {
 	session, _ := connect(t)

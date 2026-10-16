@@ -6,11 +6,17 @@ import (
 	"testing"
 )
 
+// recordRef names one record by its type and its ID.
+type recordRef struct {
+	Type string
+	ID   int64
+}
+
 // deletedRefs returns the type and the ID of each record, in order.
-func deletedRefs(records []DeletedRecord) []RecordRef {
-	refs := []RecordRef{}
+func deletedRefs(records []DeletedRecord) []recordRef {
+	refs := []recordRef{}
 	for _, r := range records {
-		refs = append(refs, RecordRef{Type: r.Type, ID: r.ID})
+		refs = append(refs, recordRef{Type: r.Type, ID: r.ID})
 	}
 	return refs
 }
@@ -24,7 +30,7 @@ func TestListDeletedGivesTheDeletedRecordsOfEachTypeWithTheLastDeletedFirst(t *t
 	log := logHabit(t, s, "gym", "2026-10-09")
 	source := captureText(t, s, "a note")
 	addItem(t, s, "book", "Emma")
-	order := []RecordRef{
+	order := []recordRef{
 		{"todo", todo.ID}, {"item", item.ID}, {"source", source.ID}, {"habit_log", log.ID}, {"journal", entry.ID},
 	}
 	for _, ref := range order {
@@ -36,7 +42,7 @@ func TestListDeletedGivesTheDeletedRecordsOfEachTypeWithTheLastDeletedFirst(t *t
 		t.Fatalf("ListDeleted: %v", err)
 	}
 
-	want := []RecordRef{
+	want := []recordRef{
 		{"journal", entry.ID}, {"habit_log", log.ID}, {"source", source.ID}, {"item", item.ID}, {"todo", todo.ID},
 	}
 	refs := deletedRefs(got)
@@ -81,7 +87,7 @@ func TestListDeletedLeavesOutARecordThatIsPurged(t *testing.T) {
 		t.Fatalf("ListDeleted: %v", err)
 	}
 
-	if refs := deletedRefs(got); len(refs) != 1 || refs[0] != (RecordRef{"item", second.ID}) {
+	if refs := deletedRefs(got); len(refs) != 1 || refs[0] != (recordRef{"item", second.ID}) {
 		t.Errorf("ListDeleted gave %v, want only item %d", refs, second.ID)
 	}
 }
@@ -92,7 +98,7 @@ func TestListDeletedObeysTheLimit(t *testing.T) {
 	first := addItem(t, s, "book", "Dune")
 	todo := addTodo(t, s, "Buy a domain")
 	last := addItem(t, s, "book", "Emma")
-	for _, ref := range []RecordRef{{"item", first.ID}, {"todo", todo.ID}, {"item", last.ID}} {
+	for _, ref := range []recordRef{{"item", first.ID}, {"todo", todo.ID}, {"item", last.ID}} {
 		deleteByHand(t, s, ref.Type, ref.ID)
 	}
 
@@ -100,7 +106,7 @@ func TestListDeletedObeysTheLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListDeleted: %v", err)
 	}
-	if refs := deletedRefs(got); len(refs) != 2 || refs[0] != (RecordRef{"item", last.ID}) || refs[1] != (RecordRef{"todo", todo.ID}) {
+	if refs := deletedRefs(got); len(refs) != 2 || refs[0] != (recordRef{"item", last.ID}) || refs[1] != (recordRef{"todo", todo.ID}) {
 		t.Errorf("ListDeleted with limit 2 gave %v, want item %d, then todo %d", refs, last.ID, todo.ID)
 	}
 

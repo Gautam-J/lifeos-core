@@ -91,7 +91,7 @@ func TestOverviewCountsTodayAndYesterdayInIST(t *testing.T) {
 // The page lists the work that waits: the open todos in the order of their
 // dates, the entries of the two days and the records that an agent
 // inferred.
-func TestOverviewListsTheWorkThatWaits(t *testing.T) {
+func TestOverviewListsTheOpenTodosAndTheJournal(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
 
@@ -115,10 +115,6 @@ func TestOverviewListsTheWorkThatWaits(t *testing.T) {
 	addJournal(t, s, "yesterday", "2026-10-10")
 	addJournal(t, s, "today", "")
 
-	for _, title := range []string{"One", "Two", "Three", "Four"} {
-		addUnverified(t, s, title)
-	}
-
 	got, err := s.Overview(ctx)
 	if err != nil {
 		t.Fatalf("Overview: %v", err)
@@ -136,12 +132,6 @@ func TestOverviewListsTheWorkThatWaits(t *testing.T) {
 	}
 	if len(got.Journal) != 2 || got.Journal[0].Body != "today" || got.Journal[1].Body != "yesterday" {
 		t.Errorf("journal = %+v, want today, then yesterday", got.Journal)
-	}
-	if got.Waiting != 4 {
-		t.Errorf("waiting = %d, want 4", got.Waiting)
-	}
-	if len(got.Review) != overviewReviewRows || got.Review[0].Summary != "movie: One, rating 4.5, on 2026-10-09" {
-		t.Errorf("review = %+v, want the first %d records, oldest first", got.Review, overviewReviewRows)
 	}
 }
 

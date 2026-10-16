@@ -35,20 +35,6 @@ func (h *handlers) showToday(w http.ResponseWriter, r *http.Request, message str
 	render(w, r, todayPart(view, message))
 }
 
-// reviewCount writes the number of records that wait for review, for the
-// menu. It writes nothing when no record waits.
-func (h *handlers) reviewCount(w http.ResponseWriter, r *http.Request) {
-	waiting, err := h.svc.WaitingForReview(r.Context())
-	if err != nil {
-		internalError(w, err)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if waiting > 0 {
-		_, _ = w.Write([]byte(strconv.Itoa(waiting)))
-	}
-}
-
 // lead says the state of the day in one line.
 func lead(view service.Overview) string {
 	var parts []string
@@ -59,18 +45,8 @@ func lead(view service.Overview) string {
 	if view.DueTodos > 0 {
 		todos += ", " + strconv.Itoa(view.DueTodos) + " due"
 	}
-	parts = append(parts, todos+".", waitingLine(view.Waiting)+".")
+	parts = append(parts, todos+".")
 	return strings.Join(parts, " ")
-}
-
-func waitingLine(waiting int) string {
-	switch waiting {
-	case 0:
-		return "Nothing waits for review"
-	case 1:
-		return "1 record waits for review"
-	}
-	return strconv.Itoa(waiting) + " records wait for review"
 }
 
 // dayName names a day of the summary: Today, Yesterday, or the date.

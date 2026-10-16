@@ -23,9 +23,6 @@ templ todayPart(view service.Overview, errorMessage string) {
 		if errorMessage != "" {
 			<p class="error" role="alert">{ errorMessage }</p>
 		}
-		if view.Waiting > 0 {
-			@reviewCallout(view)
-		}
 		<section class="metrics band" aria-label="Today and yesterday">
 			<article class="metric">
 				<h2 class="metric-label"><a href="/admin/journal">Journal</a></h2>
@@ -193,32 +190,6 @@ templ todayFailure(message string) {
 	<div id="today">
 		<p class="error" role="alert">{ message }</p>
 	</div>
-}
-
-// reviewCallout shows the first records of the review queue.
-templ reviewCallout(view service.Overview) {
-	<section class="callout" aria-labelledby="review-title">
-		<div>
-			<h2 id="review-title">{ waitingLine(view.Waiting) }</h2>
-			<p>An agent inferred each one. Reports do not count a record until you approve it.</p>
-			<a class="btn btn-on-coral" href="/admin/review">Open the review queue</a>
-		</div>
-		<ul class="rows">
-			for _, entry := range view.Review {
-				<li>
-					<span class="row-main">
-						{ entry.Summary }
-						<span class="row-sub">Added { stamp(entry.CreatedAt) }</span>
-					</span>
-					<form hx-post="/admin/review/verify" hx-target="#today" hx-swap="outerHTML">
-						<input type="hidden" name="type" value={ entry.Type }/>
-						<input type="hidden" name="id" value={ strconv.FormatInt(entry.ID, 10) }/>
-						<button class="btn btn-sm btn-on-coral" type="submit">Approve</button>
-					</form>
-				</li>
-			}
-		</ul>
-	</section>
 }
 
 templ dueNote(view service.Overview, todo service.Todo) {

@@ -101,9 +101,9 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 	id := int64(added.StructuredContent.(map[string]any)["id"].(float64))
 	item := fmt.Sprintf("%s/api/items/%d", rest, id)
 
-	// 2. REST: the review queue shows it.
-	if status, body := send(t, "GET", rest+"/api/review", "", ""); status != 200 || !strings.Contains(body, "book: Inferred through MCP, rating 4") {
-		t.Fatalf("GET /api/review: status %d, body %s", status, body)
+	// 2. REST: the item is there at once; nothing waits for approval.
+	if status, body := send(t, "GET", item, "", ""); status != 200 || !strings.Contains(body, "Inferred through MCP") {
+		t.Fatalf("GET item: status %d, body %s", status, body)
 	}
 
 	// 3. REST: a correction of one field.
@@ -111,41 +111,23 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 		t.Fatalf("PATCH: status %d, body %s", status, body)
 	}
 
-	// 4. Admin: the review page shows the corrected record, and Approve
-	// takes it out of the queue.
-	if status, body := send(t, "GET", rest+"/admin/review", "", ""); status != 200 || !strings.Contains(body, "book: Inferred through MCP, rating 3") {
-		t.Fatalf("GET /admin/review: status %d, body %s", status, body)
-	}
-	status, body := send(t, "POST", rest+"/admin/review/verify", form, fmt.Sprintf("type=item&id=%d", id))
-	if status != 200 || !strings.Contains(body, "No record waits for review.") {
-		t.Fatalf("POST /admin/review/verify: status %d, body %s", status, body)
-	}
-
-	// 5. MCP: get shows the correction and the approval.
+	// 4. MCP: get shows the correction.
 	got := tool("get", map[string]any{"type": "item", "id": id})
-	if record := got.StructuredContent.(map[string]any); got.IsError || record["rating"] != float64(3) || record["verified"] != true {
-		t.Fatalf("MCP get after the approval: %+v", got.StructuredContent)
+	if record := got.StructuredContent.(map[string]any); got.IsError || record["rating"] != float64(3) {
+		t.Fatalf("MCP get after the correction: %+v", got.StructuredContent)
 	}
 
-	// 6. MCP: the record is approved now, so the service refuses a
-	// change that the agent inferred. A change that Gautam stated goes
-	// through, and the record stays approved.
-	refused := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}})
-	if !refused.IsError {
-		t.Fatalf("MCP update with no dictated flag changed an approved record: %+v", refused.StructuredContent)
-	}
-	updated := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}, "dictated": true})
-	if updated.IsError || updated.StructuredContent.(map[string]any)["verified"] != true {
+	// 5. MCP: the agent changes the record that Gautam corrected. The
+	// event keeps the old value.
+	updated := tool("update", map[string]any{"type": "item", "id": id, "fields": map[string]any{"title": "Changed through MCP"}})
+	if updated.IsError {
 		t.Fatalf("MCP update: %+v", updated.StructuredContent)
-	}
-	if _, body := send(t, "GET", rest+"/api/review", "", ""); strings.Contains(body, "Changed through MCP") {
-		t.Errorf("the review queue shows a record that is approved: %s", body)
 	}
 	if _, body := send(t, "GET", rest+"/admin/items", "", ""); !strings.Contains(body, "Changed through MCP") {
 		t.Errorf("the items page does not show the changed record")
 	}
 
-	// 7. Admin: delete. REST and MCP must not find the record after that.
+	// 6. Admin: delete. REST and MCP must not find the record after that.
 	if status, body := send(t, "POST", fmt.Sprintf("%s/admin/items/%d/delete", rest, id), form, ""); status != 200 || strings.Contains(body, "Changed through MCP") {
 		t.Fatalf("POST delete: status %d, body %s", status, body)
 	}
@@ -156,7 +138,7 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 		t.Errorf("MCP get after delete: %+v, want an error", gone.StructuredContent)
 	}
 
-	// 8. Each write has its event, with the adapter that made it.
+	// 7. Each write has its event, with the adapter that made it.
 	rows, err := pool.Query(ctx, "SELECT action || ' by ' || source FROM events ORDER BY id")
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +151,7 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 		}
 		events = append(events, e)
 	}
-	want := "create by agent, update by manual, verify by manual, update by agent, delete by manual"
+	want := "create by agent, update by manual, update by agent, delete by manual"
 	if got := strings.Join(events, ", "); got != want {
 		t.Errorf("events = %s\nwant     %s", got, want)
 	}

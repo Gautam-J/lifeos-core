@@ -44,7 +44,7 @@ func TestServerSendsItsInstructions(t *testing.T) {
 			t.Errorf("the instructions name %s, which is not a tool", name)
 		}
 	}
-	for _, name := range []string{"journal", "capture", "wiki_write", "wiki_append", "wiki_search", "wiki_lint", "mark_processed", "review_queue"} {
+	for _, name := range []string{"journal", "capture", "wiki_write", "wiki_append", "wiki_search", "wiki_lint", "mark_processed"} {
 		if !strings.Contains(instructions, name) {
 			t.Errorf("the instructions do not name the tool %s", name)
 		}

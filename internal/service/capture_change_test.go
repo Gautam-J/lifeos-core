@@ -100,14 +100,6 @@ func TestRecordFunctionsWorkOnASource(t *testing.T) {
 		t.Errorf("Update: error = %v, want a ValidationError on type", err)
 	}
 
-	// A source is verified from the start: there is nothing to approve.
-	n, err := s.Verify(ctx, []RecordRef{{"source", added.ID}}, SourceManual)
-	if err != nil || n != 0 {
-		t.Errorf("Verify = %d, %v, want 0 and no error", n, err)
-	}
-	if queue, _ := s.ReviewQueue(ctx, 0); len(queue) != 0 {
-		t.Errorf("review queue = %+v, want it empty", queue)
-	}
 	if n := countRows(t, pool, "events"); n != 1 {
 		t.Errorf("events = %d, want only the create event", n)
 	}

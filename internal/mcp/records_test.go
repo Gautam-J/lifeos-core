@@ -31,7 +31,7 @@ func TestServerListsTheRecordTools(t *testing.T) {
 			t.Errorf("tool %s has no description", tool.Name)
 		}
 	}
-	for _, name := range []string{"get", "update", "delete", "review_queue", "verify"} {
+	for _, name := range []string{"get", "update", "delete"} {
 		if !found[name] {
 			t.Errorf("tool %s is not registered", name)
 		}
@@ -151,42 +151,6 @@ func TestDeleteNeedsTheConfirmationOfTheUser(t *testing.T) {
 	}
 }
 
-func TestReviewQueueThenVerify(t *testing.T) {
-	session, pool := connect(t)
-	first := addItem(t, session, "First", false)
-	second := addItem(t, session, "Second", false)
-	addItem(t, session, "Dictated", true)
-
-	queue := structured(t, call(t, session, "review_queue", map[string]any{}))
-	entries := queue["entries"].([]any)
-	if len(entries) != 2 {
-		t.Fatalf("review queue has %d entries, want 2: %v", len(entries), entries)
-	}
-	entry := entries[0].(map[string]any)
-	if entry["type"] != "item" || entry["id"] != first || entry["summary"] != "movie: First, rating 4, on 2024-03-01" {
-		t.Errorf("first entry = %v", entry)
-	}
-
-	result := structured(t, call(t, session, "verify", map[string]any{
-		"records": []map[string]any{{"type": "item", "id": first}, {"type": "item", "id": second}},
-	}))
-	if result["verified"] != float64(2) {
-		t.Errorf("verify returned %v, want verified 2", result)
-	}
-
-	queue = structured(t, call(t, session, "review_queue", map[string]any{}))
-	if entries, ok := queue["entries"].([]any); !ok || len(entries) != 0 {
-		t.Errorf("review queue after verify = %v, want an empty list", queue["entries"])
-	}
-	var source string
-	if err := pool.QueryRow(context.Background(), "SELECT source FROM events WHERE action = 'verify' LIMIT 1").Scan(&source); err != nil {
-		t.Fatal(err)
-	}
-	if source != "agent" {
-		t.Errorf("verify event source = %q, want agent", source)
-	}
-}
-
 func TestRecordToolsReturnErrorsTheModelCanRead(t *testing.T) {
 	session, pool := connect(t)
 	id := addItem(t, session, "Dune", false)
@@ -203,9 +167,6 @@ func TestRecordToolsReturnErrorsTheModelCanRead(t *testing.T) {
 		{"update with a misspelled argument", "update", map[string]any{"type": "item", "id": id, "field": map[string]any{"rating": 3}}, "field"},
 		{"delete of an unknown ID", "delete", map[string]any{"type": "item", "id": 9999, "confirmed": true}, "not found"},
 		{"delete of an unknown type", "delete", map[string]any{"type": "song", "id": id, "confirmed": true}, "type"},
-		{"verify of a record that does not exist", "verify", map[string]any{"records": []map[string]any{{"type": "item", "id": id}, {"type": "item", "id": 9999}}}, "item 9999 does not exist"},
-		{"verify with no records", "verify", map[string]any{"records": []map[string]any{}}, "records"},
-		{"review queue with a limit above the maximum", "review_queue", map[string]any{"limit": 500}, "limit"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,11 +201,9 @@ func TestDatabaseFailureOnARecordToolGivesAPlainError(t *testing.T) {
 	pool.Close()
 
 	calls := map[string]map[string]any{
-		"get":          {"type": "item", "id": 1},
-		"update":       {"type": "item", "id": 1, "fields": map[string]any{"rating": 3}},
-		"delete":       {"type": "item", "id": 1, "confirmed": true},
-		"review_queue": {},
-		"verify":       {"records": []map[string]any{{"type": "item", "id": 1}}},
+		"get":    {"type": "item", "id": 1},
+		"update": {"type": "item", "id": 1, "fields": map[string]any{"rating": 3}},
+		"delete": {"type": "item", "id": 1, "confirmed": true},
 	}
 	for tool, args := range calls {
 		result := call(t, session, tool, args)

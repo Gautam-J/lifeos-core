@@ -26,7 +26,6 @@ func Register(router chi.Router, svc *service.Service) {
 
 	registerItems(api, svc)
 	registerItemChanges(api, svc)
-	registerReview(api, svc)
 	registerJournal(api, svc)
 	registerTodos(api, svc)
 	registerHabits(api, svc)

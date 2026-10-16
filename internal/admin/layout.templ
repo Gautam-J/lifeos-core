@@ -50,19 +50,9 @@ templ page(title, section string) {
 								<a href={ templ.URL(entry.Path) }>{ entry.Name }</a>
 							}
 						}
-						<a class="sheet-only" href="/admin/review">Review</a>
 						<a class="sheet-only" href="/admin/deleted">Deleted</a>
 					</nav>
 					<div class="top-right">
-						if section == "Review" {
-							<a class="nav-review" href="/admin/review" aria-current="page">
-								@reviewLabel()
-							</a>
-						} else {
-							<a class="nav-review" href="/admin/review">
-								@reviewLabel()
-							</a>
-						}
 						<a class="btn btn-primary" href="/admin#write">Write</a>
 						<!-- A phone restores a check box when the page comes back. The menu must start closed. -->
 						<input class="menu-toggle" type="checkbox" aria-label="Menu" autocomplete="off"/>
@@ -79,7 +69,6 @@ templ page(title, section string) {
 						<span>LifeOS</span>
 					</a>
 					<nav aria-label="More pages">
-						<a href="/admin/review">Review</a>
 						<a href="/admin/deleted">Deleted</a>
 					</nav>
 					<p>Each time is in India Standard Time. Release { version.Version }.</p>
@@ -92,15 +81,6 @@ templ page(title, section string) {
 			</footer>
 		</body>
 	</html>
-}
-
-// reviewLabel is the text of the Review link. htmx fills in the number of
-// records that wait. It asks again each time a write replaces a list or
-// the summary: an approval, a delete and a habit log can each change the
-// number.
-templ reviewLabel() {
-	<span class="label">Review</span>
-	<span class="count" hx-get="/admin/review/count" hx-trigger="load, htmx:afterSwap[detail.target.id=='list'||detail.target.id=='today'] from:body"></span>
 }
 
 // mark is the sign of LifeOS: eight rays from one point.

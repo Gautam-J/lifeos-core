@@ -31,18 +31,6 @@ SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
--- name: ListUnverifiedTodos :many
-SELECT * FROM todos
-WHERE deleted_at IS NULL AND NOT verified
-ORDER BY created_at, id
-LIMIT $1;
-
--- name: VerifyTodo :one
-UPDATE todos
-SET verified = true
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING *;
-
 -- name: PurgeTodo :one
 -- Removes a row for good. Only a row that is deleted already can go.
 DELETE FROM todos

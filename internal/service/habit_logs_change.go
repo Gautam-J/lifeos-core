@@ -24,41 +24,7 @@ func (s *Service) DeleteHabitLog(ctx context.Context, id int64, p DeleteParams) 
 	})
 }
 
-// summary is the one line that the review queue shows for a habit log.
+// summary is the one line that search and the list of deleted records show for a habit log.
 func (l HabitLog) summary() string {
 	return "habit: " + l.Habit + " on " + l.LoggedOn
-}
-
-// unverifiedHabitLogs returns the habit logs that wait for review, oldest
-// first.
-func unverifiedHabitLogs(ctx context.Context, q *store.Queries, limit int32) ([]ReviewEntry, error) {
-	rows, err := q.ListUnverifiedHabitLogs(ctx, limit)
-	if err != nil {
-		return nil, err
-	}
-	entries := make([]ReviewEntry, 0, len(rows))
-	for _, row := range rows {
-		log := habitLogFromRow(row.HabitLog, row.Habit)
-		entries = append(entries, ReviewEntry{
-			Type:      "habit_log",
-			ID:        log.ID,
-			Summary:   log.summary(),
-			Source:    log.Source,
-			CreatedAt: log.CreatedAt,
-			UpdatedAt: log.UpdatedAt,
-		})
-	}
-	return entries, nil
-}
-
-func verifyHabitLog(ctx context.Context, q *store.Queries, id int64) (before, after any, err error) {
-	current, err := q.GetHabitLogForUpdate(ctx, id)
-	if err != nil || current.HabitLog.Verified {
-		return nil, nil, err
-	}
-	stored, err := q.VerifyHabitLog(ctx, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	return habitLogFromRow(current.HabitLog, current.Habit), habitLogFromRow(stored, current.Habit), nil
 }

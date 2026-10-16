@@ -47,28 +47,18 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 		t.Fatalf("GET /admin/journal: status %d, body %s", status, body)
 	}
 
-	// 2. MCP: the agent proposes a todo from the entry. REST shows it in
-	// the review queue.
+	// 2. MCP: the agent adds a todo from the entry. REST marks it done.
 	todo := tool("todo", map[string]any{"title": "Buy a domain", "project": "lifeos"})
 	todoID := int64(todo["id"].(float64))
-	if status, body := send(t, "GET", rest+"/api/review", "", ""); status != 200 || !strings.Contains(body, "todo: Buy a domain, project lifeos") {
-		t.Fatalf("GET /api/review: status %d, body %s", status, body)
-	}
-
-	// 3. Admin: Gautam approves the todo. REST marks it done.
-	status, body := send(t, "POST", rest+"/admin/review/verify", form, fmt.Sprintf("type=todo&id=%d", todoID))
-	if status != 200 || !strings.Contains(body, "No record waits for review.") {
-		t.Fatalf("POST /admin/review/verify: status %d, body %s", status, body)
-	}
-	status, body = send(t, "PATCH", fmt.Sprintf("%s/api/todos/%d", rest, todoID), json, `{"status":"done"}`)
-	if status != 200 || !strings.Contains(body, `"done_at"`) || !strings.Contains(body, `"verified":true`) {
+	status, body := send(t, "PATCH", fmt.Sprintf("%s/api/todos/%d", rest, todoID), json, `{"status":"done"}`)
+	if status != 200 || !strings.Contains(body, `"done_at"`) {
 		t.Fatalf("PATCH todo: status %d, body %s", status, body)
 	}
 	if got := tool("get", map[string]any{"type": "todo", "id": todoID}); got["status"] != "done" {
 		t.Fatalf("MCP get of the todo: %+v, want it done", got)
 	}
 
-	// 4. Admin: Gautam adds a habit. REST logs it, as the Shortcut does.
+	// 3. Admin: Gautam adds a habit. REST logs it, as the Shortcut does.
 	if status, body := send(t, "POST", rest+"/admin/habits", form, "name=Gym"); status != 200 || !strings.Contains(body, "not done") {
 		t.Fatalf("POST /admin/habits: status %d, body %s", status, body)
 	}
@@ -80,7 +70,7 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 		t.Fatalf("GET /api/habits/today: status %d, body %s", status, body)
 	}
 
-	// 5. MCP: the same habit and day again is the same log. A delete
+	// 4. MCP: the same habit and day again is the same log. A delete
 	// that Gautam confirmed removes it, and the checklist shows that.
 	log := tool("log_habit", map[string]any{"habit": "gym", "dictated": true})
 	if log["source"] != "manual" {
@@ -91,7 +81,7 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 		t.Errorf("GET /api/habits/today after the delete: %s", body)
 	}
 
-	// 6. Each write has its event, with the adapter that made it.
+	// 5. Each write has its event, with the adapter that made it.
 	rows, err := pool.Query(ctx, "SELECT action || ' ' || record_type || ' by ' || source FROM events ORDER BY id")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +97,6 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 	want := []string{
 		"create journal_entries by agent",
 		"create todos by agent",
-		"verify todos by manual",
 		"update todos by manual",
 		"create habits by manual",
 		"create habit_logs by manual",

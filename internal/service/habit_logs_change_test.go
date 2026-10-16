@@ -98,35 +98,3 @@ func TestRecordFunctionsWorkOnAHabitLog(t *testing.T) {
 		t.Errorf("Get after Delete: error = %v, want ErrNotFound", err)
 	}
 }
-
-func TestReviewQueueAndVerifyHandleAnInferredHabitLog(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	addHabit(t, s, "gym")
-	item := addUnverified(t, s, "Dune")
-	inferred := inferHabitLog(t, s, "gym", "2026-10-10")
-	logHabit(t, s, "gym", "") // verified
-
-	queue, err := s.ReviewQueue(ctx, 0)
-	if err != nil {
-		t.Fatalf("ReviewQueue: %v", err)
-	}
-	if len(queue) != 2 || queue[0].ID != item.ID {
-		t.Fatalf("queue = %+v, want the item, then the log", queue)
-	}
-	if e := queue[1]; e.Type != "habit_log" || e.ID != inferred.ID || e.Summary != "habit: gym on 2026-10-10" || e.Source != SourceAgent {
-		t.Errorf("entry = %+v", e)
-	}
-
-	n, err := s.Verify(ctx, []RecordRef{{"habit_log", inferred.ID}}, SourceManual)
-	if err != nil || n != 1 {
-		t.Fatalf("Verify = %d, %v, want 1", n, err)
-	}
-	if got, _ := s.GetHabitLog(ctx, inferred.ID); !got.Verified {
-		t.Error("the log is not verified")
-	}
-	events := allEvents(t, pool)
-	if e := events[len(events)-1]; e.Action != "verify" || e.RecordType != "habit_logs" || e.RecordID != inferred.ID || e.Old["verified"] != false || e.New["habit"] != "gym" {
-		t.Errorf("event = %+v, want a verify of the log", e)
-	}
-}

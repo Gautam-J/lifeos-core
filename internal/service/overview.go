@@ -11,7 +11,6 @@ import (
 // The summary page is one screen, so each of its lists is short.
 const (
 	overviewTodoRows     = 8
-	overviewReviewRows   = 3
 	overviewActivityRows = 40
 )
 
@@ -44,7 +43,7 @@ type Activity struct {
 }
 
 // Overview is what the summary page of the admin pages shows: today and
-// yesterday in IST, and the work that waits.
+// yesterday in IST, and the open todos.
 type Overview struct {
 	Today     DayCounts
 	Yesterday DayCounts
@@ -59,10 +58,6 @@ type Overview struct {
 	Next []Todo
 	// Journal holds the entries about the two days, newest first.
 	Journal []JournalEntry
-	// Waiting is the number of records in the review queue. Review holds
-	// the first of them.
-	Waiting int
-	Review  []ReviewEntry
 	// Activity holds the events of the two days, newest first.
 	Activity []Activity
 }
@@ -108,15 +103,6 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 		view.Journal = append(view.Journal, journalEntryFromRow(row))
 	}
 
-	waiting, err := q.CountUnverified(ctx)
-	if err != nil {
-		return Overview{}, fmt.Errorf("overview: review queue: %w", err)
-	}
-	view.Waiting = int(waiting)
-	if view.Review, err = s.ReviewQueue(ctx, overviewReviewRows); err != nil {
-		return Overview{}, err
-	}
-
 	events, err := q.ListEventsSince(ctx, store.ListEventsSinceParams{Since: startOfDay(yesterday), MaxRows: overviewActivityRows})
 	if err != nil {
 		return Overview{}, fmt.Errorf("overview: activity: %w", err)
@@ -136,15 +122,6 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 		view.Activity = append(view.Activity, activity)
 	}
 	return view, nil
-}
-
-// WaitingForReview returns the number of records in the review queue.
-func (s *Service) WaitingForReview(ctx context.Context) (int, error) {
-	waiting, err := store.New(s.pool).CountUnverified(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("review queue: count: %w", err)
-	}
-	return int(waiting), nil
 }
 
 // startOfDay returns the moment that an IST day starts. day is a date as

@@ -35,7 +35,7 @@ func addStored(t *testing.T, pool *pgxpool.Pool, title string, verified bool) se
 	return item
 }
 
-func TestItemsPageLinksToEditDeleteAndReview(t *testing.T) {
+func TestItemsPageLinksToEditAndDelete(t *testing.T) {
 	h, pool := newTestAdmin(t)
 	item := addStored(t, pool, "Dune", true)
 
@@ -45,7 +45,6 @@ func TestItemsPageLinksToEditDeleteAndReview(t *testing.T) {
 		fmt.Sprintf(`href="/admin/items/%d/edit"`, item.ID),
 		fmt.Sprintf(`hx-post="/admin/items/%d/delete"`, item.ID),
 		`hx-confirm="Delete Dune?"`,
-		`href="/admin/review"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not contain %s", want)

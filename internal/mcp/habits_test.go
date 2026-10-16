@@ -47,7 +47,7 @@ func TestLogHabitStoresALogThatTheUserDictated(t *testing.T) {
 }
 
 // A log that the agent infers, for example from "went to the gym" in a
-// journal entry, waits for review. The user approves it or deletes it.
+// journal entry, is not verified. The user deletes a wrong one.
 func TestLogHabitIsAProposalUnlessDictated(t *testing.T) {
 	session, pool := connect(t)
 	addHabit(t, pool, "gym")
@@ -57,15 +57,6 @@ func TestLogHabitIsAProposalUnlessDictated(t *testing.T) {
 	if logged["verified"] != false {
 		t.Fatalf("verified = %v, want false when dictated is absent", logged["verified"])
 	}
-	queue := structured(t, call(t, session, "review_queue", map[string]any{}))
-	entries := queue["entries"].([]any)
-	if len(entries) != 1 {
-		t.Fatalf("queue = %v, want the log", queue)
-	}
-	if entry := entries[0].(map[string]any); entry["type"] != "habit_log" || entry["id"] != logged["id"] || entry["summary"] != "habit: gym on 2026-01-05" {
-		t.Errorf("entry = %v", entry)
-	}
-
 	// A log has no field to correct. The error tells the model what to do.
 	update := call(t, session, "update", map[string]any{"type": "habit_log", "id": logged["id"], "fields": map[string]any{"logged_on": "2026-01-04"}})
 	if !update.IsError || !strings.Contains(text(update), "delete the log") {

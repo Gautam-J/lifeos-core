@@ -31,22 +31,6 @@ type deleteOutput struct {
 	Deleted bool `json:"deleted"`
 }
 
-type reviewQueueInput struct {
-	Limit int `json:"limit,omitempty" jsonschema:"1 to 200. The default is 50."`
-}
-
-type reviewQueueOutput struct {
-	Entries []service.ReviewEntry `json:"entries"`
-}
-
-type verifyInput struct {
-	Records []service.RecordRef `json:"records" jsonschema:"The records that the user approved, each with its type and ID"`
-}
-
-type verifyOutput struct {
-	Verified int `json:"verified" jsonschema:"The number of records that changed"`
-}
-
 // registerRecords adds the tools that work on a record of any type.
 func registerRecords(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
@@ -85,27 +69,5 @@ func registerRecords(server *sdk.Server, svc *service.Service) {
 			return nil, deleteOutput{}, toToolError(err)
 		}
 		return nil, deleteOutput{Deleted: true}, nil
-	})
-
-	sdk.AddTool(server, &sdk.Tool{
-		Name:        "review_queue",
-		Description: "List the records that wait for the user's approval, oldest first. These are records that an agent inferred. Reports do not count them until the user approves them.",
-	}, func(ctx context.Context, _ *sdk.CallToolRequest, in reviewQueueInput) (*sdk.CallToolResult, reviewQueueOutput, error) {
-		entries, err := svc.ReviewQueue(ctx, in.Limit)
-		if err != nil {
-			return nil, reviewQueueOutput{}, toToolError(err)
-		}
-		return nil, reviewQueueOutput{Entries: entries}, nil
-	})
-
-	sdk.AddTool(server, &sdk.Tool{
-		Name:        "verify",
-		Description: "Approve records from the review queue. Call it only for records that the user approved in this conversation. To correct a record first, use update.",
-	}, func(ctx context.Context, _ *sdk.CallToolRequest, in verifyInput) (*sdk.CallToolResult, verifyOutput, error) {
-		n, err := svc.Verify(ctx, in.Records, service.SourceAgent)
-		if err != nil {
-			return nil, verifyOutput{}, toToolError(err)
-		}
-		return nil, verifyOutput{Verified: n}, nil
 	})
 }

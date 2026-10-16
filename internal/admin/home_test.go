@@ -91,9 +91,6 @@ func TestSummaryPageShowsTheTwoDaysAndTheWorkThatWaits(t *testing.T) {
 		`name="habit" value="read"`,
 		"Renew the policy",
 		fmt.Sprintf(`hx-post="/admin/todos/%d/done"`, late.ID),
-		"1 record waits for review",
-		"movie: Inferred",
-		fmt.Sprintf(`name="id" value="%d"`, waits.ID),
 		"2 todos open, 1 due",
 		"Due later",
 		fmt.Sprintf(`<a href="/admin/items/%d/edit">item %d</a>`, waits.ID, waits.ID),
@@ -115,7 +112,6 @@ func TestAWriteFromTheSummaryPageShowsTheSummaryAgain(t *testing.T) {
 	h, pool := newTestAdmin(t)
 	addStoredHabit(t, pool, "gym")
 	todo := addStoredTodo(t, pool, "Buy a domain", true)
-	waits := addStored(t, pool, "Inferred", false)
 
 	clicks := []struct {
 		path     string
@@ -127,7 +123,6 @@ func TestAWriteFromTheSummaryPageShowsTheSummaryAgain(t *testing.T) {
 		{"/admin/todos", url.Values{"title": {"Call the bank"}, "due_on": {todayIST()}}, "Call the bank", "todo-added"},
 		{"/admin/habits/log", url.Values{"habit": {"gym"}}, "1 of 1 habit done", ""},
 		{fmt.Sprintf("/admin/todos/%d/done", todo.ID), nil, "1 todo open, 1 due", ""},
-		{"/admin/review/verify", url.Values{"type": {"item"}, "id": {fmt.Sprint(waits.ID)}}, "Nothing waits for review", ""},
 	}
 	for _, click := range clicks {
 		rec := postFromToday(h, click.path, click.form)
@@ -168,11 +163,10 @@ func TestSummaryPageShowsADatabaseFailureInItsOwnPart(t *testing.T) {
 		t.Errorf("page: status = %d, body = %q; want 500 and only \"internal error\"", rec.Code, rec.Body)
 	}
 	clicks := map[string]url.Values{
-		"/admin/journal":       {"body": {"a day"}},
-		"/admin/todos":         {"title": {"Buy a domain"}},
-		"/admin/todos/1/done":  nil,
-		"/admin/habits/log":    {"habit": {"gym"}},
-		"/admin/review/verify": {"type": {"item"}, "id": {"1"}},
+		"/admin/journal":      {"body": {"a day"}},
+		"/admin/todos":        {"title": {"Buy a domain"}},
+		"/admin/todos/1/done": nil,
+		"/admin/habits/log":   {"habit": {"gym"}},
 	}
 	for path, form := range clicks {
 		rec := postFromToday(h, path, form)
@@ -183,24 +177,6 @@ func TestSummaryPageShowsADatabaseFailureInItsOwnPart(t *testing.T) {
 		if !strings.HasPrefix(page, `<div id="today"><p class="error" role="alert">`) || !strings.Contains(page, "internal error") {
 			t.Errorf("POST %s: the response is not the summary with the error:\n%s", path, page)
 		}
-	}
-}
-
-// The menu shows how many records wait, on each page.
-func TestReviewCountIsTheNumberOfRecordsThatWait(t *testing.T) {
-	h, pool := newTestAdmin(t)
-
-	if rec := get(h, "/admin/review/count"); rec.Code != http.StatusOK || rec.Body.String() != "" {
-		t.Errorf("empty queue: status = %d, body = %q; want 200 and no text", rec.Code, rec.Body)
-	}
-	addStored(t, pool, "First", false)
-	addStored(t, pool, "Second", false)
-	addStored(t, pool, "Approved", true)
-	if rec := get(h, "/admin/review/count"); rec.Body.String() != "2" {
-		t.Errorf("body = %q, want 2", rec.Body)
-	}
-	if page := get(h, "/admin/items").Body.String(); !strings.Contains(page, `hx-get="/admin/review/count"`) {
-		t.Error("a page does not ask for the count")
 	}
 }
 
@@ -245,5 +221,20 @@ func TestTheMenuMarksThePageThatIsOpen(t *testing.T) {
 		if !strings.Contains(page, want) || strings.Count(page, `aria-current="page"`) != 1 {
 			t.Errorf("GET %s: the menu does not mark only %s", path, name)
 		}
+	}
+}
+
+// #40: the review page, its count and its approval route are gone, and
+// the menu does not link to them.
+func TestTheReviewPageIsGone(t *testing.T) {
+	h, _ := newTestAdmin(t)
+
+	for _, path := range []string{"/admin/review", "/admin/review/count"} {
+		if code := get(h, path).Code; code != http.StatusNotFound {
+			t.Errorf("GET %s: status %d, want 404", path, code)
+		}
+	}
+	if page := get(h, "/admin").Body.String(); strings.Contains(page, "/admin/review") {
+		t.Error("the summary page links to /admin/review")
 	}
 }
