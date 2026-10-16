@@ -151,3 +151,24 @@ func TestServerListsTheEntityTools(t *testing.T) {
 		}
 	}
 }
+
+func TestMergeEntitiesToolMergesTwoEntities(t *testing.T) {
+	session, _ := connect(t)
+	keep := structured(t, call(t, session, "entity", map[string]any{"kind": "person", "name": "Ravi Kumar"}))
+	drop := structured(t, call(t, session, "entity", map[string]any{"kind": "person", "name": "R"}))
+	call(t, session, "journal", map[string]any{"body": "met R", "entities": []any{map[string]any{"id": drop["id"]}}})
+
+	merged := structured(t, call(t, session, "merge_entities", map[string]any{"keep": keep["id"], "drop": drop["id"]}))
+
+	if moved, _ := merged["links_moved"].(float64); moved != 1 {
+		t.Errorf("merge = %v, want one link moved", merged)
+	}
+	got := structured(t, call(t, session, "get", map[string]any{"type": "entity", "id": keep["id"]}))
+	if records, _ := got["records"].([]any); len(records) != 1 {
+		t.Errorf("get = %v, want the moved record", got)
+	}
+	bad := call(t, session, "merge_entities", map[string]any{"keep": keep["id"], "drop": keep["id"]})
+	if !bad.IsError {
+		t.Error("a merge of an entity with itself worked")
+	}
+}

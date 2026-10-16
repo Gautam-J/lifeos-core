@@ -51,6 +51,11 @@ type entityInput struct {
 	WikiPath string   `json:"wiki_path,omitempty" jsonschema:"The wiki page of the entity, such as people/ravi-kumar.md. Only a page that exists or that the user said yes to."`
 }
 
+type mergeEntitiesInput struct {
+	Keep int64 `json:"keep" jsonschema:"The ID of the entity that stays"`
+	Drop int64 `json:"drop" jsonschema:"The ID of the entity that goes into keep: it is the same person, place, project or topic under a second name"`
+}
+
 func registerEntities(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "tag",
@@ -78,5 +83,16 @@ func registerEntities(server *sdk.Server, svc *service.Service) {
 			return nil, service.Entity{}, toToolError(err)
 		}
 		return nil, entity, nil
+	})
+
+	sdk.AddTool(server, &sdk.Tool{
+		Name:        "merge_entities",
+		Description: "Merge two entities of one kind that are the same person, place, project or topic, such as \"R\" and \"Ravi Kumar\". Use it when you see that you made a second entity for something that exists. Every link and every project of a todo moves from drop to keep; the name and the aliases of drop become aliases of keep; drop is deleted. Be sure: a wrong merge can be undone only by hand. Returns what moved.",
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, in mergeEntitiesInput) (*sdk.CallToolResult, service.MergeResult, error) {
+		result, err := svc.MergeEntities(ctx, service.MergeEntitiesParams{Keep: in.Keep, Drop: in.Drop, Actor: service.SourceAgent})
+		if err != nil {
+			return nil, service.MergeResult{}, toToolError(err)
+		}
+		return nil, result, nil
 	})
 }

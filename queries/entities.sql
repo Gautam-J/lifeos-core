@@ -125,3 +125,31 @@ JOIN record_entities b ON b.entity_id = ANY (sqlc.arg('others')::bigint[])
   AND (a.journal_id = b.journal_id OR a.todo_id = b.todo_id OR a.item_id = b.item_id
        OR a.habit_log_id = b.habit_log_id OR a.source_id = b.source_id)
 WHERE a.entity_id = sqlc.arg('entity_id');
+
+-- name: DeleteLinksAlreadyOnEntity :many
+-- A merge drops the links of one entity to a record that the other entity
+-- links to already.
+DELETE FROM record_entities d
+WHERE d.entity_id = sqlc.arg('drop_id')
+  AND EXISTS (
+    SELECT 1 FROM record_entities k
+    WHERE k.entity_id = sqlc.arg('keep_id')
+      AND (k.journal_id = d.journal_id OR k.todo_id = d.todo_id OR k.item_id = d.item_id
+           OR k.habit_log_id = d.habit_log_id OR k.source_id = d.source_id))
+RETURNING d.*;
+
+-- name: MoveLinks :many
+UPDATE record_entities
+SET entity_id = sqlc.arg('keep_id')
+WHERE entity_id = sqlc.arg('drop_id')
+RETURNING *;
+
+-- name: ListTodosOfProject :many
+SELECT * FROM todos
+WHERE project_id = $1
+ORDER BY id
+FOR UPDATE;
+
+-- name: MoveTodosOfProject :exec
+UPDATE todos SET project_id = sqlc.arg('keep_id')
+WHERE project_id = sqlc.arg('drop_id');
