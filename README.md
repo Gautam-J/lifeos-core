@@ -38,7 +38,7 @@ The section [Not built yet](#not-built-yet) lists what is missing.
 
 Each function below has one use case. All three interfaces call the same service code, so the same checks apply to each of them.
 
-The record types are `item`, `journal`, `todo`, `habit_log` and `source`.
+The record types are `item`, `journal`, `todo`, `habit_log`, `source` and `entity`.
 
 ### 1. Lists: movies, books, places, games
 
@@ -54,7 +54,7 @@ A journal entry has a body and the day that the entry is about. The service stor
 
 ### 3. Todos
 
-A todo has a title, a status (`open`, `done` or `dropped`), an optional due day and an optional project. The time of completion (`done_at`) follows the status. Lists show the open todos first.
+A todo has a title, a status (`open`, `done` or `dropped`), an optional due day and an optional project. The project is a project entity (function 15), and a name that no project has makes a new one. The time of completion (`done_at`) follows the status. Lists show the open todos first.
 
 **Use case.** In a conversation you say "remind me to renew the car insurance by the 20th". The agent calls `todo` with the title and `due_on`. Later you press **Done** in `/admin/todos`.
 
@@ -104,7 +104,7 @@ A source is a text, a link or a file that LifeOS keeps exactly as it comes. The 
 
 ### 9. Search
 
-A search finds list items, journal entries, todos and sources by their words. A record matches when it has every word. Upper and lower case are the same, and a part of a word matches. The newest hit is first.
+A search finds list items, journal entries, todos, sources and entities (by name or alias) by their words. A record matches when it has every word. Upper and lower case are the same, and a part of a word matches. The newest hit is first.
 
 **Use case.** You ask "when did I last go to Lonavala?". The agent calls `search` with `lonavala`, reads the hits, and answers with the date and the ID of the record.
 
@@ -165,6 +165,18 @@ The wiki holds your analysis and your insights: what the facts mean and how they
 
 **Use case.** You tell the agent "journal - met Asha about the tunnel". The agent stores your words with `journal`. The result names the next step for the agent: it finds `people/asha-rao.md` with `wiki_search`, and it adds one dated line with `wiki_append` that cites the entry.
 
+### 15. Entities: people, places, projects and topics
+
+An entity is a row of one shared list: a `person`, a `place`, a `project` or a `topic`, with a name, other names (aliases) and an optional wiki page. A record (a journal entry, a todo, a list item, a habit log or a source) links to the entities that it names. Then one SQL join answers "everything about this person" across all tables.
+
+- **The agent links on its own.** `journal`, `todo`, `add_item`, `log_habit` and `capture` take `entities`. A name that matches an entity or an alias is linked. A name with a kind that matches nothing makes the entity. The agent asks no question about an entity. The result lists each link, and says which entity is new.
+- **Corrections.** `tag` adds a link to a record or takes one away. `merge_entities` joins two entities of one kind: it moves the links and the projects of todos, and the dropped name becomes an alias. `/admin/entities` does the same by hand, and edits the names and the wiki page.
+- **The project of a todo** is a project entity. The database refuses a person as the project of a todo.
+- **`get` of an entity** returns its records across the tables, the newest link first, and the path of its wiki page. `context` lists the entities of today and yesterday. A wiki page cites an entity as `(entity:5)`.
+- **Deletes.** A delete of an entity is soft. The page `/admin/deleted` removes it for good, only when no record links to it and no todo names it as its project.
+
+**Use case.** You say "met Ravi at the gym, he asked about the tunnel". The agent calls `journal` with the entities `Ravi` (person) and `the gym` (place). A month later you ask "what do I know about Ravi?"; the agent calls `get` with the type `entity` and reads every record that names him.
+
 ## Interfaces
 
 `lifeos serve` opens two listeners. Each is on `127.0.0.1` only.
@@ -186,6 +198,7 @@ LifeOS has no login of its own. The admin pages, the REST API and the MCP server
 | `/admin/todos` | Add a todo, mark it done, edit or delete it. |
 | `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
 | `/admin/sources` | Capture a text or a link, see the sources, open one source to read all of it, delete a source. |
+| `/admin/entities` | Add an entity, see the list by kind, open one entity to edit its names and its wiki page, see its records and remove a link, merge another entity into it, delete it. |
 | `/admin/deleted` | See the deleted records, and remove one for good. |
 
 A record that the admin pages write is `manual`. The lists of todos, habit logs and items link each record that a journal entry reports to that entry.
@@ -222,6 +235,9 @@ A record that an MCP tool writes has the source `agent`.
 | Tool | What it does |
 | --- | --- |
 | `add_item` | Adds a movie, book, place or game. |
+| `tag` | Links a record to people, places, projects and topics, or takes a link away. |
+| `entity` | Adds a person, place, project or topic with its aliases. |
+| `merge_entities` | Merges two entities of one kind that are the same. |
 | `journal` | Stores a journal entry, word for word. Its result names the next step: log the habits, close the todos and add the items that the entry reports, each with `journal_ref`, then the wiki. |
 | `todo` | Adds one todo. |
 | `log_habit` | Logs a habit for a day. A second call for the same day returns the stored log. |
@@ -232,7 +248,7 @@ A record that an MCP tool writes has the source `agent`.
 | `update` | Corrects one record. |
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
 | `mark_processed` | Records that the work on a source is complete. |
-| `context` | The first call of a conversation. Returns `me.md` (or says how to make it), the journal entries of today and yesterday, the open todos due today or before, the open todos due tomorrow, the todos done today and yesterday, and a line of counts. At most 8,000 characters: a long day loses journal bodies first, then the oldest done todos, and the result says what it cut. |
+| `context` | The first call of a conversation. Returns `me.md` (or says how to make it), the journal entries of today and yesterday, the open todos due today or before, the open todos due tomorrow, the todos done today and yesterday, the entities of the two days, and a line of counts. At most 8,000 characters: a long day loses journal bodies first, then the oldest done todos, then the last entities, and the result says what it cut. |
 | `wiki_search` | Finds wiki pages by their words, or lists each page. |
 | `wiki_read` | Reads one page, `index.md`, `log.md` or `me.md`, with its hash. |
 | `wiki_write` | Creates a page, or replaces its text when the call has the hash of the stored page. |
@@ -240,7 +256,7 @@ A record that an MCP tool writes has the source `agent`.
 | `wiki_delete` | Deletes one page after you said yes (`confirmed: true`). |
 | `wiki_lint` | Reports the problems of the wiki that code can find. |
 
-The record types for `get`, `update` and `delete` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo`, `log_habit` and `update` of a todo take an optional `journal_ref`: the ID of the journal entry that reports the record.
+The record types for `get`, `update` and `delete` are `item`, `journal`, `todo`, `habit_log`, `source` and `entity`. `add_item`, `todo`, `log_habit` and `update` of a todo take an optional `journal_ref`: the ID of the journal entry that reports the record. `journal`, `todo`, `add_item`, `log_habit` and `capture` take an optional `entities`.
 
 The rules for an agent are in the tool descriptions. The results of `journal` and `capture` have a field `next` that names the next step. The server also sends short instructions when a client connects; Claude Code reads them, the Claude app does not. `lifeos instructions` prints them: paste the text into the instructions of a Claude app project. Then a plain message about your life, with no keyword such as "journal" or "todo", reaches LifeOS.
 

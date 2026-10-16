@@ -50,7 +50,8 @@ Every fact a database can hold lives in Postgres; the wiki holds only synthesis 
 | `journal_entries` | Journal text exactly as written | You only |
 | `habits`, `habit_logs` | Habit definitions and daily check-ins | You, Claude app |
 | `accounts`, `transactions`, `budgets` | Money in and out, per account and category | Bank CSV imports, you |
-| `todos` | Tasks with due dates, status, project | You, Claude app, calendar |
+| `todos` | Tasks with due dates, status, project (a project entity) | You, Claude app, calendar |
+| `entities`, `record_entities` | People, places, projects and topics, and the links from each record to the entities it names (#41) | Claude app (links on its own), you |
 | `health_samples` | Metric, value, unit, timestamp | Health Auto Export |
 | `calendar_events` | Mirror of iCloud calendars | CalDAV pull |
 | `emails` | Mail metadata plus a summary | IMAP pull |
@@ -86,6 +87,8 @@ API handlers, MCP tools and CLI subcommands are thin adapters over the service f
 | Add or update a todo | `todo` | `/api/todos` | `todos` |
 | Correct a record | `update` | `PATCH /api/<type>/<id>` | The record; old value kept in `events` |
 | Delete a record, after confirmation | `delete` | `DELETE /api/<type>/<id>` | Sets `deleted_at` |
+| Link a record to entities, or remove a link | `tag`, and `entities` on the write tools | none, agents only | `record_entities` |
+| Add an entity, merge two | `entity`, `merge_entities` | none, agents only | `entities` |
 | Search records and sources | `search` | `GET /api/search` | none |
 | Read one record | `get` | `GET /api/<type>/<id>` | none |
 | Run a read-only SQL query | `query` | none, agents only | none |
