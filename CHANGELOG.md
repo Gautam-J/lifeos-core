@@ -1,3 +1,14 @@
+## v0.2.0 (2026-10-16)
+
+### Feat
+
+- **cli**: add lifeos instructions, which prints the MCP server instructions
+- **mcp**: act on a plain message about the user's life, with no keyword
+
+### Fix
+
+- name the release of the binary in the OpenAPI document and the MCP server
+
 ## v0.1.0 (2026-10-12)
 
 ### Feat
