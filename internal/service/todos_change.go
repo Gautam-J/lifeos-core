@@ -59,7 +59,7 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 	}
 	old := todoFromRow(current)
 	if p.JournalRef != nil {
-		if err := checkJournalRef(ctx, q, *p.JournalRef); err != nil {
+		if _, err := checkJournalRef(ctx, q, *p.JournalRef); err != nil {
 			return Todo{}, err
 		}
 	}

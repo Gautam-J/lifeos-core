@@ -66,7 +66,7 @@ func (s *Service) AddItem(ctx context.Context, p AddItemParams) (Item, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
+	if _, err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
 		return Item{}, err
 	}
 

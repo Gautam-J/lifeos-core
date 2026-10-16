@@ -45,7 +45,8 @@ type LogHabitParams struct {
 // LogHabit records that Gautam did a habit on a day, and appends a create
 // event, in one transaction. A habit has one log for each day: when the
 // log exists already, LogHabit returns it and writes nothing, also when p
-// names a journal entry that the stored log does not name.
+// names a journal entry that the stored log does not name. With
+// JournalRef and no LoggedOn, the day is the day of the entry.
 func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, error) {
 	name := habitName(p.Habit)
 	if name == "" {
@@ -65,8 +66,14 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
+	entry, err := checkJournalRef(ctx, q, p.JournalRef)
+	if err != nil {
 		return HabitLog{}, err
+	}
+	// An entry written after midnight is about the day before. With no
+	// day of its own, a log from an entry takes the day of the entry.
+	if p.JournalRef != 0 && p.LoggedOn == "" {
+		day = entry.EntryDate
 	}
 
 	habit, err := q.GetActiveHabitByName(ctx, name)

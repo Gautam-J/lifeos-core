@@ -113,7 +113,7 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
+	if _, err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
 		return Todo{}, err
 	}
 

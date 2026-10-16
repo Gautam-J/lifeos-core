@@ -120,3 +120,21 @@ func TestPurgeRefusesAnEntryThatARecordNames(t *testing.T) {
 		t.Errorf("Purge of the entry after the todo: %v", err)
 	}
 }
+
+// Final review: an entry written after midnight is about the day before.
+// A log from that entry with no day takes the day of the entry, not today.
+func TestALogFromAnEntryTakesTheDayOfTheEntry(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	addHabit(t, s, "run")
+	entry := addJournal(t, s, "Ran in the evening.", "2026-10-10") // today is 2026-10-11 in IST
+
+	log, err := s.LogHabit(ctx, LogHabitParams{Habit: "run", JournalRef: entry.ID, Provenance: Provenance{Source: SourceAgent}})
+	if err != nil || log.LoggedOn != "2026-10-10" {
+		t.Errorf("LogHabit = %+v, %v; want the day of the entry, 2026-10-10", log, err)
+	}
+	stated, err := s.LogHabit(ctx, LogHabitParams{Habit: "run", LoggedOn: "2026-10-11", JournalRef: entry.ID, Provenance: Provenance{Source: SourceAgent}})
+	if err != nil || stated.LoggedOn != "2026-10-11" {
+		t.Errorf("LogHabit with a day = %+v, %v; want the day that the call gives", stated, err)
+	}
+}

@@ -10,22 +10,23 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/store"
 )
 
-// checkJournalRef refuses a journal_ref that names no live journal entry.
-// 0 means none. Call it in the transaction of the write. The foreign key
-// refuses an unknown ID too, but it accepts a deleted entry, and its error
-// does not name the field.
-func checkJournalRef(ctx context.Context, q *store.Queries, ref int64) error {
+// checkJournalRef refuses a journal_ref that names no live journal entry,
+// and returns the entry. 0 means none: it returns an empty entry. Call it
+// in the transaction of the write. The foreign key refuses an unknown ID
+// too, but it accepts a deleted entry, and its error does not name the
+// field.
+func checkJournalRef(ctx context.Context, q *store.Queries, ref int64) (store.JournalEntry, error) {
 	if ref == 0 {
-		return nil
+		return store.JournalEntry{}, nil
 	}
-	_, err := q.GetJournalEntry(ctx, ref)
+	entry, err := q.GetJournalEntry(ctx, ref)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return invalid("journal_ref", "must be the ID of a journal entry that exists")
+		return store.JournalEntry{}, invalid("journal_ref", "must be the ID of a journal entry that exists")
 	}
 	if err != nil {
-		return fmt.Errorf("check journal_ref: %w", err)
+		return store.JournalEntry{}, fmt.Errorf("check journal_ref: %w", err)
 	}
-	return nil
+	return entry, nil
 }
 
 // journalRefParam is the value of a journal_ref column: nil for 0.
