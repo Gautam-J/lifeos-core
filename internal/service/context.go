@@ -47,8 +47,23 @@ type ContextTodo struct {
 	Title   string `json:"title"`
 	DueOn   string `json:"due_on,omitempty"`
 	Project string `json:"project,omitempty"`
+	// ProjectRef is the ref of the project entity, such as entity:5.
+	ProjectRef string `json:"project_ref,omitempty"`
 	// DoneOn is the IST day on which a done todo became done.
 	DoneOn string `json:"done_on,omitempty"`
+}
+
+// ContextEntity is one entity in a SessionContext.
+type ContextEntity struct {
+	// Ref is the citation of the row, such as entity:5.
+	Ref  string `json:"ref"`
+	ID   int64  `json:"id"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	// Aliases are the other names that the entity answers to.
+	Aliases []string `json:"aliases,omitempty"`
+	// WikiPath is the page of the entity, when it has one.
+	WikiPath string `json:"wiki_path,omitempty"`
 }
 
 // SessionContext is what each session starts with. The fields are in the
@@ -69,6 +84,9 @@ type SessionContext struct {
 	Tomorrow []ContextTodo `json:"tomorrow,omitempty"`
 	// Done holds the todos that became done on the day or the day before.
 	Done []ContextTodo `json:"done,omitempty"`
+	// Entities holds the people, places, projects and topics that the
+	// records of the day and the day before link to (#41), by kind and name.
+	Entities []ContextEntity `json:"entities,omitempty"`
 	// Counts is one line: the habits done on the day and the sources that
 	// are not processed yet.
 	Counts string `json:"counts,omitempty"`
@@ -83,19 +101,20 @@ type contextData struct {
 	due     []ContextTodo
 	morrow  []ContextTodo
 	done    []ContextTodo
-	counts  string
+	// entities are the entities of the two days.
+	entities []ContextEntity
+	counts   string
 }
 
 // Context returns what a session starts with: me.md, the journal of the
 // day and the day before, the todos, and a line of counts. day is an IST
 // day; the zero time means today. All facts come from SQL. The result is
 // at most contextBudget characters when it can be: the budget cuts the
-// journal bodies first, then the done todos, and it never cuts an ID,
-// me.md or an overdue todo.
+// journal bodies first, then the done todos, then the entities, and it
+// never cuts an ID, me.md or an overdue todo.
 //
-// The highlights of the journal (#30) and of the todos (#36), and the
-// entities of the day (#41), are not here yet: each adds a section when
-// its job exists.
+// The highlights of the journal (#30) and of the todos (#36) are not here
+// yet: each adds a section when its job exists.
 func (s *Service) Context(ctx context.Context, day time.Time) (SessionContext, error) {
 	if day.IsZero() {
 		day = today(s.now())
@@ -143,6 +162,25 @@ func (s *Service) loadContext(ctx context.Context, day time.Time) (contextData, 
 		return data, fmt.Errorf("context: done todos: %w", err)
 	}
 
+	var todoIDs []int64
+	for _, rows := range [][]store.Todo{due, next, done} {
+		for _, row := range rows {
+			todoIDs = append(todoIDs, row.ID)
+		}
+	}
+	entities, err := q.ListEntitiesOfTheDays(ctx, store.ListEntitiesOfTheDaysParams{
+		FromDay: yesterday, ToDay: day, SpanStart: startOfDay(yesterday), SpanEnd: startOfDay(tomorrow), TodoIds: todoIDs,
+	})
+	if err != nil {
+		return data, fmt.Errorf("context: entities: %w", err)
+	}
+	for _, row := range entities {
+		e := entityFromRow(row)
+		data.entities = append(data.entities, ContextEntity{
+			Ref: fmt.Sprintf("entity:%d", e.ID), ID: e.ID, Kind: e.Kind, Name: e.Name, Aliases: e.Aliases, WikiPath: e.WikiPath,
+		})
+	}
+
 	habits, err := q.ListHabitsOnDay(ctx, day)
 	if err != nil {
 		return data, fmt.Errorf("context: habits: %w", err)
@@ -161,8 +199,11 @@ func contextTodos(ctx context.Context, q *store.Queries, rows []store.Todo) ([]C
 	if err != nil {
 		return nil, err
 	}
-	for _, todo := range stored {
+	for i, todo := range stored {
 		item := ContextTodo{Ref: fmt.Sprintf("todo:%d", todo.ID), ID: todo.ID, Title: todo.Title, DueOn: todo.DueOn, Project: todo.Project}
+		if rows[i].ProjectID != nil {
+			item.ProjectRef = fmt.Sprintf("entity:%d", *rows[i].ProjectID)
+		}
 		if todo.DoneAt != nil {
 			item.DoneOn = todo.DoneAt.In(IST).Format(time.DateOnly)
 		}
@@ -194,18 +235,25 @@ func contextCounts(habits []store.ListHabitsOnDayRow, waiting int64) string {
 }
 
 // fitContext builds the result and, when it is over the budget, shortens
-// the journal bodies step by step, then drops the oldest done todos.
+// the journal bodies step by step, then drops the oldest done todos, then
+// the last entities.
 func fitContext(day time.Time, data contextData) SessionContext {
 	var built SessionContext
 	for _, limit := range contextBodyLimits {
-		built = buildContext(day, data, limit, len(data.done))
+		built = buildContext(day, data, limit, len(data.done), len(data.entities))
 		if contextSize(built) <= contextBudget {
 			return built
 		}
 	}
 	last := contextBodyLimits[len(contextBodyLimits)-1]
 	for keep := len(data.done) - 1; keep >= 0; keep-- {
-		built = buildContext(day, data, last, keep)
+		built = buildContext(day, data, last, keep, len(data.entities))
+		if contextSize(built) <= contextBudget {
+			return built
+		}
+	}
+	for keep := len(data.entities) - 1; keep >= 0; keep-- {
+		built = buildContext(day, data, last, 0, keep)
 		if contextSize(built) <= contextBudget {
 			return built
 		}
@@ -222,8 +270,9 @@ func contextSize(c SessionContext) int {
 }
 
 // buildContext makes the result with every journal body cut to bodyRunes
-// characters and only the newest keepDone done todos.
-func buildContext(day time.Time, data contextData, bodyRunes, keepDone int) SessionContext {
+// characters, only the newest keepDone done todos and only the first
+// keepEntities entities.
+func buildContext(day time.Time, data contextData, bodyRunes, keepDone, keepEntities int) SessionContext {
 	c := SessionContext{
 		Me: data.me.Me, Note: data.me.Note, Day: day.Format(time.DateOnly),
 		Due: data.due, Tomorrow: data.morrow, Counts: data.counts,
@@ -247,5 +296,9 @@ func buildContext(day time.Time, data contextData, bodyRunes, keepDone int) Sess
 		c.Cut = append(c.Cut, fmt.Sprintf("%d older done todos are left out. Call query on the table todos to list them.", left))
 	}
 	c.Done = data.done[len(data.done)-keepDone:]
+	if left := len(data.entities) - keepEntities; left > 0 {
+		c.Cut = append(c.Cut, fmt.Sprintf("%d entities are left out. Call query on the table entities to list them.", left))
+	}
+	c.Entities = data.entities[:keepEntities]
 	return c
 }
