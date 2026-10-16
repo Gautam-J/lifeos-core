@@ -1,6 +1,6 @@
 -- name: InsertTodo :one
-INSERT INTO todos (title, due_on, project, source)
-VALUES ($1, $2, $3, $4)
+INSERT INTO todos (title, due_on, project, source, journal_ref)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetTodo :one
@@ -21,7 +21,7 @@ FOR UPDATE;
 
 -- name: UpdateTodo :one
 UPDATE todos
-SET title = $2, status = $3, due_on = $4, project = $5, done_at = $6
+SET title = $2, status = $3, due_on = $4, project = $5, done_at = $6, journal_ref = $7
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 

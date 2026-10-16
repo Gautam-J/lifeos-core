@@ -113,9 +113,31 @@ func TestPurgeRecordShowsAMessageWhenTheRecordIsNotDeleted(t *testing.T) {
 }
 
 func TestPurgeRecordShowsWhyTheServiceRefused(t *testing.T) {
-	h, _ := newTestAdmin(t)
+	h, pool := newTestAdmin(t)
+	svc := service.New(pool)
+	entry, err := svc.AddJournalEntry(t.Context(), service.AddJournalEntryParams{Body: "Renewed the policy.", Provenance: service.Provenance{Source: service.SourceManual}})
+	if err != nil {
+		t.Fatalf("AddJournalEntry: %v", err)
+	}
+	_, err = svc.AddTodo(t.Context(), service.AddTodoParams{Title: "Renew the policy", JournalRef: entry.ID, Provenance: service.Provenance{Source: service.SourceAgent}})
+	if err != nil {
+		t.Fatalf("AddTodo: %v", err)
+	}
+	if err := svc.DeleteJournalEntry(t.Context(), entry.ID, service.DeleteParams{Actor: service.SourceManual}); err != nil {
+		t.Fatalf("DeleteJournalEntry: %v", err)
+	}
 
-	rec := postForm(h, "/admin/deleted/purge", url.Values{"type": {"habit"}, "id": {"1"}})
+	rec := postForm(h, "/admin/deleted/purge", url.Values{"type": {"journal"}, "id": {fmt.Sprint(entry.ID)}})
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "a record in todos names this journal entry") {
+		t.Errorf("the response does not say why the entry stays:\n%s", body)
+	}
+	if !strings.Contains(body, "Renewed the policy.") {
+		t.Errorf("the list does not show the entry any more:\n%s", body)
+	}
+
+	rec = postForm(h, "/admin/deleted/purge", url.Values{"type": {"habit"}, "id": {"1"}})
 	if body := rec.Body.String(); !strings.Contains(body, "type: must be one of") {
 		t.Errorf("a wrong type does not show the reason:\n%s", body)
 	}

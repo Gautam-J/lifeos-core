@@ -29,8 +29,11 @@ type Item struct {
 	OccurredOn string         `json:"occurred_on,omitempty"`
 	Attrs      map[string]any `json:"attrs"`
 	Source     Source         `json:"source"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+	// JournalRef is the ID of the journal entry that reports this record,
+	// or 0.
+	JournalRef int64     `json:"journal_ref,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // AddItemParams is the input of AddItem.
@@ -43,6 +46,9 @@ type AddItemParams struct {
 	OccurredOn string
 	// Attrs is optional: more fields for this kind, such as author or year.
 	Attrs map[string]any
+	// JournalRef is optional: the ID of the journal entry that reports
+	// this record. 0 means none.
+	JournalRef int64
 	Provenance
 }
 
@@ -60,6 +66,9 @@ func (s *Service) AddItem(ctx context.Context, p AddItemParams) (Item, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
+		return Item{}, err
+	}
 
 	stored, err := q.InsertCatalogItem(ctx, row)
 	if err != nil {
@@ -134,6 +143,7 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 		OccurredOn: occurredOn,
 		Attrs:      attrsJSON,
 		Source:     string(p.Source),
+		JournalRef: journalRefParam(p.JournalRef),
 	}, nil
 }
 
@@ -175,13 +185,14 @@ func checkKind(kind string) error {
 
 func itemFromRow(row store.CatalogItem) (Item, error) {
 	item := Item{
-		ID:        row.ID,
-		Kind:      row.Kind,
-		Title:     row.Title,
-		Rating:    row.Rating,
-		Source:    Source(row.Source),
-		CreatedAt: row.CreatedAt.UTC(),
-		UpdatedAt: row.UpdatedAt.UTC(),
+		ID:         row.ID,
+		Kind:       row.Kind,
+		Title:      row.Title,
+		Rating:     row.Rating,
+		Source:     Source(row.Source),
+		JournalRef: journalRefValue(row.JournalRef),
+		CreatedAt:  row.CreatedAt.UTC(),
+		UpdatedAt:  row.UpdatedAt.UTC(),
 	}
 	if row.OccurredOn != nil {
 		item.OccurredOn = row.OccurredOn.Format(time.DateOnly)

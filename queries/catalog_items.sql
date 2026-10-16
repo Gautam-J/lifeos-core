@@ -1,6 +1,6 @@
 -- name: InsertCatalogItem :one
-INSERT INTO catalog_items (kind, title, rating, occurred_on, attrs, source)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO catalog_items (kind, title, rating, occurred_on, attrs, source, journal_ref)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetCatalogItem :one

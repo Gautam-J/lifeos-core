@@ -2,6 +2,7 @@ package migrations_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -278,5 +279,50 @@ func TestNoRecordTableHasSourceRef(t *testing.T) {
 
 	if tables := columnTables(t, pool, "source_ref"); len(tables) > 0 {
 		t.Errorf("these tables have a column source_ref: %v", tables)
+	}
+}
+
+// #39: a habit log, a todo and an item can name the journal entry that
+// reports them. No other table has the column.
+func TestJournalRefNamesAJournalEntry(t *testing.T) {
+	pool := testdb.New(t)
+
+	if got, want := columnTables(t, pool, "journal_ref"), []string{"catalog_items", "habit_logs", "todos"}; !slices.Equal(got, want) {
+		t.Errorf("tables with journal_ref = %v, want %v", got, want)
+	}
+	if _, err := pool.Exec(context.Background(), "INSERT INTO todos (title, source, journal_ref) VALUES ('x', 'manual', 999999)"); err == nil {
+		t.Error("a todo with the journal_ref of no entry was stored")
+	}
+}
+
+// The live database has rows. Down to version 4 and Up again keeps them.
+func TestTheMigrationsOf40And39KeepTheRows(t *testing.T) {
+	pool := testdb.New(t)
+	ctx := context.Background()
+	db := stdlib.OpenDBFromPool(pool)
+	defer db.Close()
+
+	var entry int64
+	if err := pool.QueryRow(ctx, "INSERT INTO journal_entries (body, entry_date, source) VALUES ('ran', '2026-10-15', 'manual') RETURNING id").Scan(&entry); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "INSERT INTO todos (title, source, journal_ref) VALUES ('Run', 'agent', $1)", entry); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrations.DownTo(ctx, db, 4); err != nil {
+		t.Fatalf("DownTo 4: %v", err)
+	}
+	var verified bool
+	if err := pool.QueryRow(ctx, "SELECT verified FROM todos WHERE title = 'Run'").Scan(&verified); err != nil || !verified {
+		t.Errorf("after Down: verified = %v, %v; want true", verified, err)
+	}
+	if _, err := migrations.Up(ctx, db); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	for _, table := range []string{"todos", "journal_entries"} {
+		var n int
+		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&n); err != nil || n != 1 {
+			t.Errorf("rows of %s after Up: %d, %v; want 1", table, n, err)
+		}
 	}
 }

@@ -4,8 +4,8 @@ WHERE name = $1 AND active AND deleted_at IS NULL;
 
 -- name: InsertHabitLog :one
 -- Returns no row when the habit has a live log for the day already.
-INSERT INTO habit_logs (habit_id, logged_on, source)
-VALUES ($1, $2, $3)
+INSERT INTO habit_logs (habit_id, logged_on, source, journal_ref)
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (habit_id, logged_on) WHERE deleted_at IS NULL DO NOTHING
 RETURNING *;
 

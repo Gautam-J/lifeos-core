@@ -130,3 +130,16 @@ func TestJournalReturnsErrorsTheModelCanRead(t *testing.T) {
 		t.Errorf("database failure: IsError = %v, text = %q; want only \"internal error\"", result.IsError, text(result))
 	}
 }
+
+// #39: a log that a journal entry reports names the entry.
+func TestLogHabitTakesTheEntryThatReportsIt(t *testing.T) {
+	session, pool := connect(t)
+	addHabit(t, pool, "run")
+	entry := structured(t, call(t, session, "journal", map[string]any{"body": "Went for a run."}))
+	id := entry["id"].(float64)
+
+	log := structured(t, call(t, session, "log_habit", map[string]any{"habit": "run", "logged_on": entry["entry_date"], "journal_ref": id}))
+	if log["journal_ref"] != id {
+		t.Errorf("log = %v, want journal_ref %v", log, id)
+	}
+}

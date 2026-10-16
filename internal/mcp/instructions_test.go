@@ -34,7 +34,7 @@ func TestServerSendsItsInstructions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	known := map[string]bool{}
+	known := map[string]bool{"journal_ref": true, "entry_date": true, "logged_on": true}
 	for _, tool := range list.Tools {
 		known[tool.Name] = true
 	}

@@ -19,10 +19,13 @@ type HabitLog struct {
 	// Habit is the name of the habit.
 	Habit string `json:"habit"`
 	// LoggedOn is the IST day, as YYYY-MM-DD.
-	LoggedOn  string    `json:"logged_on"`
-	Source    Source    `json:"source"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	LoggedOn string `json:"logged_on"`
+	Source   Source `json:"source"`
+	// JournalRef is the ID of the journal entry that reports this record,
+	// or 0.
+	JournalRef int64     `json:"journal_ref,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // LogHabitParams is the input of LogHabit.
@@ -33,12 +36,16 @@ type LogHabitParams struct {
 	// LoggedOn is optional: YYYY-MM-DD, not later than today in IST. An
 	// empty value means today in IST.
 	LoggedOn string
+	// JournalRef is optional: the ID of the journal entry that reports
+	// this record. 0 means none.
+	JournalRef int64
 	Provenance
 }
 
 // LogHabit records that Gautam did a habit on a day, and appends a create
 // event, in one transaction. A habit has one log for each day: when the
-// log exists already, LogHabit returns it and writes nothing.
+// log exists already, LogHabit returns it and writes nothing, also when p
+// names a journal entry that the stored log does not name.
 func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, error) {
 	name := habitName(p.Habit)
 	if name == "" {
@@ -58,6 +65,9 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
+	if err := checkJournalRef(ctx, q, p.JournalRef); err != nil {
+		return HabitLog{}, err
+	}
 
 	habit, err := q.GetActiveHabitByName(ctx, name)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -68,9 +78,10 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 
 	row, err := q.InsertHabitLog(ctx, store.InsertHabitLogParams{
-		HabitID:  habit.ID,
-		LoggedOn: day,
-		Source:   string(p.Source),
+		HabitID:    habit.ID,
+		LoggedOn:   day,
+		Source:     string(p.Source),
+		JournalRef: journalRefParam(p.JournalRef),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// The habit has a log for this day already.
@@ -116,13 +127,14 @@ func unknownHabit(ctx context.Context, q *store.Queries, name string) error {
 
 func habitLogFromRow(row store.HabitLog, habit string) HabitLog {
 	return HabitLog{
-		ID:        row.ID,
-		HabitID:   row.HabitID,
-		Habit:     habit,
-		LoggedOn:  row.LoggedOn.Format(time.DateOnly),
-		Source:    Source(row.Source),
-		CreatedAt: row.CreatedAt.UTC(),
-		UpdatedAt: row.UpdatedAt.UTC(),
+		ID:         row.ID,
+		HabitID:    row.HabitID,
+		Habit:      habit,
+		LoggedOn:   row.LoggedOn.Format(time.DateOnly),
+		Source:     Source(row.Source),
+		JournalRef: journalRefValue(row.JournalRef),
+		CreatedAt:  row.CreatedAt.UTC(),
+		UpdatedAt:  row.UpdatedAt.UTC(),
 	}
 }
 

@@ -20,6 +20,10 @@ type UpdateTodoParams struct {
 	Status  *string `json:"status"`
 	DueOn   *string `json:"due_on"`
 	Project *string `json:"project"`
+	// JournalRef is the ID of the journal entry that reports the change,
+	// such as the entry that says that the todo is done. nil keeps the
+	// stored value.
+	JournalRef *int64 `json:"journal_ref"`
 	// Clear names the optional fields to empty: due_on, project.
 	Clear []string `json:"-"`
 	// Actor is who makes the change. It goes into the event; the source
@@ -54,6 +58,11 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 		return Todo{}, fmt.Errorf("update todo: %w", err)
 	}
 	old := todoFromRow(current)
+	if p.JournalRef != nil {
+		if err := checkJournalRef(ctx, q, *p.JournalRef); err != nil {
+			return Todo{}, err
+		}
+	}
 
 	// The changed todo goes through the same checks as a new todo.
 	next := p.applyTo(old)
@@ -76,12 +85,13 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 		doneAt = &now
 	}
 	stored, err := q.UpdateTodo(ctx, store.UpdateTodoParams{
-		ID:      id,
-		Title:   v.title,
-		Status:  v.status,
-		DueOn:   v.dueOn,
-		Project: v.project,
-		DoneAt:  doneAt,
+		ID:         id,
+		Title:      v.title,
+		Status:     v.status,
+		DueOn:      v.dueOn,
+		Project:    v.project,
+		DoneAt:     doneAt,
+		JournalRef: journalRefParam(next.JournalRef),
 	})
 	if err != nil {
 		return Todo{}, fmt.Errorf("update todo: %w", err)
@@ -101,8 +111,11 @@ func (p UpdateTodoParams) check() error {
 	if err := (Provenance{Source: p.Actor}).validate(); err != nil {
 		return err
 	}
-	if p.Title == nil && p.Status == nil && p.DueOn == nil && p.Project == nil && len(p.Clear) == 0 {
+	if p.Title == nil && p.Status == nil && p.DueOn == nil && p.Project == nil && p.JournalRef == nil && len(p.Clear) == 0 {
 		return invalid("fields", "must name at least one field to change, or a field to empty in clear")
+	}
+	if p.JournalRef != nil && *p.JournalRef <= 0 {
+		return invalid("journal_ref", "must be the ID of a journal entry")
 	}
 	for _, name := range p.Clear {
 		if !slices.Contains(clearableTodoFields, name) {
@@ -143,6 +156,9 @@ func (p UpdateTodoParams) applyTo(old Todo) Todo {
 	}
 	if p.Project != nil {
 		next.Project = strings.TrimSpace(*p.Project)
+	}
+	if p.JournalRef != nil {
+		next.JournalRef = *p.JournalRef
 	}
 	if slices.Contains(p.Clear, "due_on") {
 		next.DueOn = ""
