@@ -28,12 +28,11 @@ func TestQueryAnswersAQuestionWithACount(t *testing.T) {
 	session, pool := connectWithQuery(t)
 	addHabit(t, pool, "gym")
 	for _, day := range []string{"2026-01-05", "2026-01-06", "2026-01-08"} {
-		call(t, session, "log_habit", map[string]any{"habit": "gym", "logged_on": day, "dictated": true})
+		call(t, session, "log_habit", map[string]any{"habit": "gym", "logged_on": day})
 	}
-	call(t, session, "log_habit", map[string]any{"habit": "gym", "logged_on": "2026-01-09"}) // waits for approval
 
 	got := structured(t, call(t, session, "query", map[string]any{
-		"sql": "SELECT h.name, count(*) AS days, min(l.logged_on) AS first_day FROM habit_logs l JOIN habits h ON h.id = l.habit_id WHERE l.deleted_at IS NULL AND l.verified GROUP BY h.name",
+		"sql": "SELECT h.name, count(*) AS days, min(l.logged_on) AS first_day FROM habit_logs l JOIN habits h ON h.id = l.habit_id WHERE l.deleted_at IS NULL GROUP BY h.name",
 	}))
 
 	columns := got["columns"].([]any)
@@ -57,7 +56,7 @@ func TestQueryAnswersAQuestionWithACount(t *testing.T) {
 
 func TestQueryCannotChangeData(t *testing.T) {
 	session, pool := connectWithQuery(t)
-	call(t, session, "todo", map[string]any{"title": "Buy a domain", "dictated": true})
+	call(t, session, "todo", map[string]any{"title": "Buy a domain"})
 
 	for name, tt := range map[string]struct{ sql, want string }{
 		"a delete":           {"DELETE FROM todos", "sql: PostgreSQL refused the statement: cannot execute DELETE in a read-only transaction"},

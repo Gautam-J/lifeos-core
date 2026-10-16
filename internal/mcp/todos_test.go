@@ -6,13 +6,12 @@ import (
 	"testing"
 )
 
-// "todo - buy cloudflare domain and set up tunnel": the user dictated the
-// two actions, so the two rows are verified.
+// "todo - buy cloudflare domain and set up tunnel": two actions, two rows.
 func TestTodoStoresATodoThatTheUserDictated(t *testing.T) {
 	session, pool := connect(t)
 
-	first := structured(t, call(t, session, "todo", map[string]any{"title": "Buy a Cloudflare domain", "project": "lifeos", "dictated": true}))
-	second := structured(t, call(t, session, "todo", map[string]any{"title": "Set up the tunnel", "project": "lifeos", "dictated": true}))
+	first := structured(t, call(t, session, "todo", map[string]any{"title": "Buy a Cloudflare domain", "project": "lifeos"}))
+	second := structured(t, call(t, session, "todo", map[string]any{"title": "Set up the tunnel", "project": "lifeos"}))
 
 	if first["id"] == second["id"] {
 		t.Errorf("the two todos have one ID: %v", first["id"])
@@ -23,8 +22,8 @@ func TestTodoStoresATodoThatTheUserDictated(t *testing.T) {
 	if _, has := first["due_on"]; has {
 		t.Errorf("the todo has a date: %v", first)
 	}
-	if first["source"] != "agent" || first["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want agent, true", first["source"], first["verified"])
+	if first["source"] != "agent" {
+		t.Errorf("source = %v, want agent", first["source"])
 	}
 	var n int
 	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM events WHERE action = 'create' AND record_type = 'todos' AND source = 'agent'").Scan(&n); err != nil {
@@ -38,15 +37,10 @@ func TestTodoStoresATodoThatTheUserDictated(t *testing.T) {
 // The tool todo adds. The tool update changes a todo and marks it done.
 func TestUpdateMarksATodoDone(t *testing.T) {
 	session, _ := connect(t)
-	added := structured(t, call(t, session, "todo", map[string]any{"title": "Buy a domain", "due_on": "2026-10-20", "dictated": true}))
-
-	refused := call(t, session, "update", map[string]any{"type": "todo", "id": added["id"], "fields": map[string]any{"status": "done"}})
-	if !refused.IsError || !strings.Contains(text(refused), "dictated") {
-		t.Fatalf("update with no dictated: IsError = %v, text = %q; want an error that names dictated", refused.IsError, text(refused))
-	}
+	added := structured(t, call(t, session, "todo", map[string]any{"title": "Buy a domain", "due_on": "2026-10-20"}))
 
 	updated := structured(t, call(t, session, "update", map[string]any{
-		"type": "todo", "id": added["id"], "fields": map[string]any{"status": "done"}, "clear": []string{"due_on"}, "dictated": true,
+		"type": "todo", "id": added["id"], "fields": map[string]any{"status": "done"}, "clear": []string{"due_on"},
 	}))
 	if updated["status"] != "done" || updated["done_at"] == nil || updated["title"] != "Buy a domain" {
 		t.Errorf("update returned %v", updated)
@@ -59,7 +53,7 @@ func TestUpdateMarksATodoDone(t *testing.T) {
 	if got["status"] != "done" {
 		t.Errorf("get returned %v", got)
 	}
-	unknown := call(t, session, "update", map[string]any{"type": "todo", "id": added["id"], "fields": map[string]any{"status": "later"}, "dictated": true})
+	unknown := call(t, session, "update", map[string]any{"type": "todo", "id": added["id"], "fields": map[string]any{"status": "later"}})
 	if !unknown.IsError || !strings.Contains(text(unknown), "status: must be one of open, done, dropped") {
 		t.Errorf("update with an unknown status: IsError = %v, text = %q", unknown.IsError, text(unknown))
 	}

@@ -7,14 +7,13 @@ import (
 	"time"
 )
 
-// addJournal stores one journal entry as the MCP tool does: the words are
-// Gautam's own, so the row is verified.
+// addJournal stores one journal entry as the MCP tool does.
 func addJournal(t *testing.T, s *Service, body, entryDate string) JournalEntry {
 	t.Helper()
 	entry, err := s.AddJournalEntry(context.Background(), AddJournalEntryParams{
 		Body:       body,
 		EntryDate:  entryDate,
-		Provenance: Provenance{Source: SourceAgent, Verified: true},
+		Provenance: Provenance{Source: SourceAgent},
 	})
 	if err != nil {
 		t.Fatalf("AddJournalEntry(%q): %v", body, err)
@@ -30,7 +29,7 @@ func TestAddJournalEntryStoresTheBodyExactlyAsWritten(t *testing.T) {
 
 	got, err := s.AddJournalEntry(context.Background(), AddJournalEntryParams{
 		Body:       body,
-		Provenance: Provenance{Source: SourceAgent, Verified: true},
+		Provenance: Provenance{Source: SourceAgent},
 	})
 	if err != nil {
 		t.Fatalf("AddJournalEntry: %v", err)
@@ -49,8 +48,8 @@ func TestAddJournalEntryStoresTheBodyExactlyAsWritten(t *testing.T) {
 	if stored != body {
 		t.Errorf("stored body = %q, want it unchanged: %q", stored, body)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q", got.Source)
 	}
 	if got.CreatedAt.IsZero() || got.CreatedAt.Location() != time.UTC {
 		t.Errorf("created_at = %v, want a time in UTC", got.CreatedAt)
@@ -71,7 +70,7 @@ func TestAddJournalEntryUsesTheISTDateAsToday(t *testing.T) {
 	}
 
 	_, err := s.AddJournalEntry(ctx, AddJournalEntryParams{
-		Body: "about tomorrow", EntryDate: "2026-10-12", Provenance: Provenance{Source: SourceManual, Verified: true},
+		Body: "about tomorrow", EntryDate: "2026-10-12", Provenance: Provenance{Source: SourceManual},
 	})
 	var invalid *ValidationError
 	if !errors.As(err, &invalid) || invalid.Field != "entry_date" {
@@ -101,7 +100,7 @@ func TestAddJournalEntryAppendsACreateEvent(t *testing.T) {
 }
 
 func TestAddJournalEntryRejectsBadInput(t *testing.T) {
-	valid := AddJournalEntryParams{Body: "a day", Provenance: Provenance{Source: SourceManual, Verified: true}}
+	valid := AddJournalEntryParams{Body: "a day", Provenance: Provenance{Source: SourceManual}}
 	tests := []struct {
 		name      string
 		change    func(*AddJournalEntryParams)
@@ -143,7 +142,7 @@ func TestAddJournalEntryStoresNothingWhenTheEventFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := s.AddJournalEntry(ctx, AddJournalEntryParams{Body: "a day", Provenance: Provenance{Source: SourceManual, Verified: true}})
+	_, err := s.AddJournalEntry(ctx, AddJournalEntryParams{Body: "a day", Provenance: Provenance{Source: SourceManual}})
 
 	if err == nil {
 		t.Fatal("AddJournalEntry returned no error although the event insert must fail")

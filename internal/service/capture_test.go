@@ -47,8 +47,8 @@ func TestCaptureStoresATextExactlyAsItCame(t *testing.T) {
 		t.Errorf("url, file_path, processed_at = %q, %q, %v, want them empty", got.URL, got.FilePath, got.ProcessedAt)
 	}
 	// A capture is what came in, not a fact that an agent inferred.
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v, want agent, true", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q, want agent", got.Source)
 	}
 	if n := countRows(t, pool, "sources"); n != 1 {
 		t.Errorf("sources = %d, want 1", n)
@@ -76,8 +76,8 @@ func TestCaptureStoresALink(t *testing.T) {
 	if got.SHA256 != hashOf(link) {
 		t.Errorf("sha256 = %q, want the hash of the URL", got.SHA256)
 	}
-	if got.Source != SourceManual || !got.Verified {
-		t.Errorf("source, verified = %q, %v, want manual, true", got.Source, got.Verified)
+	if got.Source != SourceManual {
+		t.Errorf("source = %q, want manual", got.Source)
 	}
 }
 

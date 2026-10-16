@@ -33,11 +33,11 @@ func registerHabits(api huma.API, svc *service.Service) {
 		Description: "A habit has one log for each day. A second request for the same day changes nothing and returns the stored log.",
 	}, func(ctx context.Context, in *logHabitInput) (*habitLogOutput, error) {
 		// A request to the REST API comes from Gautam's own devices, so
-		// the row is manual and verified.
+		// the row is manual.
 		log, err := svc.LogHabit(ctx, service.LogHabitParams{
 			Habit:      in.Body.Habit,
 			LoggedOn:   in.Body.LoggedOn,
-			Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+			Provenance: service.Provenance{Source: service.SourceManual},
 		})
 		if err != nil {
 			return nil, toHTTPError("body", err)
@@ -50,7 +50,7 @@ func registerHabits(api huma.API, svc *service.Service) {
 		Method:      http.MethodGet,
 		Path:        "/api/habits/today",
 		Summary:     "List the active habits with their state for today",
-		Description: "A habit is done when it has a verified log for today in India Standard Time.",
+		Description: "A habit is done when it has a log for today in India Standard Time.",
 	}, func(ctx context.Context, _ *struct{}) (*habitsTodayOutput, error) {
 		list, err := svc.HabitsToday(ctx)
 		if err != nil {

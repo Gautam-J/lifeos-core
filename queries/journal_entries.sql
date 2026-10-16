@@ -1,6 +1,6 @@
 -- name: InsertJournalEntry :one
-INSERT INTO journal_entries (body, entry_date, source, source_ref, verified)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO journal_entries (body, entry_date, source, source_ref)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetJournalEntry :one

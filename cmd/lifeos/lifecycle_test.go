@@ -93,7 +93,7 @@ func TestServeTakesOneRecordThroughItsLife(t *testing.T) {
 		return result
 	}
 
-	// 1. MCP: an agent infers an item. It is not verified.
+	// 1. MCP: an agent infers an item.
 	added := tool("add_item", map[string]any{"kind": "book", "title": "Inferred through MCP", "rating": 4})
 	if added.IsError {
 		t.Fatalf("add_item: %+v", added)

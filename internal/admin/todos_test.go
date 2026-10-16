@@ -13,18 +13,18 @@ import (
 )
 
 // addStoredTodo stores one todo through the service and returns it.
-// verified false gives a todo as an agent proposes it.
-func addStoredTodo(t *testing.T, pool *pgxpool.Pool, title string, verified bool) service.Todo {
+// manual false gives a todo that an agent wrote.
+func addStoredTodo(t *testing.T, pool *pgxpool.Pool, title string, manual bool) service.Todo {
 	t.Helper()
 	source := service.SourceManual
-	if !verified {
+	if !manual {
 		source = service.SourceAgent
 	}
 	todo, err := service.New(pool).AddTodo(t.Context(), service.AddTodoParams{
 		Title:      title,
 		DueOn:      "2026-10-20",
 		Project:    "lifeos",
-		Provenance: service.Provenance{Source: source, Verified: verified},
+		Provenance: service.Provenance{Source: source},
 	})
 	if err != nil {
 		t.Fatalf("add %q: %v", title, err)
@@ -63,7 +63,7 @@ func TestAddTodoStoresTheRowAndShowsIt(t *testing.T) {
 	if !strings.HasPrefix(strings.TrimSpace(body), `<div id="list">`) {
 		t.Errorf("the response is not the #list fragment:\n%s", body)
 	}
-	for _, want := range []string{"Buy a &lt;b&gt;domain&lt;/b&gt;", "lifeos", "open", "manual", "yes"} {
+	for _, want := range []string{"Buy a &lt;b&gt;domain&lt;/b&gt;", "lifeos", "open", "manual"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the list does not contain %q", want)
 		}
@@ -76,8 +76,8 @@ func TestAddTodoStoresTheRowAndShowsIt(t *testing.T) {
 	if err != nil || len(todos) != 1 {
 		t.Fatalf("todos = %v, %v, want one todo", todos, err)
 	}
-	if got := todos[0]; got.Source != service.SourceManual || !got.Verified || got.Status != "open" || got.DueOn != "" {
-		t.Errorf("todo = %+v, want manual, verified, open, no date", got)
+	if got := todos[0]; got.Source != service.SourceManual || got.Status != "open" || got.DueOn != "" {
+		t.Errorf("todo = %+v, want manual, open, no date", got)
 	}
 }
 
@@ -182,8 +182,8 @@ func TestSaveTodoChangesTheTodoAndGoesBackToTheList(t *testing.T) {
 		t.Errorf("todo = %+v", got)
 	}
 	// An edit is not an approval: the todo stays in the review queue.
-	if got.Verified || got.Source != service.SourceAgent {
-		t.Errorf("verified, source = %v, %q; want no change", got.Verified, got.Source)
+	if got.Source != service.SourceAgent {
+		t.Errorf("source = %q; want no change", got.Source)
 	}
 
 	for _, path := range []string{"/admin/todos/9999", "/admin/todos/abc"} {

@@ -160,13 +160,13 @@ func (h *handlers) addItem(w http.ResponseWriter, r *http.Request) {
 }
 
 // itemFromForm reads the form fields. A row from the admin pages is one
-// that Gautam typed, so it is manual and verified.
+// that Gautam typed, so it is manual.
 func itemFromForm(r *http.Request) (service.AddItemParams, error) {
 	params := service.AddItemParams{
 		Kind:       r.PostForm.Get("kind"),
 		Title:      r.PostForm.Get("title"),
 		OccurredOn: r.PostForm.Get("occurred_on"),
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	}
 	if raw := r.PostForm.Get("rating"); raw != "" {
 		rating, err := strconv.ParseFloat(raw, 64)

@@ -19,9 +19,6 @@ type UpdateJournalEntryParams struct {
 	// Actor is who makes the change. It goes into the event; the source
 	// of the row stays as it is.
 	Actor Source `json:"-"`
-	// Inferred is true when an agent makes a change that Gautam did not
-	// state. The service refuses such a change to a verified row.
-	Inferred bool `json:"-"`
 }
 
 // UpdateJournalEntry changes the given fields of one journal entry and
@@ -58,7 +55,7 @@ func (s *Service) UpdateJournalEntry(ctx context.Context, id int64, p UpdateJour
 	next := AddJournalEntryParams{
 		Body:       old.Body,
 		EntryDate:  old.EntryDate,
-		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef, Verified: old.Verified},
+		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef},
 	}
 	if p.Body != nil {
 		next.Body = *p.Body
@@ -72,10 +69,6 @@ func (s *Service) UpdateJournalEntry(ctx context.Context, id int64, p UpdateJour
 	}
 	if next.Body == old.Body && next.EntryDate == old.EntryDate {
 		return old, nil
-	}
-	// The words are Gautam's own. An agent must not reword them.
-	if p.Inferred && old.Verified {
-		return JournalEntry{}, invalid("dictated", "must be true to change a verified record: ask the user to confirm the change, then send it again")
 	}
 	stored, err := q.UpdateJournalEntry(ctx, store.UpdateJournalEntryParams{ID: id, Body: row.Body, EntryDate: row.EntryDate})
 	if err != nil {

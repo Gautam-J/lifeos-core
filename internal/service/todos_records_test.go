@@ -47,8 +47,7 @@ func TestRecordFunctionsWorkOnATodo(t *testing.T) {
 	}
 }
 
-// addProposedTodo stores a todo as an agent proposes it from a source: not
-// verified.
+// addProposedTodo stores a todo as an agent adds it from a journal entry.
 func addProposedTodo(t *testing.T, s *Service, p AddTodoParams) Todo {
 	t.Helper()
 	p.Provenance = Provenance{Source: SourceAgent}

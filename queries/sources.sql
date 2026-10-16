@@ -1,7 +1,7 @@
 -- name: InsertSource :one
 -- Returns no row when a live source has this kind and content already.
-INSERT INTO sources (kind, title, content, url, file_path, media_type, size_bytes, sha256, source, source_ref, verified)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO sources (kind, title, content, url, file_path, media_type, size_bytes, sha256, source, source_ref)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (kind, sha256) WHERE deleted_at IS NULL DO NOTHING
 RETURNING *;
 

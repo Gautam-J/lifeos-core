@@ -15,7 +15,6 @@ type addItemInput struct {
 	OccurredOn string         `json:"occurred_on,omitempty" jsonschema:"Day watched, read, visited or played, as YYYY-MM-DD in India Standard Time"`
 	Attrs      map[string]any `json:"attrs,omitempty" jsonschema:"More fields for this kind, such as author, director or year"`
 	SourceRef  *int64         `json:"source_ref,omitempty" jsonschema:"The ID of the source that this item comes from, when you took the item from a capture"`
-	Dictated   bool           `json:"dictated,omitempty" jsonschema:"true only when the user stated this item directly. false when you inferred it from a source; the row then waits in the review queue."`
 }
 
 func registerItems(server *sdk.Server, svc *service.Service) {
@@ -29,7 +28,7 @@ func registerItems(server *sdk.Server, svc *service.Service) {
 			Rating:     in.Rating,
 			OccurredOn: in.OccurredOn,
 			Attrs:      in.Attrs,
-			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef, Verified: in.Dictated},
+			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef},
 		})
 		if err != nil {
 			return nil, service.Item{}, toToolError(err)

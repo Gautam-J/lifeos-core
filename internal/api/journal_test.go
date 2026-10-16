@@ -39,8 +39,8 @@ func TestAddJournalEntryThenReadIt(t *testing.T) {
 	if added["entry_date"] != todayIST() {
 		t.Errorf("entry_date = %v, want today in IST (%s)", added["entry_date"], todayIST())
 	}
-	if added["source"] != "manual" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want manual, true", added["source"], added["verified"])
+	if added["source"] != "manual" {
+		t.Errorf("source = %v, want manual", added["source"])
 	}
 
 	path := fmt.Sprintf("/api/journal/%d", int64(added["id"].(float64)))
@@ -114,7 +114,7 @@ func TestPatchJournalEntry(t *testing.T) {
 	}
 
 	_, got, raw := do(t, h, "GET", path, "")
-	if got["body"] != "a day" || got["entry_date"] != "2026-01-04" || got["verified"] != true {
+	if got["body"] != "a day" || got["entry_date"] != "2026-01-04" {
 		t.Errorf("entry after the refused requests = %s", raw)
 	}
 	if n := countEvents(t, pool); n != 2 {

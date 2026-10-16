@@ -24,7 +24,7 @@ func addEntry(t *testing.T, pool *pgxpool.Pool, body, entryDate string) service.
 	entry, err := service.New(pool).AddJournalEntry(t.Context(), service.AddJournalEntryParams{
 		Body:       body,
 		EntryDate:  entryDate,
-		Provenance: service.Provenance{Source: service.SourceAgent, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceAgent},
 	})
 	if err != nil {
 		t.Fatalf("add %q: %v", body, err)
@@ -75,22 +75,21 @@ func TestAddJournalEntryStoresTheTextOfTheForm(t *testing.T) {
 	if !strings.HasPrefix(strings.TrimSpace(page), `<div id="list">`) {
 		t.Errorf("the response is not the #list fragment:\n%s", page)
 	}
-	for _, want := range []string{"planned the schema", todayIST(), "manual", "yes"} {
+	for _, want := range []string{"planned the schema", todayIST(), "manual"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the list does not contain %q", want)
 		}
 	}
 
 	var body, source string
-	var verified bool
-	if err := pool.QueryRow(t.Context(), "SELECT body, source, verified FROM journal_entries").Scan(&body, &source, &verified); err != nil {
+	if err := pool.QueryRow(t.Context(), "SELECT body, source FROM journal_entries").Scan(&body, &source); err != nil {
 		t.Fatalf("read the row (want exactly one): %v", err)
 	}
 	if body != "  planned the schema\n\nno gym :(  \n" {
 		t.Errorf("stored body = %q", body)
 	}
-	if source != "manual" || !verified {
-		t.Errorf("source, verified = %q, %v, want manual, true", source, verified)
+	if source != "manual" {
+		t.Errorf("source = %q, want manual", source)
 	}
 }
 
@@ -172,8 +171,8 @@ func TestSaveJournalEntryChangesTheEntryAndGoesBackToTheList(t *testing.T) {
 	if got.Body != "a good day\nwith two lines" || got.EntryDate != "2026-01-04" {
 		t.Errorf("entry = %+v", got)
 	}
-	if got.Source != service.SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v; want no change", got.Source, got.Verified)
+	if got.Source != service.SourceAgent {
+		t.Errorf("source = %q; want no change", got.Source)
 	}
 }
 

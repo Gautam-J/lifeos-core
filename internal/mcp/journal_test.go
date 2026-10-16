@@ -15,7 +15,7 @@ func todayIST() string {
 }
 
 // The journal holds the user's own words. The tool must store them as they
-// came, and the row is verified, because no agent infers a journal entry.
+// came.
 func TestJournalStoresTheWordsOfTheUser(t *testing.T) {
 	session, pool := connect(t)
 	const body = "spent the entire day planning   a second brain\n\nno gym :(\n"
@@ -25,8 +25,8 @@ func TestJournalStoresTheWordsOfTheUser(t *testing.T) {
 	if added["body"] != body {
 		t.Errorf("body = %q, want it unchanged: %q", added["body"], body)
 	}
-	if added["source"] != "agent" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want agent, true", added["source"], added["verified"])
+	if added["source"] != "agent" {
+		t.Errorf("source = %v, want agent", added["source"])
 	}
 	if added["entry_date"] != todayIST() {
 		t.Errorf("entry_date = %v, want today in IST (%s)", added["entry_date"], todayIST())
@@ -62,23 +62,15 @@ func TestJournalToolTellsTheModelNotToRewriteTheEntry(t *testing.T) {
 	t.Error("tool journal is not registered")
 }
 
-// An agent that "cleans up" an entry on its own must be refused. A change
-// that the user states goes in.
-func TestUpdateCannotRewordAJournalEntryUnlessTheUserSaysSo(t *testing.T) {
+// A change of the day keeps the words of the entry.
+func TestUpdateMovesAJournalEntryToADifferentDay(t *testing.T) {
 	session, _ := connect(t)
 	added := structured(t, call(t, session, "journal", map[string]any{"body": "felt gr8", "entry_date": "2026-01-05"}))
 
-	refused := call(t, session, "update", map[string]any{
-		"type": "journal", "id": added["id"], "fields": map[string]any{"body": "Felt great."},
-	})
-	if !refused.IsError || !strings.Contains(text(refused), "dictated") {
-		t.Fatalf("update with no dictated: IsError = %v, text = %q; want an error that names dictated", refused.IsError, text(refused))
-	}
-
 	updated := structured(t, call(t, session, "update", map[string]any{
-		"type": "journal", "id": added["id"], "fields": map[string]any{"entry_date": "2026-01-04"}, "dictated": true,
+		"type": "journal", "id": added["id"], "fields": map[string]any{"entry_date": "2026-01-04"},
 	}))
-	if updated["body"] != "felt gr8" || updated["entry_date"] != "2026-01-04" || updated["verified"] != true {
+	if updated["body"] != "felt gr8" || updated["entry_date"] != "2026-01-04" {
 		t.Errorf("update returned %v", updated)
 	}
 }
@@ -112,8 +104,6 @@ func TestJournalReturnsErrorsTheModelCanRead(t *testing.T) {
 		{"missing body", map[string]any{"entry_date": "2026-01-05"}, "body"},
 		{"date in the future", map[string]any{"body": "x", "entry_date": "2999-01-01"}, "entry_date"},
 		{"misspelled argument", map[string]any{"body": "x", "date": "2026-01-05"}, "date"},
-		// The tool has no dictated argument: a journal entry is never inferred.
-		{"dictated", map[string]any{"body": "x", "dictated": false}, "dictated"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

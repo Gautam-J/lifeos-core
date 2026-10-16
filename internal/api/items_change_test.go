@@ -46,8 +46,8 @@ func TestPatchItemChangesOnlyTheGivenFields(t *testing.T) {
 	if got["rating"] != float64(3) || got["title"] != "Dune: Part Two" || got["occurred_on"] != "2024-03-01" || got["kind"] != "movie" {
 		t.Errorf("item after PATCH = %s", raw)
 	}
-	if got["verified"] != true || got["source"] != "manual" {
-		t.Errorf("verified, source = %v, %v; want no change", got["verified"], got["source"])
+	if got["source"] != "manual" {
+		t.Errorf("source = %v; want no change", got["source"])
 	}
 }
 
@@ -108,7 +108,7 @@ func TestPatchItemRejectsBadRequests(t *testing.T) {
 		})
 	}
 	_, got, raw := do(t, h, "GET", path, "")
-	if got["rating"] != 4.5 || got["title"] != "Dune: Part Two" || got["verified"] != true {
+	if got["rating"] != 4.5 || got["title"] != "Dune: Part Two" {
 		t.Errorf("a refused PATCH changed the item: %s", raw)
 	}
 	if n := countEvents(t, pool); n != 1 {

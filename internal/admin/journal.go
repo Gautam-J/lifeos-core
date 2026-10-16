@@ -41,7 +41,7 @@ func (h *handlers) showJournalList(w http.ResponseWriter, r *http.Request, messa
 
 // addJournalEntry stores the entry from the form and renders the list
 // again. An entry from the admin pages is one that Gautam typed, so it is
-// manual and verified.
+// manual.
 func (h *handlers) addJournalEntry(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -51,7 +51,7 @@ func (h *handlers) addJournalEntry(w http.ResponseWriter, r *http.Request) {
 	_, err := h.svc.AddJournalEntry(r.Context(), service.AddJournalEntryParams{
 		Body:       formText(r, "body"),
 		EntryDate:  r.PostForm.Get("entry_date"),
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	var invalid *service.ValidationError
 	switch {

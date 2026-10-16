@@ -10,7 +10,7 @@ import (
 // addHabit stores one habit as the admin page does.
 func addHabit(t *testing.T, s *Service, name string) Habit {
 	t.Helper()
-	habit, err := s.AddHabit(context.Background(), AddHabitParams{Name: name, Provenance: Provenance{Source: SourceManual, Verified: true}})
+	habit, err := s.AddHabit(context.Background(), AddHabitParams{Name: name, Provenance: Provenance{Source: SourceManual}})
 	if err != nil {
 		t.Fatalf("AddHabit(%q): %v", name, err)
 	}
@@ -30,7 +30,7 @@ func habitNames(habits []Habit) []string {
 func TestAddHabitStoresTheNameInLowerCase(t *testing.T) {
 	s, pool := newTestService(t)
 
-	got, err := s.AddHabit(context.Background(), AddHabitParams{Name: "  Morning   Walk ", Provenance: Provenance{Source: SourceManual, Verified: true}})
+	got, err := s.AddHabit(context.Background(), AddHabitParams{Name: "  Morning   Walk ", Provenance: Provenance{Source: SourceManual}})
 	if err != nil {
 		t.Fatalf("AddHabit: %v", err)
 	}
@@ -38,8 +38,8 @@ func TestAddHabitStoresTheNameInLowerCase(t *testing.T) {
 	if got.ID == 0 || got.Name != "morning walk" || !got.Active {
 		t.Errorf("habit = %+v, want the name morning walk, active", got)
 	}
-	if got.Source != SourceManual || !got.Verified {
-		t.Errorf("source, verified = %q, %v", got.Source, got.Verified)
+	if got.Source != SourceManual {
+		t.Errorf("source = %q", got.Source)
 	}
 	events := allEvents(t, pool)
 	if len(events) != 1 {
@@ -69,7 +69,7 @@ func TestAddHabitRejectsBadInput(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := s.AddHabit(context.Background(), AddHabitParams{Name: tt.habit, Provenance: Provenance{Source: tt.source, Verified: true}})
+			_, err := s.AddHabit(context.Background(), AddHabitParams{Name: tt.habit, Provenance: Provenance{Source: tt.source}})
 			var invalid *ValidationError
 			if !errors.As(err, &invalid) || invalid.Field != tt.wantField {
 				t.Errorf("error = %v, want a ValidationError on %s", err, tt.wantField)

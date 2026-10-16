@@ -13,7 +13,6 @@ type todoInput struct {
 	DueOn     string `json:"due_on,omitempty" jsonschema:"The day that the todo is due, as YYYY-MM-DD in India Standard Time. Leave it out when the user gave no date."`
 	Project   string `json:"project,omitempty" jsonschema:"The project of the todo, such as lifeos. Leave it out when it is not clear."`
 	SourceRef *int64 `json:"source_ref,omitempty" jsonschema:"The ID of the source that this todo comes from, when you took the todo from a capture"`
-	Dictated  bool   `json:"dictated,omitempty" jsonschema:"true only when the user stated this todo directly. false when you propose it from a journal entry, a document or a different source; the todo then waits in the review queue."`
 }
 
 func registerTodos(server *sdk.Server, svc *service.Service) {
@@ -25,7 +24,7 @@ func registerTodos(server *sdk.Server, svc *service.Service) {
 			Title:      in.Title,
 			DueOn:      in.DueOn,
 			Project:    in.Project,
-			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef, Verified: in.Dictated},
+			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef},
 		})
 		if err != nil {
 			return nil, service.Todo{}, toToolError(err)

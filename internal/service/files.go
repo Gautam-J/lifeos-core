@@ -84,7 +84,6 @@ func (s *Service) captureFile(ctx context.Context, p CaptureParams) (Capture, er
 		SizeBytes: &stored.size,
 		Sha256:    stored.sha256,
 		Source:    string(p.Source),
-		Verified:  true,
 	})
 	if err != nil {
 		return Capture{}, err

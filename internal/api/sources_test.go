@@ -53,8 +53,8 @@ func TestIngestATextThenReadIt(t *testing.T) {
 	if added["kind"] != "text" || added["content"] != "  Renewal on 12 March.\n" || added["title"] != "Insurance" {
 		t.Errorf("source = %s, want the text exactly as it was sent", raw)
 	}
-	if added["source"] != "manual" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want manual, true", added["source"], added["verified"])
+	if added["source"] != "manual" {
+		t.Errorf("source = %v, want manual", added["source"])
 	}
 
 	path := fmt.Sprintf("/api/sources/%d", int64(added["id"].(float64)))
@@ -125,7 +125,7 @@ func TestIngestAFileThenReadIt(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("POST status = %d, want 200\n%s", status, raw)
 	}
-	for _, want := range []string{`"kind":"file"`, `"title":"policy.pdf"`, `"media_type":"application/pdf"`, fmt.Sprintf(`"size_bytes":%d`, len(pdf)), `"source":"manual"`, `"verified":true`} {
+	for _, want := range []string{`"kind":"file"`, `"title":"policy.pdf"`, `"media_type":"application/pdf"`, fmt.Sprintf(`"size_bytes":%d`, len(pdf)), `"source":"manual"`} {
 		if !strings.Contains(raw, want) {
 			t.Errorf("the answer does not contain %s\n%s", want, raw)
 		}

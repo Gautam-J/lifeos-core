@@ -49,10 +49,6 @@ templ journalList(entries []service.JournalEntry, errorMessage string) {
 						<div class="entry-foot">
 							<span class="meta">
 								<span>{ string(entry.Source) }</span>
-								<span>
-									Verified
-									@yesNo(entry.Verified)
-								</span>
 								<span>Written { stamp(entry.CreatedAt) }</span>
 							</span>
 							<div class="actions">

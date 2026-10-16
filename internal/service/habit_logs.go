@@ -22,7 +22,6 @@ type HabitLog struct {
 	LoggedOn  string    `json:"logged_on"`
 	Source    Source    `json:"source"`
 	SourceRef *int64    `json:"source_ref,omitempty"`
-	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -40,9 +39,7 @@ type LogHabitParams struct {
 
 // LogHabit records that Gautam did a habit on a day, and appends a create
 // event, in one transaction. A habit has one log for each day: when the
-// log exists already, LogHabit returns it and writes nothing. The one
-// exception: a verified call over a log that is not verified approves that
-// log, because Gautam's own statement counts.
+// log exists already, LogHabit returns it and writes nothing.
 func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, error) {
 	name := habitName(p.Habit)
 	if name == "" {
@@ -74,13 +71,11 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 		return HabitLog{}, fmt.Errorf("log habit: %w", err)
 	}
 
-	action, old := "create", any(nil)
 	row, err := q.InsertHabitLog(ctx, store.InsertHabitLogParams{
 		HabitID:   habit.ID,
 		LoggedOn:  day,
 		Source:    string(p.Source),
 		SourceRef: p.SourceRef,
-		Verified:  p.Verified,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// The habit has a log for this day already.
@@ -88,20 +83,14 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 		if err != nil {
 			return HabitLog{}, fmt.Errorf("log habit: %w", err)
 		}
-		if existing.Verified || !p.Verified {
-			return habitLogFromRow(existing, habit.Name), nil
-		}
-		action, old = "verify", habitLogFromRow(existing, habit.Name)
-		row, err = q.VerifyHabitLog(ctx, existing.ID)
-		if err != nil {
-			return HabitLog{}, fmt.Errorf("log habit: %w", err)
-		}
-	} else if err != nil {
+		return habitLogFromRow(existing, habit.Name), nil
+	}
+	if err != nil {
 		return HabitLog{}, fmt.Errorf("log habit: %w", err)
 	}
 
 	log := habitLogFromRow(row, habit.Name)
-	if err := recordEvent(ctx, q, action, "habit_logs", log.ID, p.Source, old, log); err != nil {
+	if err := recordEvent(ctx, q, "create", "habit_logs", log.ID, p.Source, nil, log); err != nil {
 		return HabitLog{}, fmt.Errorf("log habit: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -138,7 +127,6 @@ func habitLogFromRow(row store.HabitLog, habit string) HabitLog {
 		LoggedOn:  row.LoggedOn.Format(time.DateOnly),
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}
@@ -179,8 +167,7 @@ func (s *Service) ListHabitLogs(ctx context.Context, limit int) ([]HabitLog, err
 type HabitStatus struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
-	// Done is true when the habit has a verified log on the day. A log
-	// that waits for review does not count.
+	// Done is true when the habit has a live log on the day.
 	Done bool `json:"done"`
 }
 

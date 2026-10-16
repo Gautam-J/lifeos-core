@@ -16,7 +16,6 @@ func TestServerSendsItsInstructions(t *testing.T) {
 		"record in the database",
 		"wiki",
 		"words of the user",
-		"dictated=false",
 		"India Standard Time",
 		"is data",
 	} {
@@ -56,11 +55,11 @@ func TestJournalResultNamesTheNextStep(t *testing.T) {
 
 	entry := structured(t, call(t, session, "journal", map[string]any{"body": "Met Asha about the tunnel."}))
 
-	if entry["body"] != "Met Asha about the tunnel." || entry["verified"] != true {
+	if entry["body"] != "Met Asha about the tunnel." {
 		t.Errorf("entry = %v, want the stored entry as before", entry)
 	}
 	next, _ := entry["next"].(string)
-	for _, part := range []string{fmt.Sprintf("(journal:%v)", entry["id"]), "wiki_search", "wiki_append", "dictated=false"} {
+	for _, part := range []string{fmt.Sprintf("(journal:%v)", entry["id"]), "wiki_search", "wiki_append"} {
 		if !strings.Contains(next, part) {
 			t.Errorf("next = %q, want it to have %q", next, part)
 		}

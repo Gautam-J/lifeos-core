@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/Gautam-J/lifeos-core/internal/testdb"
@@ -36,7 +37,7 @@ func TestRecordTablesHaveTheProvenanceColumns(t *testing.T) {
 	ctx := context.Background()
 
 	for _, table := range []string{"catalog_items", "journal_entries", "todos", "habits", "habit_logs", "sources"} {
-		for _, column := range []string{"source", "source_ref", "verified", "created_at", "updated_at", "deleted_at"} {
+		for _, column := range []string{"source", "source_ref", "created_at", "updated_at", "deleted_at"} {
 			var exists bool
 			err := pool.QueryRow(ctx,
 				"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2)",
@@ -277,5 +278,29 @@ func TestTheQueryUserCannotReadALaterTableWithoutAGrant(t *testing.T) {
 	}
 	if err := queryPool.QueryRow(ctx, "SELECT count(*) FROM later").Scan(&n); err != nil {
 		t.Errorf("lifeos_query cannot read the table after the grant: %v", err)
+	}
+}
+
+// columnTables returns the tables of the public schema that have column.
+func columnTables(t *testing.T, pool *pgxpool.Pool, column string) []string {
+	t.Helper()
+	rows, err := pool.Query(context.Background(),
+		"SELECT table_name::text FROM information_schema.columns WHERE table_schema = 'public' AND column_name = $1 ORDER BY 1", column)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tables, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tables
+}
+
+// #40: a record has no approval flag.
+func TestNoRecordTableHasVerified(t *testing.T) {
+	pool := testdb.New(t)
+
+	if tables := columnTables(t, pool, "verified"); len(tables) > 0 {
+		t.Errorf("these tables have a column verified: %v", tables)
 	}
 }

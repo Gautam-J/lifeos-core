@@ -44,7 +44,6 @@ type Capture struct {
 	ProcessedAt *time.Time `json:"processed_at,omitempty"`
 	Source      Source     `json:"source"`
 	SourceRef   *int64     `json:"source_ref,omitempty"`
-	Verified    bool       `json:"verified"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -74,8 +73,7 @@ type CaptureParams struct {
 
 // Capture validates p, stores one source and appends a create event, in one
 // transaction. The same content captured two times is one source: the
-// second call returns the stored source and writes nothing. A source is
-// always verified, because it holds what came in and no agent inferred it.
+// second call returns the stored source and writes nothing.
 func (s *Service) Capture(ctx context.Context, p CaptureParams) (Capture, error) {
 	given := 0
 	for _, isGiven := range []bool{p.Text != "", strings.TrimSpace(p.URL) != "", p.InboxPath != "", p.Upload != nil} {
@@ -130,7 +128,7 @@ func (s *Service) storeSource(ctx context.Context, row store.InsertSourceParams)
 // toRow checks every field of a text or a link and returns the row to
 // insert.
 func (p CaptureParams) toRow() (store.InsertSourceParams, error) {
-	row := store.InsertSourceParams{Source: string(p.Source), Verified: true}
+	row := store.InsertSourceParams{Source: string(p.Source)}
 
 	link := strings.TrimSpace(p.URL)
 	title, err := captureTitle(p.Title)
@@ -225,7 +223,6 @@ func captureFromRow(row store.Source) Capture {
 		SHA256:    row.Sha256,
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

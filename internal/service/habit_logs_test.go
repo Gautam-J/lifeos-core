@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-// logHabit logs a habit as a Shortcut or the admin page does: manual and
-// verified. An empty day means today in IST.
+// logHabit logs a habit as a Shortcut or the admin page does: manual. An
+// empty day means today in IST.
 func logHabit(t *testing.T, s *Service, habit, day string) HabitLog {
 	t.Helper()
 	log, err := s.LogHabit(context.Background(), LogHabitParams{
-		Habit: habit, LoggedOn: day, Provenance: Provenance{Source: SourceManual, Verified: true},
+		Habit: habit, LoggedOn: day, Provenance: Provenance{Source: SourceManual},
 	})
 	if err != nil {
 		t.Fatalf("LogHabit(%q, %q): %v", habit, day, err)
@@ -22,7 +22,7 @@ func logHabit(t *testing.T, s *Service, habit, day string) HabitLog {
 }
 
 // inferHabitLog logs a habit as an agent does when it reads "went to the
-// gym" in a source: not verified.
+// gym" in a journal entry.
 func inferHabitLog(t *testing.T, s *Service, habit, day string) HabitLog {
 	t.Helper()
 	log, err := s.LogHabit(context.Background(), LogHabitParams{
@@ -44,8 +44,8 @@ func TestLogHabitStoresALogForTodayInIST(t *testing.T) {
 	if got.ID == 0 || got.HabitID != gym.ID || got.Habit != "gym" || got.LoggedOn != "2026-10-11" {
 		t.Errorf("log = %+v, want the habit gym on 2026-10-11", got)
 	}
-	if got.Source != SourceManual || !got.Verified {
-		t.Errorf("source, verified = %q, %v", got.Source, got.Verified)
+	if got.Source != SourceManual {
+		t.Errorf("source = %q", got.Source)
 	}
 	events := allEvents(t, pool)
 	if len(events) != 2 {
@@ -63,7 +63,7 @@ func TestLogHabitAcceptsADayInThePastAndRefusesTomorrow(t *testing.T) {
 	if got := logHabit(t, s, "gym", "2026-10-09"); got.LoggedOn != "2026-10-09" {
 		t.Errorf("logged_on = %q, want 2026-10-09", got.LoggedOn)
 	}
-	_, err := s.LogHabit(context.Background(), LogHabitParams{Habit: "gym", LoggedOn: "2026-10-12", Provenance: Provenance{Source: SourceManual, Verified: true}})
+	_, err := s.LogHabit(context.Background(), LogHabitParams{Habit: "gym", LoggedOn: "2026-10-12", Provenance: Provenance{Source: SourceManual}})
 	var invalid *ValidationError
 	if !errors.As(err, &invalid) || invalid.Field != "logged_on" {
 		t.Errorf("log for tomorrow in IST: error = %v, want a ValidationError on logged_on", err)
@@ -93,48 +93,10 @@ func TestLogHabitASecondTimeChangesNothing(t *testing.T) {
 	}
 }
 
-// An agent reads "went to the gym" in the journal and proposes a log. Then
-// Gautam says "log gym". His own log must count: it approves the proposal.
-// The other order must change nothing: a guess does not touch his log.
-func TestLogHabitByGautamApprovesALogThatAnAgentInferred(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	addHabit(t, s, "gym")
-	addHabit(t, s, "read")
-	proposed := inferHabitLog(t, s, "gym", "")
-	if proposed.Verified {
-		t.Fatal("the inferred log is verified")
-	}
-
-	got := logHabit(t, s, "gym", "")
-
-	if got.ID != proposed.ID || !got.Verified || got.Source != SourceAgent {
-		t.Errorf("log = %+v, want the log %d, verified, with its source unchanged", got, proposed.ID)
-	}
-	events := allEvents(t, pool)
-	last := events[len(events)-1]
-	if last.Action != "verify" || last.RecordType != "habit_logs" || last.RecordID != proposed.ID || last.Source != "manual" || last.Old["verified"] != false || last.New["verified"] != true {
-		t.Errorf("last event = %+v, want a verify of the log by manual", last)
-	}
-
-	stated := logHabit(t, s, "read", "")
-	before := countRows(t, pool, "events")
-	again := inferHabitLog(t, s, "read", "")
-	if again != stated {
-		t.Errorf("inferred log over a verified log = %+v, want %+v unchanged", again, stated)
-	}
-	if after := countRows(t, pool, "events"); after != before {
-		t.Errorf("events = %d, want %d", after, before)
-	}
-	if stored, err := s.GetHabitLog(ctx, stated.ID); err != nil || !stored.Verified {
-		t.Errorf("stored = %+v, %v, want it verified", stored, err)
-	}
-}
-
 func TestLogHabitRejectsBadInput(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
-	manual := Provenance{Source: SourceManual, Verified: true}
+	manual := Provenance{Source: SourceManual}
 
 	_, err := s.LogHabit(ctx, LogHabitParams{Habit: "gym", Provenance: manual})
 	var invalid *ValidationError
@@ -192,7 +154,7 @@ func TestLogHabitAtTheSameMomentStoresOneLog(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			log, err := s.LogHabit(context.Background(), LogHabitParams{Habit: "gym", Provenance: Provenance{Source: SourceManual, Verified: true}})
+			log, err := s.LogHabit(context.Background(), LogHabitParams{Habit: "gym", Provenance: Provenance{Source: SourceManual}})
 			ids[i], errs[i] = log.ID, err
 		}()
 	}
@@ -256,9 +218,9 @@ func TestListHabitLogsReturnsTheNewestDayFirst(t *testing.T) {
 	}
 }
 
-// The checklist is what the Kindle and the admin page show. Reports count
-// only verified rows, so a log that waits for review is not "done".
-func TestHabitsTodayShowsTheActiveHabitsAndTheirVerifiedLogs(t *testing.T) {
+// The checklist is what the Kindle and the admin page show. A live log
+// makes the habit done, also a log that an agent wrote.
+func TestHabitsTodayShowsTheActiveHabitsAndTheirLogs(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
 	gym := addHabit(t, s, "gym")
@@ -284,7 +246,7 @@ func TestHabitsTodayShowsTheActiveHabitsAndTheirVerifiedLogs(t *testing.T) {
 	want := []struct {
 		name string
 		done bool
-	}{{"gym", true}, {"read", false}, {"walk", false}}
+	}{{"gym", true}, {"read", true}, {"walk", false}}
 	if len(got.Habits) != len(want) {
 		t.Fatalf("habits = %+v, want gym, read, walk", got.Habits)
 	}
@@ -307,5 +269,35 @@ func TestHabitsTodayReturnsAnEmptyListNotNil(t *testing.T) {
 	}
 	if got.Habits == nil || len(got.Habits) != 0 {
 		t.Errorf("habits = %#v, want an empty non-nil slice so JSON shows []", got.Habits)
+	}
+}
+
+// #40 and rule 11: a live log makes the habit done for its day, whoever
+// wrote it. A second log for the same day stores nothing.
+func TestALogOfTheAgentMakesTheHabitDone(t *testing.T) {
+	s, pool := newTestService(t)
+	ctx := context.Background()
+	addHabit(t, s, "run")
+
+	first, err := s.LogHabit(ctx, LogHabitParams{Habit: "run", Provenance: Provenance{Source: SourceAgent}})
+	if err != nil {
+		t.Fatalf("LogHabit: %v", err)
+	}
+	second, err := s.LogHabit(ctx, LogHabitParams{Habit: "run", Provenance: Provenance{Source: SourceManual}})
+	if err != nil || second != first {
+		t.Errorf("second log = %+v, %v; want the stored log %+v", second, err, first)
+	}
+	var events int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM events WHERE record_type = 'habit_logs'").Scan(&events); err != nil || events != 1 {
+		t.Errorf("habit_logs events = %d, %v; want 1", events, err)
+	}
+	checklist, err := s.HabitsToday(ctx)
+	if err != nil {
+		t.Fatalf("HabitsToday: %v", err)
+	}
+	for _, h := range checklist.Habits {
+		if h.Name == "run" && !h.Done {
+			t.Error("run is not done after a log of the agent")
+		}
 	}
 }

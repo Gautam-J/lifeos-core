@@ -1,6 +1,6 @@
 -- name: InsertHabit :one
-INSERT INTO habits (name, source, source_ref, verified)
-VALUES ($1, $2, $3, $4)
+INSERT INTO habits (name, source, source_ref)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: ListHabits :many

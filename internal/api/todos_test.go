@@ -30,8 +30,8 @@ func TestAddTodoThenReadIt(t *testing.T) {
 	if added["title"] != "Buy a Cloudflare domain" || added["status"] != "open" || added["due_on"] != "2026-10-20" || added["project"] != "lifeos" {
 		t.Errorf("todo = %s", raw)
 	}
-	if added["source"] != "manual" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want manual, true", added["source"], added["verified"])
+	if added["source"] != "manual" {
+		t.Errorf("source = %v, want manual", added["source"])
 	}
 
 	path := fmt.Sprintf("/api/todos/%d", int64(added["id"].(float64)))

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	stdjson "encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -38,10 +39,10 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 	}
 
 	// 1. MCP: the journal entry, in Gautam's words. The journal page of
-	// the admin shows it, verified.
+	// the admin shows it.
 	entry := tool("journal", map[string]any{"body": "planned the tunnel.\nmust buy a domain"})
-	if entry["verified"] != true {
-		t.Fatalf("journal: %+v, want a verified entry", entry)
+	if entry["body"] != "planned the tunnel.\nmust buy a domain" {
+		t.Fatalf("journal: %+v, want the entry unchanged", entry)
 	}
 	if status, body := send(t, "GET", rest+"/admin/journal", "", ""); status != 200 || !strings.Contains(body, "planned the tunnel.\nmust buy a domain") {
 		t.Fatalf("GET /admin/journal: status %d, body %s", status, body)
@@ -58,6 +59,20 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 		t.Fatalf("MCP get of the todo: %+v, want it done", got)
 	}
 
+	// #40: REST adds a todo, and the agent closes it with no flag. The
+	// tool does not ask whether Gautam dictated the change.
+	status, body = send(t, "POST", rest+"/api/todos", json, `{"title":"Call the plumber"}`)
+	if status != 201 {
+		t.Fatalf("POST /api/todos: status %d, body %s", status, body)
+	}
+	var plumber struct{ ID int64 }
+	if err := stdjson.Unmarshal([]byte(body), &plumber); err != nil {
+		t.Fatal(err)
+	}
+	if closed := tool("update", map[string]any{"type": "todo", "id": plumber.ID, "fields": map[string]any{"status": "done"}}); closed["status"] != "done" {
+		t.Fatalf("MCP update of a todo from REST: %+v, want it done", closed)
+	}
+
 	// 3. Admin: Gautam adds a habit. REST logs it, as the Shortcut does.
 	if status, body := send(t, "POST", rest+"/admin/habits", form, "name=Gym"); status != 200 || !strings.Contains(body, "not done") {
 		t.Fatalf("POST /admin/habits: status %d, body %s", status, body)
@@ -72,7 +87,7 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 
 	// 4. MCP: the same habit and day again is the same log. A delete
 	// that Gautam confirmed removes it, and the checklist shows that.
-	log := tool("log_habit", map[string]any{"habit": "gym", "dictated": true})
+	log := tool("log_habit", map[string]any{"habit": "gym"})
 	if log["source"] != "manual" {
 		t.Fatalf("log_habit: %+v, want the log that the REST request stored", log)
 	}
@@ -98,6 +113,8 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 		"create journal_entries by agent",
 		"create todos by agent",
 		"update todos by manual",
+		"create todos by manual",
+		"update todos by agent",
 		"create habits by manual",
 		"create habit_logs by manual",
 		"delete habit_logs by agent",

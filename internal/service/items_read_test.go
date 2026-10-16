@@ -11,7 +11,7 @@ func addItem(t *testing.T, s *Service, kind, title string) Item {
 	item, err := s.AddItem(context.Background(), AddItemParams{
 		Kind:       kind,
 		Title:      title,
-		Provenance: Provenance{Source: SourceManual, Verified: true},
+		Provenance: Provenance{Source: SourceManual},
 	})
 	if err != nil {
 		t.Fatalf("AddItem %q: %v", title, err)

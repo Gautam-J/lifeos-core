@@ -51,15 +51,14 @@ func TestAddSourceStoresTheTextOfTheForm(t *testing.T) {
 	}
 
 	var content, source string
-	var verified bool
-	if err := pool.QueryRow(t.Context(), "SELECT content, source, verified FROM sources").Scan(&content, &source, &verified); err != nil {
+	if err := pool.QueryRow(t.Context(), "SELECT content, source FROM sources").Scan(&content, &source); err != nil {
 		t.Fatalf("read the row (want exactly one): %v", err)
 	}
 	if content != "  Renewal on 12 March.\n\nCall first.  \n" {
 		t.Errorf("stored content = %q", content)
 	}
-	if source != "manual" || !verified {
-		t.Errorf("source, verified = %q, %v, want manual, true", source, verified)
+	if source != "manual" {
+		t.Errorf("source = %q, want manual", source)
 	}
 }
 

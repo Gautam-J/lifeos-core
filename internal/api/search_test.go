@@ -31,7 +31,7 @@ func TestSearchFindsRecordsOfEachType(t *testing.T) {
 		t.Errorf("types of the hits = %q, want source todo journal item\n%s", got, raw)
 	}
 	first := body["hits"].([]any)[0].(map[string]any)
-	if first["summary"] != "link: https://example.com/lonavala-guide" || first["verified"] != true || first["id"] == nil {
+	if first["summary"] != "link: https://example.com/lonavala-guide" || first["id"] == nil {
 		t.Errorf("first hit = %v", first)
 	}
 

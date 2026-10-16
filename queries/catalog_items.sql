@@ -1,6 +1,6 @@
 -- name: InsertCatalogItem :one
-INSERT INTO catalog_items (kind, title, rating, occurred_on, attrs, source, source_ref, verified)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO catalog_items (kind, title, rating, occurred_on, attrs, source, source_ref)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetCatalogItem :one
@@ -21,7 +21,7 @@ FOR UPDATE;
 
 -- name: UpdateCatalogItem :one
 UPDATE catalog_items
-SET kind = $2, title = $3, rating = $4, occurred_on = $5, attrs = $6, verified = $7
+SET kind = $2, title = $3, rating = $4, occurred_on = $5, attrs = $6
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 

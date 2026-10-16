@@ -21,7 +21,7 @@ type searchOutput struct {
 func registerSearch(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "search",
-		Description: "Find records by their words: list items, journal entries, todos and sources. Returns the newest hits first. A hit has the type, the ID and one line that says what the record holds; to read the full record, use get. A hit with verified set to false waits for the user's approval: tell the user when you use such a record. Use this tool to find the ID of a record before you call update or delete. For a count, a sum, a list by date or a question about habits, use query.",
+		Description: "Find records by their words: list items, journal entries, todos and sources. Returns the newest hits first. A hit has the type, the ID and one line that says what the record holds; to read the full record, use get. Use this tool to find the ID of a record before you call update or delete. For a count, a sum, a list by date or a question about habits, use query.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in searchInput) (*sdk.CallToolResult, searchOutput, error) {
 		hits, err := svc.Search(ctx, service.SearchParams{Query: in.Query, Types: in.Types, Limit: in.Limit})
 		if err != nil {

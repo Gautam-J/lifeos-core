@@ -2,6 +2,7 @@ package mcp_test
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
@@ -94,5 +95,28 @@ func TestNoToolForTheReviewQueue(t *testing.T) {
 		if strings.Contains(instructions, word) {
 			t.Errorf("the instructions name %q", word)
 		}
+	}
+}
+
+// #40: no tool input asks the agent whether the user dictated the row,
+// and no text tells the agent to send dictated.
+func TestNoToolTakesDictated(t *testing.T) {
+	session, _ := connect(t)
+
+	list, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range list.Tools {
+		schema, _ := json.Marshal(tool.InputSchema)
+		if strings.Contains(string(schema), `"dictated"`) {
+			t.Errorf("the input of %s has dictated", tool.Name)
+		}
+		if strings.Contains(tool.Description, "dictated") || strings.Contains(tool.Description, "verified") {
+			t.Errorf("the description of %s names dictated or verified", tool.Name)
+		}
+	}
+	if strings.Contains(session.InitializeResult().Instructions, "dictated") {
+		t.Error("the instructions name dictated")
 	}
 }

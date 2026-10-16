@@ -61,7 +61,7 @@ func (h *handlers) showHabits(w http.ResponseWriter, r *http.Request, err error,
 }
 
 // addHabit stores the habit from the form. A habit from the admin pages is
-// one that Gautam typed, so it is manual and verified.
+// one that Gautam typed, so it is manual.
 func (h *handlers) addHabit(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -69,7 +69,7 @@ func (h *handlers) addHabit(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := h.svc.AddHabit(r.Context(), service.AddHabitParams{
 		Name:       r.PostForm.Get("name"),
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	if err == nil {
 		// htmx turns this header into an event; the form resets on it.
@@ -105,7 +105,7 @@ func (h *handlers) logHabitToday(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := h.svc.LogHabit(r.Context(), service.LogHabitParams{
 		Habit:      r.PostForm.Get("habit"),
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	h.showHabits(w, r, err, "", "The habit was not logged")
 }

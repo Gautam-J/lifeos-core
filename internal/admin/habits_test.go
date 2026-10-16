@@ -16,7 +16,7 @@ import (
 func addStoredHabit(t *testing.T, pool *pgxpool.Pool, name string) service.Habit {
 	t.Helper()
 	habit, err := service.New(pool).AddHabit(t.Context(), service.AddHabitParams{
-		Name: name, Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Name: name, Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	if err != nil {
 		t.Fatalf("add habit %q: %v", name, err)
@@ -25,15 +25,15 @@ func addStoredHabit(t *testing.T, pool *pgxpool.Pool, name string) service.Habit
 }
 
 // logStored logs a habit for today through the service and returns the log.
-// verified false gives a log as an agent infers it.
-func logStored(t *testing.T, pool *pgxpool.Pool, habit string, verified bool) service.HabitLog {
+// manual false gives a log that an agent wrote.
+func logStored(t *testing.T, pool *pgxpool.Pool, habit string, manual bool) service.HabitLog {
 	t.Helper()
 	source := service.SourceManual
-	if !verified {
+	if !manual {
 		source = service.SourceAgent
 	}
 	log, err := service.New(pool).LogHabit(t.Context(), service.LogHabitParams{
-		Habit: habit, Provenance: service.Provenance{Source: source, Verified: verified},
+		Habit: habit, Provenance: service.Provenance{Source: source},
 	})
 	if err != nil {
 		t.Fatalf("log %q: %v", habit, err)
@@ -81,8 +81,8 @@ func TestAddHabitStoresTheHabitAndShowsItInTheChecklist(t *testing.T) {
 	if err != nil || len(habits) != 1 {
 		t.Fatalf("habits = %v, %v, want one habit", habits, err)
 	}
-	if got := habits[0]; got.Name != "gym" || !got.Active || got.Source != service.SourceManual || !got.Verified {
-		t.Errorf("habit = %+v, want gym, active, manual, verified", got)
+	if got := habits[0]; got.Name != "gym" || !got.Active || got.Source != service.SourceManual {
+		t.Errorf("habit = %+v, want gym, active, manual", got)
 	}
 
 	for name, wantText := range map[string]string{"gym": "name: a habit has this name already", " ": "name: must not be empty"} {
@@ -119,8 +119,8 @@ func TestLogHabitTodayMarksTheHabitDone(t *testing.T) {
 	if err != nil || len(logs) != 1 {
 		t.Fatalf("logs = %v, %v, want one log", logs, err)
 	}
-	if got := logs[0]; got.Habit != "gym" || got.LoggedOn != todayIST() || got.Source != service.SourceManual || !got.Verified {
-		t.Errorf("log = %+v, want gym for today, manual, verified", got)
+	if got := logs[0]; got.Habit != "gym" || got.LoggedOn != todayIST() || got.Source != service.SourceManual {
+		t.Errorf("log = %+v, want gym for today, manual", got)
 	}
 	if !strings.Contains(body, fmt.Sprintf(`hx-post="/admin/habits/logs/%d/delete"`, logs[0].ID)) {
 		t.Errorf("the list of logs has no Delete button for the new log:\n%s", body)
@@ -134,27 +134,6 @@ func TestLogHabitTodayMarksTheHabitDone(t *testing.T) {
 	unknown := postForm(h, "/admin/habits/log", url.Values{"habit": {"run"}})
 	if unknown.Code != http.StatusOK || !strings.Contains(unknown.Body.String(), "no active habit has the name") {
 		t.Errorf("unknown habit: status = %d, want 200 with the reason\n%s", unknown.Code, unknown.Body)
-	}
-}
-
-// A log that an agent inferred does not count as done. A click on Log is
-// Gautam's own statement, so it approves that log.
-func TestLogHabitTodayApprovesALogThatWaitsForReview(t *testing.T) {
-	h, pool := newTestAdmin(t)
-	addStoredHabit(t, pool, "gym")
-	inferred := logStored(t, pool, "gym", false)
-	if page := get(h, "/admin/habits").Body.String(); !strings.Contains(page, `name="habit" value="gym"`) {
-		t.Fatalf("the checklist shows gym as done although its log waits for review:\n%s", page)
-	}
-
-	postForm(h, "/admin/habits/log", url.Values{"habit": {"gym"}})
-
-	got, err := service.New(pool).GetHabitLog(t.Context(), inferred.ID)
-	if err != nil || !got.Verified {
-		t.Errorf("log = %+v, %v, want it verified", got, err)
-	}
-	if page := get(h, "/admin/habits").Body.String(); strings.Contains(page, `name="habit" value="gym"`) {
-		t.Errorf("the checklist still has a Log button for gym:\n%s", page)
 	}
 }
 

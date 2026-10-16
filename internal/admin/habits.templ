@@ -17,7 +17,7 @@ templ habitsPage(view habitsView) {
 	@page("Habits", "Habits") {
 		<header class="page-head">
 			<h1>Habits</h1>
-			<p>A habit has one log for each day. A log that waits for review does not count as done.</p>
+			<p>A habit has one log for each day.</p>
 		</header>
 		<section class="panel" aria-label="Add a habit">
 			<form class="form" hx-post="/admin/habits" hx-target="#list" hx-swap="outerHTML" hx-on:habit-added="this.reset()">
@@ -102,7 +102,6 @@ templ habitsList(view habitsView, errorMessage string) {
 							<th>Habit</th>
 							<th>Day</th>
 							<th class="col-lo">Source</th>
-							<th>Verified</th>
 							<th class="col-lo">Logged</th>
 							<th></th>
 						</tr>
@@ -114,9 +113,6 @@ templ habitsList(view habitsView, errorMessage string) {
 								<td class="title">{ log.Habit }</td>
 								<td class="when" data-label="Day">{ log.LoggedOn }</td>
 								<td class="col-lo" data-label="Source">{ string(log.Source) }</td>
-								<td data-label="Verified">
-									@yesNo(log.Verified)
-								</td>
 								<td class="when col-lo" data-label="Logged">{ stamp(log.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">

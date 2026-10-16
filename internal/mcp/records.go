@@ -14,11 +14,10 @@ type getInput struct {
 }
 
 type updateInput struct {
-	Type     string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
-	ID       int64          `json:"id" jsonschema:"Record ID"`
-	Fields   map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: body, entry_date. For a todo: title, status (open, done or dropped), due_on, project. A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. Leave out a field to keep its value. attrs replaces every attr."`
-	Clear    []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. A journal has none."`
-	Dictated bool           `json:"dictated,omitempty" jsonschema:"true only when the user stated this change directly. false when you inferred it from a source. An inferred change to a verified record is refused: ask the user first."`
+	Type   string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
+	ID     int64          `json:"id" jsonschema:"Record ID"`
+	Fields map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: body, entry_date. For a todo: title, status (open, done or dropped), due_on, project. A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. Leave out a field to keep its value. attrs replaces every attr."`
+	Clear  []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. A journal has none."`
 }
 
 type deleteInput struct {
@@ -49,10 +48,9 @@ func registerRecords(server *sdk.Server, svc *service.Service) {
 		Description: "Correct one record, for example when the user says \"that was 3 stars, not 4\". Changes only the fields that you give. Returns the record after the change.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in updateInput) (*sdk.CallToolResult, any, error) {
 		record, err := svc.Update(ctx, in.Type, in.ID, service.UpdateParams{
-			Fields:   in.Fields,
-			Clear:    in.Clear,
-			Actor:    service.SourceAgent,
-			Inferred: !in.Dictated,
+			Fields: in.Fields,
+			Clear:  in.Clear,
+			Actor:  service.SourceAgent,
 		})
 		if err != nil {
 			return nil, nil, toToolError(err)

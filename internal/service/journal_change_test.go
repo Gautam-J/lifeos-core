@@ -28,8 +28,8 @@ func TestUpdateJournalEntryChangesOnlyTheGivenFields(t *testing.T) {
 	if got.Body != body || got.EntryDate != "2026-10-08" {
 		t.Errorf("after a change of the body: %+v", got)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v, want them unchanged", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q, want it unchanged", got.Source)
 	}
 	stored, err := s.GetJournalEntry(ctx, added.ID)
 	if err != nil || stored != got {
@@ -103,39 +103,12 @@ func TestUpdateJournalEntryReturnsNotFound(t *testing.T) {
 	}
 }
 
-// The words in the journal are Gautam's own. An agent that rewords an
-// entry on its own must be refused; a change that Gautam states goes in.
-func TestUpdateJournalEntryRefusesAnInferredChange(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	added := addJournal(t, s, "went to the gym, felt gr8", "")
-
-	_, err := s.UpdateJournalEntry(ctx, added.ID, UpdateJournalEntryParams{
-		Body: ptr("Went to the gym and felt great."), Actor: SourceAgent, Inferred: true,
-	})
-	var invalid *ValidationError
-	if !errors.As(err, &invalid) || invalid.Field != "dictated" {
-		t.Fatalf("error = %v, want a ValidationError on dictated", err)
-	}
-	if got, _ := s.GetJournalEntry(ctx, added.ID); got.Body != "went to the gym, felt gr8" {
-		t.Errorf("body = %q, want it unchanged", got.Body)
-	}
-	if n := countRows(t, pool, "events"); n != 1 {
-		t.Errorf("events = %d, want 1 (the create)", n)
-	}
-
-	got, err := s.UpdateJournalEntry(ctx, added.ID, UpdateJournalEntryParams{Body: ptr("went to the gym, felt great"), Actor: SourceAgent})
-	if err != nil || got.Body != "went to the gym, felt great" || !got.Verified {
-		t.Errorf("dictated change = %+v, %v", got, err)
-	}
-}
-
 func TestUpdateJournalEntryWritesNothingWhenNoValueChanges(t *testing.T) {
 	s, pool := newTestService(t)
 	added := addJournal(t, s, "a day", "2026-10-09")
 
 	got, err := s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{
-		Body: ptr("a day"), EntryDate: ptr("2026-10-09"), Actor: SourceAgent, Inferred: true,
+		Body: ptr("a day"), EntryDate: ptr("2026-10-09"), Actor: SourceAgent,
 	})
 
 	if err != nil || got != added {

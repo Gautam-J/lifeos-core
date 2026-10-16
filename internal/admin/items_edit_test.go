@@ -12,13 +12,13 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/service"
 )
 
-// addStored stores one item through the service and returns it. verified
-// false gives a row as an agent infers it.
-func addStored(t *testing.T, pool *pgxpool.Pool, title string, verified bool) service.Item {
+// addStored stores one item through the service and returns it. manual
+// false gives a row that an agent wrote.
+func addStored(t *testing.T, pool *pgxpool.Pool, title string, manual bool) service.Item {
 	t.Helper()
 	rating := 4.5
 	source := service.SourceManual
-	if !verified {
+	if !manual {
 		source = service.SourceAgent
 	}
 	item, err := service.New(pool).AddItem(t.Context(), service.AddItemParams{
@@ -27,7 +27,7 @@ func addStored(t *testing.T, pool *pgxpool.Pool, title string, verified bool) se
 		Rating:     &rating,
 		OccurredOn: "2024-03-01",
 		Attrs:      map[string]any{"year": 2024},
-		Provenance: service.Provenance{Source: source, Verified: verified},
+		Provenance: service.Provenance{Source: source},
 	})
 	if err != nil {
 		t.Fatalf("add %q: %v", title, err)
@@ -123,8 +123,8 @@ func TestSaveItemChangesTheItemAndGoesBackToTheList(t *testing.T) {
 		t.Errorf("attrs = %v, want no change: the form has no attrs field", got.Attrs)
 	}
 	// An edit is not an approval: the row stays in the review queue.
-	if got.Verified || got.Source != service.SourceAgent {
-		t.Errorf("verified, source = %v, %q; want no change", got.Verified, got.Source)
+	if got.Source != service.SourceAgent {
+		t.Errorf("source = %q; want no change", got.Source)
 	}
 	var source string
 	if err := pool.QueryRow(t.Context(), "SELECT source FROM events WHERE action = 'update'").Scan(&source); err != nil {

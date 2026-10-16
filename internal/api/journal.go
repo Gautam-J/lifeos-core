@@ -40,11 +40,11 @@ func registerJournal(api huma.API, svc *service.Service) {
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, in *addJournalInput) (*journalOutput, error) {
 		// A request to the REST API comes from Gautam's own devices, so
-		// the row is manual and verified.
+		// the row is manual.
 		entry, err := svc.AddJournalEntry(ctx, service.AddJournalEntryParams{
 			Body:       in.Body.Body,
 			EntryDate:  in.Body.EntryDate,
-			Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+			Provenance: service.Provenance{Source: service.SourceManual},
 		})
 		if err != nil {
 			return nil, toHTTPError("body", err)

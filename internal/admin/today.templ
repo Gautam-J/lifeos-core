@@ -88,9 +88,6 @@ templ todayPart(view service.Overview, errorMessage string) {
 								</div>
 								<div class="prose">{ entry.Body }</div>
 								<div class="entry-foot">
-									<span class="meta">
-										@verified(entry.Verified)
-									</span>
 									<a class="link" href={ templ.URL(journalPath(entry.ID) + "/edit") }>Edit</a>
 								</div>
 							</article>
@@ -210,11 +207,3 @@ templ activityLink(a service.Activity) {
 	}
 }
 
-// verified shows the state of a record: Gautam approved it, or it waits.
-templ verified(yes bool) {
-	if yes {
-		<span class="state"><span class="dot dot-yes"></span>Verified</span>
-	} else {
-		<span class="state"><span class="dot dot-no"></span>Waits for review</span>
-	}
-}

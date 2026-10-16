@@ -13,7 +13,7 @@ func buyDomain() AddTodoParams {
 		Title:      "Buy a Cloudflare domain",
 		DueOn:      "2026-10-20",
 		Project:    "lifeos",
-		Provenance: Provenance{Source: SourceAgent, Verified: true},
+		Provenance: Provenance{Source: SourceAgent},
 	}
 }
 
@@ -45,8 +45,8 @@ func TestAddTodoStoresAnOpenTodo(t *testing.T) {
 	if got.DoneAt != nil {
 		t.Errorf("done_at = %v, want none for an open todo", got.DoneAt)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q", got.Source)
 	}
 	events := allEvents(t, pool)
 	if len(events) != 1 {
@@ -71,8 +71,8 @@ func TestAddTodoAcceptsTheMinimumInputAndAnyDay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddTodo: %v", err)
 	}
-	if got.Title != "set up the tunnel" || got.DueOn != "" || got.Project != "" || got.Verified {
-		t.Errorf("todo = %+v, want the trimmed title, no date, no project, not verified", got)
+	if got.Title != "set up the tunnel" || got.DueOn != "" || got.Project != "" {
+		t.Errorf("todo = %+v, want the trimmed title, no date, no project", got)
 	}
 
 	for _, day := range []string{"2026-01-01", "2027-06-30"} {

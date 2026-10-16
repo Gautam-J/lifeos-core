@@ -52,7 +52,6 @@ templ todosList(todos []service.Todo, errorMessage string) {
 							<th>Project</th>
 							<th>Due</th>
 							<th class="col-lo">Source</th>
-							<th>Verified</th>
 							<th class="col-lo">Added</th>
 							<th></th>
 						</tr>
@@ -66,9 +65,6 @@ templ todosList(todos []service.Todo, errorMessage string) {
 								<td data-label="Project">{ todo.Project }</td>
 								<td class="when" data-label="Due">{ todo.DueOn }</td>
 								<td class="col-lo" data-label="Source">{ string(todo.Source) }</td>
-								<td data-label="Verified">
-									@yesNo(todo.Verified)
-								</td>
 								<td class="when col-lo" data-label="Added">{ stamp(todo.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">

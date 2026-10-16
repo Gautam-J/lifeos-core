@@ -108,7 +108,7 @@ func TestJournalRefusesASecret(t *testing.T) {
 
 	_, err := s.AddJournalEntry(ctx, AddJournalEntryParams{
 		Body:       "new card today:\n" + testCard + "\nexpires in 2030",
-		Provenance: Provenance{Source: SourceManual, Verified: true},
+		Provenance: Provenance{Source: SourceManual},
 	})
 	wantSecretRefused(t, "add", err, "body", "a card number", testCard)
 	if n := countRows(t, pool, "journal_entries"); n != 0 {
@@ -149,7 +149,7 @@ func TestHabitNameRefusesASecret(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
 
-	_, err := s.AddHabit(ctx, AddHabitParams{Name: testCard, Provenance: Provenance{Source: SourceManual, Verified: true}})
+	_, err := s.AddHabit(ctx, AddHabitParams{Name: testCard, Provenance: Provenance{Source: SourceManual}})
 	wantSecretRefused(t, "add", err, "name", "a card number", testCard)
 	if n := countRows(t, pool, "habits"); n != 0 {
 		t.Errorf("habits = %d, want 0", n)
@@ -166,7 +166,7 @@ func TestTextWithoutASecretIsStored(t *testing.T) {
 
 	// A phone number, a date, an amount and an ISBN are not secrets.
 	body := "called +91 98765 43210 on 2026-10-11, paid 12,50,000, ISBN 9780441172719"
-	entry, err := s.AddJournalEntry(ctx, AddJournalEntryParams{Body: body, Provenance: Provenance{Source: SourceManual, Verified: true}})
+	entry, err := s.AddJournalEntry(ctx, AddJournalEntryParams{Body: body, Provenance: Provenance{Source: SourceManual}})
 	if err != nil {
 		t.Fatalf("AddJournalEntry: %v", err)
 	}

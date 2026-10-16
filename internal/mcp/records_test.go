@@ -9,10 +9,10 @@ import (
 )
 
 // addItem calls add_item and returns the ID of the new item.
-func addItem(t *testing.T, session *sdk.ClientSession, title string, dictated bool) any {
+func addItem(t *testing.T, session *sdk.ClientSession, title string) any {
 	t.Helper()
 	added := structured(t, call(t, session, "add_item", map[string]any{
-		"kind": "movie", "title": title, "rating": 4, "occurred_on": "2024-03-01", "dictated": dictated,
+		"kind": "movie", "title": title, "rating": 4, "occurred_on": "2024-03-01",
 	}))
 	return added["id"]
 }
@@ -40,17 +40,14 @@ func TestServerListsTheRecordTools(t *testing.T) {
 
 func TestUpdateChangesOnlyTheGivenFields(t *testing.T) {
 	session, pool := connect(t)
-	id := addItem(t, session, "Dune: Part Two", true)
+	id := addItem(t, session, "Dune: Part Two")
 
 	updated := structured(t, call(t, session, "update", map[string]any{
-		"type": "item", "id": id, "fields": map[string]any{"rating": 3}, "dictated": true,
+		"type": "item", "id": id, "fields": map[string]any{"rating": 3},
 	}))
 
 	if updated["rating"] != float64(3) || updated["title"] != "Dune: Part Two" || updated["occurred_on"] != "2024-03-01" {
 		t.Errorf("update returned %v", updated)
-	}
-	if updated["verified"] != true {
-		t.Errorf("verified = %v, want true: the user stated the change", updated["verified"])
 	}
 	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
 	if got["rating"] != float64(3) {
@@ -67,10 +64,10 @@ func TestUpdateChangesOnlyTheGivenFields(t *testing.T) {
 
 func TestUpdateClearsAField(t *testing.T) {
 	session, _ := connect(t)
-	id := addItem(t, session, "Dune", true)
+	id := addItem(t, session, "Dune")
 
 	updated := structured(t, call(t, session, "update", map[string]any{
-		"type": "item", "id": id, "clear": []string{"rating"}, "dictated": true,
+		"type": "item", "id": id, "clear": []string{"rating"},
 	}))
 
 	if _, has := updated["rating"]; has {
@@ -81,50 +78,17 @@ func TestUpdateClearsAField(t *testing.T) {
 	}
 }
 
-// A change that the model inferred must not replace a value that the user
-// approved. The safe default when the model leaves out "dictated" is a
-// refusal that tells the model to ask the user.
-func TestUpdateThatIsNotDictatedCannotChangeAVerifiedRecord(t *testing.T) {
+// verified is not a field: update refuses it by name.
+func TestUpdateRefusesTheFieldVerified(t *testing.T) {
 	session, _ := connect(t)
-	id := addItem(t, session, "Dune", true)
+	id := addItem(t, session, "Dune")
 
 	result := call(t, session, "update", map[string]any{
-		"type": "item", "id": id, "fields": map[string]any{"rating": 2},
-	})
-
-	if !result.IsError || !strings.Contains(text(result), "dictated") {
-		t.Fatalf("IsError = %v, text = %q; want an error that names dictated", result.IsError, text(result))
-	}
-	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
-	if got["rating"] != float64(4) || got["verified"] != true {
-		t.Errorf("a refused update changed the record: %v", got)
-	}
-
-	// The model can correct a record that still waits for review.
-	waits := addItem(t, session, "Waits", false)
-	updated := structured(t, call(t, session, "update", map[string]any{
-		"type": "item", "id": waits, "fields": map[string]any{"rating": 2},
-	}))
-	if updated["rating"] != float64(2) || updated["verified"] != false {
-		t.Errorf("update of a record that waits = %v, want rating 2 and verified false", updated)
-	}
-}
-
-// The model must not approve its own row through update.
-func TestUpdateCannotApproveARecord(t *testing.T) {
-	session, _ := connect(t)
-	id := addItem(t, session, "Dune", false)
-
-	result := call(t, session, "update", map[string]any{
-		"type": "item", "id": id, "fields": map[string]any{"verified": true}, "dictated": true,
+		"type": "item", "id": id, "fields": map[string]any{"verified": true},
 	})
 
 	if !result.IsError || !strings.Contains(text(result), "verified") {
 		t.Fatalf("IsError = %v, text = %q; want an error that names verified", result.IsError, text(result))
-	}
-	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
-	if got["verified"] != false {
-		t.Errorf("verified = %v after a refused update, want false", got["verified"])
 	}
 }
 
@@ -132,7 +96,7 @@ func TestUpdateCannotApproveARecord(t *testing.T) {
 // nothing until the call says that the user confirmed it.
 func TestDeleteNeedsTheConfirmationOfTheUser(t *testing.T) {
 	session, _ := connect(t)
-	id := addItem(t, session, "Dune", true)
+	id := addItem(t, session, "Dune")
 
 	refused := call(t, session, "delete", map[string]any{"type": "item", "id": id})
 	if !refused.IsError || !strings.Contains(text(refused), "confirmed") {
@@ -153,7 +117,7 @@ func TestDeleteNeedsTheConfirmationOfTheUser(t *testing.T) {
 
 func TestRecordToolsReturnErrorsTheModelCanRead(t *testing.T) {
 	session, pool := connect(t)
-	id := addItem(t, session, "Dune", false)
+	id := addItem(t, session, "Dune")
 	tests := []struct {
 		name     string
 		tool     string
@@ -180,12 +144,11 @@ func TestRecordToolsReturnErrorsTheModelCanRead(t *testing.T) {
 		})
 	}
 	var title string
-	var verified bool
-	if err := pool.QueryRow(context.Background(), "SELECT title, verified FROM catalog_items WHERE deleted_at IS NULL").Scan(&title, &verified); err != nil {
+	if err := pool.QueryRow(context.Background(), "SELECT title FROM catalog_items WHERE deleted_at IS NULL").Scan(&title); err != nil {
 		t.Fatalf("the item is not there after the refused calls: %v", err)
 	}
-	if title != "Dune" || verified {
-		t.Errorf("title, verified = %q, %v after refused calls; want Dune, false", title, verified)
+	if title != "Dune" {
+		t.Errorf("title = %q after refused calls; want Dune", title)
 	}
 	var events int
 	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM events").Scan(&events); err != nil {
@@ -217,10 +180,10 @@ func TestDatabaseFailureOnARecordToolGivesAPlainError(t *testing.T) {
 }
 
 // An update that names nothing, or that sends null, must not report
-// success. It must also leave a verified record verified.
+// success.
 func TestUpdateRejectsANullValueAndAnEmptyUpdate(t *testing.T) {
 	session, pool := connect(t)
-	id := addItem(t, session, "Dune", true)
+	id := addItem(t, session, "Dune")
 
 	for name, args := range map[string]map[string]any{
 		"no fields":       {"type": "item", "id": id},
@@ -236,7 +199,7 @@ func TestUpdateRejectsANullValueAndAnEmptyUpdate(t *testing.T) {
 		}
 	}
 	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": id}))
-	if got["verified"] != true || got["rating"] != float64(4) {
+	if got["rating"] != float64(4) {
 		t.Errorf("a refused update changed the record: %v", got)
 	}
 	var events int

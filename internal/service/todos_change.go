@@ -25,9 +25,6 @@ type UpdateTodoParams struct {
 	// Actor is who makes the change. It goes into the event; the source
 	// of the row stays as it is.
 	Actor Source `json:"-"`
-	// Inferred is true when an agent makes a change that Gautam did not
-	// state. The service refuses such a change to a verified row.
-	Inferred bool `json:"-"`
 }
 
 // clearableTodoFields are the optional fields that Clear can name.
@@ -67,10 +64,6 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 	next.Title = v.title
 	if next == old {
 		return old, nil
-	}
-	// A guess must not replace a value that Gautam approved.
-	if p.Inferred && old.Verified {
-		return Todo{}, invalid("dictated", "must be true to change a verified record: ask the user to confirm the change, then send it again")
 	}
 	// done_at follows the status. It keeps its value while the todo
 	// stays done.

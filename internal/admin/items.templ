@@ -60,7 +60,6 @@ templ itemsList(items []service.Item, errorMessage string) {
 							<th>Rating</th>
 							<th>Date</th>
 							<th class="col-lo">Source</th>
-							<th>Verified</th>
 							<th class="col-lo">Added</th>
 							<th></th>
 						</tr>
@@ -74,9 +73,6 @@ templ itemsList(items []service.Item, errorMessage string) {
 								<td class="num" data-label="Rating">{ formatRating(item.Rating) }</td>
 								<td class="when" data-label="Date">{ item.OccurredOn }</td>
 								<td class="col-lo" data-label="Source">{ string(item.Source) }</td>
-								<td data-label="Verified">
-									@yesNo(item.Verified)
-								</td>
 								<td class="when col-lo" data-label="Added">{ stamp(item.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">
@@ -97,15 +93,6 @@ templ itemsList(items []service.Item, errorMessage string) {
 			</div>
 		}
 	</div>
-}
-
-// yesNo shows the verified column of a list.
-templ yesNo(verified bool) {
-	if verified {
-		<span class="state"><span class="dot dot-yes"></span>yes</span>
-	} else {
-		<span class="state"><span class="dot dot-no"></span>no</span>
-	}
 }
 
 // itemsFailure takes the place of the list when a form post fails on the
@@ -176,9 +163,3 @@ func formatRating(rating *float64) string {
 	return strconv.FormatFloat(*rating, 'f', -1, 64)
 }
 
-func formatVerified(verified bool) string {
-	if verified {
-		return "yes"
-	}
-	return "no"
-}

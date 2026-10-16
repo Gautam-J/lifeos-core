@@ -75,7 +75,7 @@ func TestServeTakesACaptureThroughEveryAdapter(t *testing.T) {
 		t.Fatalf("get of the note: %v", got)
 	}
 	book := tool("add_item", map[string]any{"kind": "book", "title": "Dune", "source_ref": note["id"]})
-	if book["source_ref"] != note["id"] || book["verified"] != false {
+	if book["source_ref"] != note["id"] {
 		t.Fatalf("add_item: %v, want a proposed book with the source_ref of the note", book)
 	}
 	status, body = send(t, "GET", rest+"/api/search?query=dune", "", "")

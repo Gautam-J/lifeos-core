@@ -39,7 +39,7 @@ func TestOverviewCountsTodayAndYesterdayInIST(t *testing.T) {
 	addHabit(t, s, "read")
 	addHabit(t, s, "walk")
 	logHabit(t, s, "gym", "")
-	inferHabitLog(t, s, "read", "") // waits for review: not done
+	inferHabitLog(t, s, "read", "") // a log of the agent: done
 	logHabit(t, s, "gym", "2026-10-10")
 	logHabit(t, s, "walk", "2026-10-10")
 
@@ -75,7 +75,7 @@ func TestOverviewCountsTodayAndYesterdayInIST(t *testing.T) {
 		t.Fatalf("Overview: %v", err)
 	}
 
-	wantToday := DayCounts{Date: "2026-10-11", JournalEntries: 2, HabitsDone: 1, TodosDone: 1, ItemsAdded: 1, Captures: 1}
+	wantToday := DayCounts{Date: "2026-10-11", JournalEntries: 2, HabitsDone: 2, TodosDone: 1, ItemsAdded: 1, Captures: 1}
 	if got.Today != wantToday {
 		t.Errorf("today = %+v, want %+v", got.Today, wantToday)
 	}
@@ -83,8 +83,8 @@ func TestOverviewCountsTodayAndYesterdayInIST(t *testing.T) {
 	if got.Yesterday != wantYesterday {
 		t.Errorf("yesterday = %+v, want %+v", got.Yesterday, wantYesterday)
 	}
-	if len(got.Habits.Habits) != 3 || !got.Habits.Habits[0].Done || got.Habits.Habits[1].Done {
-		t.Errorf("habits = %+v, want gym done, read and walk not done", got.Habits.Habits)
+	if len(got.Habits.Habits) != 3 || !got.Habits.Habits[0].Done || !got.Habits.Habits[1].Done || got.Habits.Habits[2].Done {
+		t.Errorf("habits = %+v, want gym and read done, walk not done", got.Habits.Habits)
 	}
 }
 

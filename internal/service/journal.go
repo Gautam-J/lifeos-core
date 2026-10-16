@@ -21,7 +21,6 @@ type JournalEntry struct {
 	EntryDate string    `json:"entry_date"`
 	Source    Source    `json:"source"`
 	SourceRef *int64    `json:"source_ref,omitempty"`
-	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -90,7 +89,6 @@ func (p AddJournalEntryParams) toRow(now time.Time) (store.InsertJournalEntryPar
 		EntryDate: day,
 		Source:    string(p.Source),
 		SourceRef: p.SourceRef,
-		Verified:  p.Verified,
 	}, nil
 }
 
@@ -101,7 +99,6 @@ func journalEntryFromRow(row store.JournalEntry) JournalEntry {
 		EntryDate: row.EntryDate.Format(time.DateOnly),
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

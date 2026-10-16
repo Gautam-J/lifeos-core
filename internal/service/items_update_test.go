@@ -73,8 +73,8 @@ func TestUpdateItemChangesOnlyTheGivenFields(t *testing.T) {
 	if got.Attrs["director"] != "Denis Villeneuve" || got.Attrs["year"] != float64(2024) {
 		t.Errorf("attrs = %v, want the stored attrs", got.Attrs)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v; want the stored values", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q; want the stored value", got.Source)
 	}
 	stored, err := s.GetItem(ctx, added.ID)
 	if err != nil {
@@ -246,71 +246,6 @@ func TestUpdateItemReturnsNotFound(t *testing.T) {
 	}
 }
 
-// A change that an agent inferred is not Gautam's word. It must not
-// replace a value that he approved: the service refuses it, and the agent
-// must ask him. No update approves a row.
-func TestUpdateItemRefusesAnInferredChangeToAVerifiedRow(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	verified, err := s.AddItem(ctx, dune())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = s.UpdateItem(ctx, verified.ID, UpdateItemParams{Rating: ptr(3.0), Actor: SourceAgent, Inferred: true})
-
-	var invalid *ValidationError
-	if !errors.As(err, &invalid) || invalid.Field != "dictated" {
-		t.Fatalf("error = %v, want a ValidationError for dictated", err)
-	}
-	stored, err := s.GetItem(ctx, verified.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if *stored.Rating != 4.5 || !stored.Verified || !stored.UpdatedAt.Equal(verified.UpdatedAt) {
-		t.Errorf("a refused update changed the row: %+v", stored)
-	}
-	if n := countRows(t, pool, "events"); n != 1 {
-		t.Errorf("events = %d, want 1 (the create)", n)
-	}
-
-	// A change that Gautam stated goes through, and the row stays verified.
-	stated, err := s.UpdateItem(ctx, verified.ID, UpdateItemParams{Rating: ptr(3.0), Actor: SourceAgent})
-	if err != nil {
-		t.Fatalf("stated change: %v", err)
-	}
-	if *stated.Rating != 3 || !stated.Verified {
-		t.Errorf("stated change: rating, verified = %v, %v; want 3, true", *stated.Rating, stated.Verified)
-	}
-}
-
-// A row that waits for review is the agent's own guess. The agent can
-// correct it, with or without Gautam's words, and the row keeps waiting.
-func TestUpdateItemKeepsAnUnverifiedRowUnverified(t *testing.T) {
-	s, _ := newTestService(t)
-	ctx := context.Background()
-	p := dune()
-	p.Verified = false
-	added, err := s.AddItem(ctx, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, inferred := range []bool{true, false} {
-		rating := 1.0
-		if inferred {
-			rating = 2.0
-		}
-		got, err := s.UpdateItem(ctx, added.ID, UpdateItemParams{Rating: &rating, Actor: SourceAgent, Inferred: inferred})
-		if err != nil {
-			t.Fatalf("inferred %v: UpdateItem: %v", inferred, err)
-		}
-		if *got.Rating != rating || got.Verified {
-			t.Errorf("inferred %v: rating, verified = %v, %v; want %v, false", inferred, *got.Rating, got.Verified, rating)
-		}
-	}
-}
-
 // A Shortcut and an agent can change one row at the same moment. Each
 // change names a different field, and the two changes must stay.
 func TestUpdateItemKeepsAChangeThatAnotherWriterMakesAtTheSameTime(t *testing.T) {
@@ -376,8 +311,7 @@ func TestUpdateItemReportsADatabaseFailure(t *testing.T) {
 	}
 }
 
-// "Remove the rating" with no field named must not report success. It
-// must also not take a verified row out of the reports.
+// "Remove the rating" with no field named must not report success.
 func TestUpdateItemRejectsAnUpdateThatNamesNoField(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
@@ -386,7 +320,7 @@ func TestUpdateItemRejectsAnUpdateThatNamesNoField(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = s.UpdateItem(ctx, added.ID, UpdateItemParams{Actor: SourceAgent, Inferred: true})
+	_, err = s.UpdateItem(ctx, added.ID, UpdateItemParams{Actor: SourceAgent})
 
 	var invalid *ValidationError
 	if !errors.As(err, &invalid) || invalid.Field != "fields" {
@@ -396,7 +330,7 @@ func TestUpdateItemRejectsAnUpdateThatNamesNoField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !stored.Verified || !stored.UpdatedAt.Equal(added.UpdatedAt) {
+	if !stored.UpdatedAt.Equal(added.UpdatedAt) {
 		t.Errorf("a refused update changed the row: %+v", stored)
 	}
 	if n := countRows(t, pool, "events"); n != 1 {
@@ -405,8 +339,7 @@ func TestUpdateItemRejectsAnUpdateThatNamesNoField(t *testing.T) {
 }
 
 // A Save on the edit form with no change, or an agent that sends the
-// stored values again, is not a write: no event, no new updated_at, and
-// the row stays verified.
+// stored values again, is not a write: no event and no new updated_at.
 func TestUpdateItemWritesNothingWhenNoValueChanges(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
@@ -421,13 +354,12 @@ func TestUpdateItemWritesNothingWhenNoValueChanges(t *testing.T) {
 		Rating:     ptr(4.5),
 		OccurredOn: ptr("2026-10-09"),
 		Actor:      SourceAgent,
-		Inferred:   true,
 	})
 	if err != nil {
 		t.Fatalf("UpdateItem: %v", err)
 	}
 
-	if !got.Verified || !got.UpdatedAt.Equal(added.UpdatedAt) || got.Title != "Dune: Part Two" {
+	if !got.UpdatedAt.Equal(added.UpdatedAt) || got.Title != "Dune: Part Two" {
 		t.Errorf("an update with no change wrote the row: %+v", got)
 	}
 	if n := countRows(t, pool, "events"); n != 1 {

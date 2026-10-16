@@ -40,8 +40,6 @@ type SearchHit struct {
 	ID   int64  `json:"id"`
 	// Summary is one line that says what the record holds.
 	Summary string `json:"summary"`
-	// Verified is false for a record that waits in the review queue.
-	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -117,7 +115,7 @@ func searchType(ctx context.Context, q *store.Queries, recordType string, patter
 			if err != nil {
 				return nil, err
 			}
-			hits = append(hits, SearchHit{"item", item.ID, item.summary(), item.Verified, item.CreatedAt})
+			hits = append(hits, SearchHit{"item", item.ID, item.summary(), item.CreatedAt})
 		}
 	case "journal":
 		rows, err := q.SearchJournalEntries(ctx, store.SearchJournalEntriesParams{Patterns: patterns, MaxRows: maxRows})
@@ -126,7 +124,7 @@ func searchType(ctx context.Context, q *store.Queries, recordType string, patter
 		}
 		for _, row := range rows {
 			entry := journalEntryFromRow(row)
-			hits = append(hits, SearchHit{"journal", entry.ID, entry.summary(), entry.Verified, entry.CreatedAt})
+			hits = append(hits, SearchHit{"journal", entry.ID, entry.summary(), entry.CreatedAt})
 		}
 	case "todo":
 		rows, err := q.SearchTodos(ctx, store.SearchTodosParams{Patterns: patterns, MaxRows: maxRows})
@@ -135,7 +133,7 @@ func searchType(ctx context.Context, q *store.Queries, recordType string, patter
 		}
 		for _, row := range rows {
 			todo := todoFromRow(row)
-			hits = append(hits, SearchHit{"todo", todo.ID, todo.summary(), todo.Verified, todo.CreatedAt})
+			hits = append(hits, SearchHit{"todo", todo.ID, todo.summary(), todo.CreatedAt})
 		}
 	case "source":
 		rows, err := q.SearchSources(ctx, store.SearchSourcesParams{Patterns: patterns, MaxRows: maxRows})
@@ -144,7 +142,7 @@ func searchType(ctx context.Context, q *store.Queries, recordType string, patter
 		}
 		for _, row := range rows {
 			capture := captureFromRow(row)
-			hits = append(hits, SearchHit{"source", capture.ID, capture.summary(), capture.Verified, capture.CreatedAt})
+			hits = append(hits, SearchHit{"source", capture.ID, capture.summary(), capture.CreatedAt})
 		}
 	}
 	return hits, nil

@@ -55,12 +55,12 @@ func registerTodos(api huma.API, svc *service.Service) {
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, in *addTodoInput) (*todoOutput, error) {
 		// A request to the REST API comes from Gautam's own devices, so
-		// the row is manual and verified.
+		// the row is manual.
 		todo, err := svc.AddTodo(ctx, service.AddTodoParams{
 			Title:      in.Body.Title,
 			DueOn:      in.Body.DueOn,
 			Project:    in.Body.Project,
-			Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+			Provenance: service.Provenance{Source: service.SourceManual},
 		})
 		if err != nil {
 			return nil, toHTTPError("body", err)

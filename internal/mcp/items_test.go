@@ -101,27 +101,15 @@ func TestAddItemThenGet(t *testing.T) {
 	session, _ := connect(t)
 
 	added := structured(t, call(t, session, "add_item", map[string]any{
-		"kind": "movie", "title": "Dune: Part Two", "rating": 4, "occurred_on": "2024-03-01", "dictated": true,
+		"kind": "movie", "title": "Dune: Part Two", "rating": 4, "occurred_on": "2024-03-01",
 	}))
-	if added["source"] != "agent" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want agent, true", added["source"], added["verified"])
+	if added["source"] != "agent" {
+		t.Errorf("source = %v, want agent", added["source"])
 	}
 
 	got := structured(t, call(t, session, "get", map[string]any{"type": "item", "id": added["id"]}))
 	if got["title"] != "Dune: Part Two" || got["rating"] != float64(4) {
 		t.Errorf("get returned %v", got)
-	}
-}
-
-// A row that the agent inferred must wait for review. The safe default when
-// the model leaves out "dictated" is not verified.
-func TestAddItemIsNotVerifiedUnlessDictated(t *testing.T) {
-	session, _ := connect(t)
-
-	added := structured(t, call(t, session, "add_item", map[string]any{"kind": "book", "title": "Dune"}))
-
-	if added["verified"] != false {
-		t.Errorf("verified = %v, want false when dictated is absent", added["verified"])
 	}
 }
 

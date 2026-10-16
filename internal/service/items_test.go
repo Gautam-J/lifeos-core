@@ -34,7 +34,7 @@ func dune() AddItemParams {
 		Rating:     ptr(4.5),
 		OccurredOn: "2026-10-09",
 		Attrs:      map[string]any{"director": "Denis Villeneuve", "year": 2024},
-		Provenance: Provenance{Source: SourceAgent, Verified: true},
+		Provenance: Provenance{Source: SourceAgent},
 	}
 }
 
@@ -70,8 +70,8 @@ func TestAddItemStoresTheItem(t *testing.T) {
 	if got.Attrs["director"] != "Denis Villeneuve" || got.Attrs["year"] != float64(2024) {
 		t.Errorf("attrs = %v", got.Attrs)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q", got.Source)
 	}
 	if got.CreatedAt.IsZero() || !got.CreatedAt.Equal(got.UpdatedAt) {
 		t.Errorf("created_at, updated_at = %v, %v", got.CreatedAt, got.UpdatedAt)
@@ -103,9 +103,6 @@ func TestAddItemAcceptsTheMinimumInput(t *testing.T) {
 	}
 	if item.Attrs == nil || len(item.Attrs) != 0 {
 		t.Errorf("attrs = %v, want an empty object", item.Attrs)
-	}
-	if item.Verified {
-		t.Error("verified = true, want false for a row the agent inferred")
 	}
 }
 

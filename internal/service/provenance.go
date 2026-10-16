@@ -25,9 +25,6 @@ type Provenance struct {
 	Source Source
 	// SourceRef is the ID of the sources row the record came from, if any.
 	SourceRef *int64
-	// Verified is false for a row that an agent inferred. It stays false
-	// until Gautam approves the row. A row that Gautam dictated is verified.
-	Verified bool
 }
 
 func (p Provenance) validate() error {

@@ -26,7 +26,6 @@ type Habit struct {
 	Active    bool      `json:"active"`
 	Source    Source    `json:"source"`
 	SourceRef *int64    `json:"source_ref,omitempty"`
-	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -87,7 +86,6 @@ func (s *Service) AddHabit(ctx context.Context, p AddHabitParams) (Habit, error)
 		Name:      name,
 		Source:    string(p.Source),
 		SourceRef: p.SourceRef,
-		Verified:  p.Verified,
 	})
 	if habitNameTaken(err) {
 		return Habit{}, invalid("name", habitNameTakenMessage)
@@ -112,7 +110,6 @@ func habitFromRow(row store.Habit) Habit {
 		Active:    row.Active,
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

@@ -32,7 +32,6 @@ type Todo struct {
 	DoneAt    *time.Time `json:"done_at,omitempty"`
 	Source    Source     `json:"source"`
 	SourceRef *int64     `json:"source_ref,omitempty"`
-	Verified  bool       `json:"verified"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
@@ -119,7 +118,6 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 		Project:   v.project,
 		Source:    string(p.Source),
 		SourceRef: p.SourceRef,
-		Verified:  p.Verified,
 	})
 	if err != nil {
 		return Todo{}, fmt.Errorf("add todo: %w", err)
@@ -141,7 +139,6 @@ func todoFromRow(row store.Todo) Todo {
 		Status:    row.Status,
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

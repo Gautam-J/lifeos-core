@@ -20,7 +20,7 @@ func TestMarkProcessedSetsTheTimeAndNothingElse(t *testing.T) {
 	if marked.ProcessedAt == nil {
 		t.Fatal("processed_at is not set")
 	}
-	if marked.Content != source.Content || marked.SHA256 != source.SHA256 || !marked.Verified || marked.Source != source.Source {
+	if marked.Content != source.Content || marked.SHA256 != source.SHA256 || marked.Source != source.Source {
 		t.Errorf("the source changed: %+v", marked)
 	}
 	stored, err := s.GetCapture(context.Background(), source.ID)

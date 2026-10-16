@@ -16,7 +16,7 @@ import (
 func addHabit(t *testing.T, pool *pgxpool.Pool, name string) service.Habit {
 	t.Helper()
 	habit, err := service.New(pool).AddHabit(t.Context(), service.AddHabitParams{
-		Name: name, Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Name: name, Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	if err != nil {
 		t.Fatalf("add habit %q: %v", name, err)
@@ -37,8 +37,8 @@ func TestLogHabitThenReadIt(t *testing.T) {
 	if logged["habit"] != "gym" || logged["habit_id"] != float64(gym.ID) || logged["logged_on"] != todayIST() {
 		t.Errorf("log = %s, want gym for today in IST (%s)", raw, todayIST())
 	}
-	if logged["source"] != "manual" || logged["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want manual, true", logged["source"], logged["verified"])
+	if logged["source"] != "manual" {
+		t.Errorf("source = %v, want manual", logged["source"])
 	}
 
 	// A second request for the same day returns the same log.

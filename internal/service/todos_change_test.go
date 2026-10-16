@@ -27,8 +27,8 @@ func TestUpdateTodoChangesOnlyTheGivenFields(t *testing.T) {
 	if got.Title != "Buy two domains" || got.Project != "home" || got.DueOn != "2026-11-01" {
 		t.Errorf("after a change of the title and the project: %+v", got)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v, want them unchanged", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q, want it unchanged", got.Source)
 	}
 	if stored, err := s.GetTodo(ctx, added.ID); err != nil || stored != got {
 		t.Errorf("stored = %+v, %v, want %+v", stored, err, got)
@@ -160,44 +160,13 @@ func TestUpdateTodoReturnsNotFound(t *testing.T) {
 	}
 }
 
-// An agent that reads "done with the domain" in a captured page must not
-// close a todo that Gautam stated. It can change a todo that it proposed.
-func TestUpdateTodoRefusesAnInferredChangeToAVerifiedTodo(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	verified := addTodo(t, s, "Stated by Gautam")
-	p := buyDomain()
-	p.Verified = false
-	proposed, err := s.AddTodo(ctx, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = s.UpdateTodo(ctx, verified.ID, UpdateTodoParams{Status: ptr("done"), Actor: SourceAgent, Inferred: true})
-	var invalid *ValidationError
-	if !errors.As(err, &invalid) || invalid.Field != "dictated" {
-		t.Fatalf("error = %v, want a ValidationError on dictated", err)
-	}
-	if got, _ := s.GetTodo(ctx, verified.ID); got.Status != "open" {
-		t.Errorf("status = %q, want open", got.Status)
-	}
-	if n := countRows(t, pool, "events"); n != 2 {
-		t.Errorf("events = %d, want 2 (the two creates)", n)
-	}
-
-	got, err := s.UpdateTodo(ctx, proposed.ID, UpdateTodoParams{DueOn: ptr("2026-11-01"), Actor: SourceAgent, Inferred: true})
-	if err != nil || got.DueOn != "2026-11-01" || got.Verified {
-		t.Errorf("inferred change to a proposed todo = %+v, %v; want the change, and the todo not verified", got, err)
-	}
-}
-
 func TestUpdateTodoWritesNothingWhenNoValueChanges(t *testing.T) {
 	s, pool := newTestService(t)
 	added := addTodo(t, s, "Buy a domain")
 
 	got, err := s.UpdateTodo(context.Background(), added.ID, UpdateTodoParams{
 		Title: ptr("Buy a domain "), Status: ptr("open"), DueOn: ptr("2026-10-20"), Project: ptr("lifeos"),
-		Actor: SourceAgent, Inferred: true,
+		Actor: SourceAgent,
 	})
 
 	if err != nil || got != added {

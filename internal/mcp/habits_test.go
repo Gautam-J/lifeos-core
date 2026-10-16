@@ -15,7 +15,7 @@ import (
 func addHabit(t *testing.T, pool *pgxpool.Pool, name string) {
 	t.Helper()
 	_, err := service.New(pool).AddHabit(context.Background(), service.AddHabitParams{
-		Name: name, Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Name: name, Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	if err != nil {
 		t.Fatalf("add habit %q: %v", name, err)
@@ -26,13 +26,13 @@ func TestLogHabitStoresALogThatTheUserDictated(t *testing.T) {
 	session, pool := connect(t)
 	addHabit(t, pool, "gym")
 
-	logged := structured(t, call(t, session, "log_habit", map[string]any{"habit": "Gym", "dictated": true}))
+	logged := structured(t, call(t, session, "log_habit", map[string]any{"habit": "Gym"}))
 
 	if logged["habit"] != "gym" || logged["logged_on"] != todayIST() {
 		t.Errorf("log = %v, want gym for today in IST (%s)", logged, todayIST())
 	}
-	if logged["source"] != "agent" || logged["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want agent, true", logged["source"], logged["verified"])
+	if logged["source"] != "agent" {
+		t.Errorf("source = %v, want agent", logged["source"])
 	}
 	got := structured(t, call(t, session, "get", map[string]any{"type": "habit_log", "id": logged["id"]}))
 	if got["habit"] != "gym" {
@@ -40,23 +40,20 @@ func TestLogHabitStoresALogThatTheUserDictated(t *testing.T) {
 	}
 
 	// The same habit and day again: the same log, and no error.
-	again := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "dictated": true}))
+	again := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym"}))
 	if again["id"] != logged["id"] {
 		t.Errorf("second call returned the log %v, want %v", again["id"], logged["id"])
 	}
 }
 
 // A log that the agent infers, for example from "went to the gym" in a
-// journal entry, is not verified. The user deletes a wrong one.
-func TestLogHabitIsAProposalUnlessDictated(t *testing.T) {
+// journal entry, is a log at once. The user deletes a wrong one.
+func TestALogOfTheAgentCanBeDeleted(t *testing.T) {
 	session, pool := connect(t)
 	addHabit(t, pool, "gym")
 
 	logged := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "logged_on": "2026-01-05"}))
 
-	if logged["verified"] != false {
-		t.Fatalf("verified = %v, want false when dictated is absent", logged["verified"])
-	}
 	// A log has no field to correct. The error tells the model what to do.
 	update := call(t, session, "update", map[string]any{"type": "habit_log", "id": logged["id"], "fields": map[string]any{"logged_on": "2026-01-04"}})
 	if !update.IsError || !strings.Contains(text(update), "delete the log") {
@@ -129,41 +126,6 @@ func TestServerListsTheToolsForDailyRecords(t *testing.T) {
 	for _, name := range []string{"journal", "todo", "log_habit"} {
 		if !described[name] {
 			t.Errorf("tool %s is not registered with a description", name)
-		}
-	}
-}
-
-// An agent proposes a log from a journal entry. Then the user says "log
-// gym". The model must send the log again as dictated, and the tool must
-// approve the stored log. If the description says that a second call
-// changes nothing, a model can skip the call, and the habit stays "not
-// done".
-func TestLogHabitAgainAsDictatedApprovesAProposedLog(t *testing.T) {
-	session, pool := connect(t)
-	addHabit(t, pool, "gym")
-	proposed := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym"}))
-	if proposed["verified"] != false {
-		t.Fatalf("verified = %v, want false for a log that the agent proposed", proposed["verified"])
-	}
-
-	stated := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "dictated": true}))
-
-	if stated["id"] != proposed["id"] || stated["verified"] != true {
-		t.Errorf("second call returned %v, want the log %v, verified", stated, proposed["id"])
-	}
-	list, err := session.ListTools(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("ListTools: %v", err)
-	}
-	for _, tool := range list.Tools {
-		if tool.Name != "log_habit" {
-			continue
-		}
-		if strings.Contains(tool.Description, "changes nothing") {
-			t.Errorf("the description says that a second call changes nothing: %q", tool.Description)
-		}
-		if !strings.Contains(tool.Description, "call again with dictated set to true: that approves the log") {
-			t.Errorf("the description does not tell the model to send a stated log again: %q", tool.Description)
 		}
 	}
 }

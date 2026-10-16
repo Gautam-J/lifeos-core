@@ -26,9 +26,6 @@ type UpdateItemParams struct {
 	// Actor is who makes the change. It goes into the event; the source
 	// of the row stays as it is.
 	Actor Source `json:"-"`
-	// Inferred is true when an agent makes a change that Gautam did not
-	// state. The service refuses such a change to a verified row.
-	Inferred bool `json:"-"`
 }
 
 // clearableItemFields are the optional fields that Clear can name.
@@ -74,10 +71,6 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 	if reflect.DeepEqual(changed, old) {
 		return old, nil
 	}
-	// A guess must not replace a value that Gautam approved.
-	if p.Inferred && old.Verified {
-		return Item{}, invalid("dictated", "must be true to change a verified record: ask the user to confirm the change, then send it again")
-	}
 	stored, err := q.UpdateCatalogItem(ctx, store.UpdateCatalogItemParams{
 		ID:         id,
 		Kind:       row.Kind,
@@ -85,7 +78,6 @@ func (s *Service) UpdateItem(ctx context.Context, id int64, p UpdateItemParams) 
 		Rating:     row.Rating,
 		OccurredOn: row.OccurredOn,
 		Attrs:      row.Attrs,
-		Verified:   old.Verified,
 	})
 	if err != nil {
 		return Item{}, fmt.Errorf("update item: %w", err)
@@ -139,7 +131,7 @@ func (p UpdateItemParams) applyTo(old Item) AddItemParams {
 		Rating:     old.Rating,
 		OccurredOn: old.OccurredOn,
 		Attrs:      old.Attrs,
-		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef, Verified: old.Verified},
+		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef},
 	}
 	if p.Kind != nil {
 		next.Kind = *p.Kind

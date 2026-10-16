@@ -89,7 +89,7 @@ func TestServeRunsOneFlowThroughEveryAdapter(t *testing.T) {
 		t.Errorf("MCP get title = %v, want the item that REST added", title)
 	}
 	second, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "add_item", Arguments: map[string]any{
-		"kind": "book", "title": "Added through MCP", "dictated": true,
+		"kind": "book", "title": "Added through MCP",
 	}})
 	if err != nil || second.IsError {
 		t.Fatalf("MCP add_item: err %v, result %+v", err, second)

@@ -18,9 +18,8 @@ func TestCaptureATextThenGetAndDeleteIt(t *testing.T) {
 	if added["kind"] != "text" || added["content"] != "  Renewal on 12 March.\n" || added["title"] != "Insurance" {
 		t.Errorf("source = %v, want the text exactly as it was sent", added)
 	}
-	// A capture is what came in. No agent inferred it, so it is verified.
-	if added["source"] != "agent" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want agent, true", added["source"], added["verified"])
+	if added["source"] != "agent" {
+		t.Errorf("source = %v, want agent", added["source"])
 	}
 
 	got := structured(t, call(t, session, "get", map[string]any{"type": "source", "id": added["id"]}))
@@ -120,8 +119,8 @@ func TestARecordNamesTheSourceThatItComesFrom(t *testing.T) {
 	todo := structured(t, call(t, session, "todo", map[string]any{"title": "Renew the policy", "source_ref": source["id"]}))
 	log := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "source_ref": source["id"]}))
 	for name, record := range map[string]map[string]any{"add_item": item, "todo": todo, "log_habit": log} {
-		if record["source_ref"] != source["id"] || record["verified"] != false {
-			t.Errorf("%s: source_ref, verified = %v, %v, want %v, false", name, record["source_ref"], record["verified"], source["id"])
+		if record["source_ref"] != source["id"] {
+			t.Errorf("%s: source_ref = %v, want %v", name, record["source_ref"], source["id"])
 		}
 	}
 

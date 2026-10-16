@@ -30,7 +30,6 @@ type Item struct {
 	Attrs      map[string]any `json:"attrs"`
 	Source     Source         `json:"source"`
 	SourceRef  *int64         `json:"source_ref,omitempty"`
-	Verified   bool           `json:"verified"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 }
@@ -140,7 +139,6 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 		Attrs:      attrsJSON,
 		Source:     string(p.Source),
 		SourceRef:  p.SourceRef,
-		Verified:   p.Verified,
 	}, nil
 }
 
@@ -188,7 +186,6 @@ func itemFromRow(row store.CatalogItem) (Item, error) {
 		Rating:    row.Rating,
 		Source:    Source(row.Source),
 		SourceRef: row.SourceRef,
-		Verified:  row.Verified,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

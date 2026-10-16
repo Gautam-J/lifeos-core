@@ -69,8 +69,7 @@ func TestEveryRecordTypeHasEveryEntryPoint(t *testing.T) {
 	}
 }
 
-// addInferredJournal stores a journal entry that is not verified. No
-// adapter writes such a row.
+// addInferredJournal stores a journal entry that an agent wrote.
 func addInferredJournal(t *testing.T, s *Service, body string) JournalEntry {
 	t.Helper()
 	entry, err := s.AddJournalEntry(context.Background(), AddJournalEntryParams{Body: body, Provenance: Provenance{Source: SourceAgent}})

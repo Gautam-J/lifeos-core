@@ -69,13 +69,10 @@ type UpdateParams struct {
 	Clear []string
 	// Actor is who makes the change.
 	Actor Source
-	// Inferred is true when an agent makes a change that Gautam did not
-	// state. Update refuses such a change to a verified record.
-	Inferred bool
 }
 
 // Update changes one record and returns it. It refuses a field that the
-// type does not let a caller change, such as verified or source.
+// type does not let a caller change, such as source.
 func (s *Service) Update(ctx context.Context, recordType string, id int64, p UpdateParams) (any, error) {
 	if err := checkRecordType(recordType); err != nil {
 		return nil, err
@@ -86,7 +83,7 @@ func (s *Service) Update(ctx context.Context, recordType string, id int64, p Upd
 		if err := decodeFields(p.Fields, &params, recordType); err != nil {
 			return nil, err
 		}
-		params.Clear, params.Actor, params.Inferred = p.Clear, p.Actor, p.Inferred
+		params.Clear, params.Actor = p.Clear, p.Actor
 		return asRecord(s.UpdateItem(ctx, id, params))
 	case "journal":
 		var params UpdateJournalEntryParams
@@ -96,14 +93,14 @@ func (s *Service) Update(ctx context.Context, recordType string, id int64, p Upd
 		if len(p.Clear) > 0 {
 			return nil, invalid("clear", "must be empty: a journal entry has no optional field")
 		}
-		params.Actor, params.Inferred = p.Actor, p.Inferred
+		params.Actor = p.Actor
 		return asRecord(s.UpdateJournalEntry(ctx, id, params))
 	case "todo":
 		var params UpdateTodoParams
 		if err := decodeFields(p.Fields, &params, recordType); err != nil {
 			return nil, err
 		}
-		params.Clear, params.Actor, params.Inferred = p.Clear, p.Actor, p.Inferred
+		params.Clear, params.Actor = p.Clear, p.Actor
 		return asRecord(s.UpdateTodo(ctx, id, params))
 	case "habit_log":
 		// The habit and the day are the log. A correction is a new log.

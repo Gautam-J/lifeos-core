@@ -73,19 +73,18 @@ func TestAddItemStoresTheRowAndShowsIt(t *testing.T) {
 	if !strings.HasPrefix(strings.TrimSpace(body), `<div id="list">`) {
 		t.Errorf("the response is not the #list fragment:\n%s", body)
 	}
-	for _, want := range []string{"Dune: Part Two", "4.5", "2024-03-01", "manual", "yes"} {
+	for _, want := range []string{"Dune: Part Two", "4.5", "2024-03-01", "manual"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the list does not contain %q", want)
 		}
 	}
 
 	var source string
-	var verified bool
-	if err := pool.QueryRow(t.Context(), "SELECT source, verified FROM catalog_items").Scan(&source, &verified); err != nil {
+	if err := pool.QueryRow(t.Context(), "SELECT source FROM catalog_items").Scan(&source); err != nil {
 		t.Fatalf("read the row (want exactly one): %v", err)
 	}
-	if source != "manual" || !verified {
-		t.Errorf("source, verified = %q, %v, want manual, true", source, verified)
+	if source != "manual" {
+		t.Errorf("source = %q, want manual", source)
 	}
 
 	if page := get(h, "/admin/items").Body.String(); !strings.Contains(page, "Dune: Part Two") {

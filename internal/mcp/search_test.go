@@ -7,7 +7,7 @@ import (
 
 func TestSearchFindsTheRecordToChange(t *testing.T) {
 	session, _ := connect(t)
-	call(t, session, "todo", map[string]any{"title": "Renew the car insurance", "dictated": true})
+	call(t, session, "todo", map[string]any{"title": "Renew the car insurance"})
 	call(t, session, "journal", map[string]any{"body": "Paid the insurance today."})
 	proposed := structured(t, call(t, session, "todo", map[string]any{"title": "Call the insurance agent"}))
 
@@ -18,7 +18,7 @@ func TestSearchFindsTheRecordToChange(t *testing.T) {
 	}
 	// The newest record is first. It waits for approval.
 	first := hits[0].(map[string]any)
-	if first["type"] != "todo" || first["id"] != proposed["id"] || first["summary"] != "todo: Call the insurance agent" || first["verified"] != false {
+	if first["type"] != "todo" || first["id"] != proposed["id"] || first["summary"] != "todo: Call the insurance agent" {
 		t.Errorf("first hit = %v", first)
 	}
 
@@ -29,7 +29,7 @@ func TestSearchFindsTheRecordToChange(t *testing.T) {
 		t.Fatalf("hits for two words in todos = %v, want 1", hits)
 	}
 	done := structured(t, call(t, session, "update", map[string]any{
-		"type": "todo", "id": hits[0].(map[string]any)["id"], "fields": map[string]any{"status": "done"}, "dictated": true,
+		"type": "todo", "id": hits[0].(map[string]any)["id"], "fields": map[string]any{"status": "done"},
 	}))
 	if done["status"] != "done" {
 		t.Errorf("todo after the update = %v", done)

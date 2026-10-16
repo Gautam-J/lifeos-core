@@ -57,17 +57,17 @@ func TestQueryReturnsTheColumnsAndTheRowsAsText(t *testing.T) {
 		t.Fatalf("UpdateTodo: %v", err)
 	}
 
-	got, err := s.Query(ctx, "SELECT title, status, due_on, done_at IS NULL AS waits, verified, deleted_at FROM todos ORDER BY id")
+	got, err := s.Query(ctx, "SELECT title, status, due_on, done_at IS NULL AS waits, deleted_at FROM todos ORDER BY id")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
-	if !equal(got.Columns, []string{"title", "status", "due_on", "waits", "verified", "deleted_at"}) {
+	if !equal(got.Columns, []string{"title", "status", "due_on", "waits", "deleted_at"}) {
 		t.Errorf("columns = %v", got.Columns)
 	}
 	rows := cells(got)
 	if len(rows) != 2 ||
-		!equal(rows[0], []string{"Buy a domain", "open", "2026-10-20", "t", "t", "NULL"}) ||
-		!equal(rows[1], []string{"Call the bank", "done", "2026-10-20", "f", "t", "NULL"}) {
+		!equal(rows[0], []string{"Buy a domain", "open", "2026-10-20", "t", "NULL"}) ||
+		!equal(rows[1], []string{"Call the bank", "done", "2026-10-20", "f", "NULL"}) {
 		t.Errorf("rows = %v", rows)
 	}
 	if got.Truncated {

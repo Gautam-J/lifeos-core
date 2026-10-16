@@ -47,14 +47,14 @@ func registerItems(api huma.API, svc *service.Service) {
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, in *addItemInput) (*itemOutput, error) {
 		// A request to the REST API comes from Gautam's own devices, so
-		// the row is manual and verified.
+		// the row is manual.
 		item, err := svc.AddItem(ctx, service.AddItemParams{
 			Kind:       in.Body.Kind,
 			Title:      in.Body.Title,
 			Rating:     in.Body.Rating,
 			OccurredOn: in.Body.OccurredOn,
 			Attrs:      in.Body.Attrs,
-			Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+			Provenance: service.Provenance{Source: service.SourceManual},
 		})
 		if err != nil {
 			return nil, toHTTPError("body", err)

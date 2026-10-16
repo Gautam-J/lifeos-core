@@ -53,8 +53,8 @@ func TestAddItemThenReadIt(t *testing.T) {
 	if status != http.StatusCreated {
 		t.Fatalf("POST status = %d, want 201\n%s", status, raw)
 	}
-	if added["source"] != "manual" || added["verified"] != true {
-		t.Errorf("source, verified = %v, %v, want manual, true", added["source"], added["verified"])
+	if added["source"] != "manual" {
+		t.Errorf("source = %v, want manual", added["source"])
 	}
 	id, ok := added["id"].(float64)
 	if !ok || id < 1 {

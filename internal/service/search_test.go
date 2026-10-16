@@ -84,7 +84,7 @@ func TestSearchFindsARecordOfEachType(t *testing.T) {
 	wantHits(t, "a word that no record has", search(t, s, "lonavala snow"))
 
 	hits := search(t, s, "dune")
-	if hits[0].Summary != "movie: Dune: Part Two, rating 4.5, on 2026-10-09" || !hits[0].Verified || hits[0].CreatedAt.IsZero() {
+	if hits[0].Summary != "movie: Dune: Part Two, rating 4.5, on 2026-10-09" || hits[0].CreatedAt.IsZero() {
 		t.Errorf("hit = %+v, want the summary of the item", hits[0])
 	}
 	if got := search(t, s, "renews")[0].Summary; got != "text: Insurance note: The policy renews on 12 March." {
@@ -95,20 +95,17 @@ func TestSearchFindsARecordOfEachType(t *testing.T) {
 	}
 }
 
-func TestSearchLeavesOutADeletedRecordAndShowsARecordThatWaits(t *testing.T) {
+func TestSearchLeavesOutADeletedRecord(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
 	deleted := addItem(t, s, "book", "Dune")
-	waits := addUnverified(t, s, "Dune Messiah")
+	live := addItem(t, s, "book", "Dune Messiah")
 	if err := s.DeleteItem(ctx, deleted.ID, DeleteParams{Actor: SourceManual}); err != nil {
 		t.Fatalf("DeleteItem: %v", err)
 	}
 
 	hits := search(t, s, "dune")
-	wantHits(t, "dune", hits, recordRef{"item", waits.ID})
-	if hits[0].Verified {
-		t.Error("the hit says that the record is verified, but it waits for review")
-	}
+	wantHits(t, "dune", hits, recordRef{"item", live.ID})
 }
 
 // A percent sign and an underscore are plain characters in a search.
@@ -206,15 +203,3 @@ func TestSearchShowsAFileByItsName(t *testing.T) {
 	}
 }
 
-// addUnverified stores one item that an agent inferred.
-func addUnverified(t *testing.T, s *Service, title string) Item {
-	t.Helper()
-	p := dune()
-	p.Title = title
-	p.Verified = false
-	item, err := s.AddItem(context.Background(), p)
-	if err != nil {
-		t.Fatalf("AddItem(%q): %v", title, err)
-	}
-	return item
-}

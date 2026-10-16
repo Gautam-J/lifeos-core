@@ -64,7 +64,7 @@ func patch[T any](ctx context.Context, svc *service.Service, recordType string, 
 	}
 	delete(fields, "clear")
 	// A request to the REST API comes from Gautam's own devices, so the
-	// change is his and the verified flag stays as it is.
+	// change is his.
 	record, err := svc.Update(ctx, recordType, id, service.UpdateParams{
 		Fields: fields,
 		Clear:  clear,

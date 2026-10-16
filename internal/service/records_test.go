@@ -53,9 +53,7 @@ func TestRecordFunctionsRejectAnUnknownType(t *testing.T) {
 func TestUpdateChangesTheNamedFields(t *testing.T) {
 	s, pool := newTestService(t)
 	ctx := context.Background()
-	p := dune()
-	p.Verified = false
-	added, err := s.AddItem(ctx, p)
+	added, err := s.AddItem(ctx, dune())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +62,6 @@ func TestUpdateChangesTheNamedFields(t *testing.T) {
 		Fields:   map[string]any{"title": "Dune 2", "attrs": map[string]any{"year": 2024}},
 		Clear:    []string{"rating"},
 		Actor:    SourceAgent,
-		Inferred: true,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -79,9 +76,6 @@ func TestUpdateChangesTheNamedFields(t *testing.T) {
 	}
 	if len(item.Attrs) != 1 || item.Attrs["year"] != float64(2024) {
 		t.Errorf("attrs = %v", item.Attrs)
-	}
-	if item.Verified {
-		t.Error("an inferred change verified the row")
 	}
 	events := allEvents(t, pool)
 	if last := events[len(events)-1]; last.Action != "update" || last.Source != "agent" {
@@ -110,9 +104,7 @@ func TestUpdateRejectsAFieldThatACallerCannotChange(t *testing.T) {
 	}
 	s, pool := newTestService(t)
 	ctx := context.Background()
-	p := dune()
-	p.Verified = false
-	added, err := s.AddItem(ctx, p)
+	added, err := s.AddItem(ctx, dune())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +125,7 @@ func TestUpdateRejectsAFieldThatACallerCannotChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.Verified || stored.Title != "Dune: Part Two" || stored.Source != SourceAgent {
+	if stored.Title != "Dune: Part Two" || stored.Source != SourceAgent {
 		t.Errorf("a refused update changed the row: %+v", stored)
 	}
 	if n := countRows(t, pool, "events"); n != 1 {
@@ -176,7 +168,7 @@ func TestUpdateRejectsANullValue(t *testing.T) {
 		"a value and a null":    {"title": "New", "rating": nil},
 		"null for a text field": {"title": nil},
 	} {
-		_, err := s.Update(ctx, "item", added.ID, UpdateParams{Fields: fields, Actor: SourceAgent, Inferred: true})
+		_, err := s.Update(ctx, "item", added.ID, UpdateParams{Fields: fields, Actor: SourceAgent})
 
 		var invalid *ValidationError
 		if !errors.As(err, &invalid) {
@@ -190,7 +182,7 @@ func TestUpdateRejectsANullValue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.Title != "Dune: Part Two" || stored.Rating == nil || !stored.Verified {
+	if stored.Title != "Dune: Part Two" || stored.Rating == nil {
 		t.Errorf("a refused update changed the row: %+v", stored)
 	}
 	if n := countRows(t, pool, "events"); n != 1 {

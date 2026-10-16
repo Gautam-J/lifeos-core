@@ -87,8 +87,8 @@ func TestCaptureMovesAFileFromTheInboxIntoTheFileStore(t *testing.T) {
 	if got.Content != "" || got.URL != "" {
 		t.Errorf("content, url = %q, %q, want them empty", got.Content, got.URL)
 	}
-	if got.Source != SourceAgent || !got.Verified {
-		t.Errorf("source, verified = %q, %v, want agent, true", got.Source, got.Verified)
+	if got.Source != SourceAgent {
+		t.Errorf("source = %q, want agent", got.Source)
 	}
 
 	stored, err := os.ReadFile(filepath.Join(s.files.Dir, got.FilePath))

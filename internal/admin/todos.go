@@ -33,8 +33,7 @@ func (h *handlers) showTodosList(w http.ResponseWriter, r *http.Request, message
 }
 
 // addTodo stores the todo from the form and renders the list again. A todo
-// from the admin pages is one that Gautam typed, so it is manual and
-// verified.
+// from the admin pages is one that Gautam typed, so it is manual.
 func (h *handlers) addTodo(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -45,7 +44,7 @@ func (h *handlers) addTodo(w http.ResponseWriter, r *http.Request) {
 		Title:      r.PostForm.Get("title"),
 		Project:    r.PostForm.Get("project"),
 		DueOn:      r.PostForm.Get("due_on"),
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	var invalid *service.ValidationError
 	switch {

@@ -70,7 +70,7 @@ func TestSummaryPageShowsTheTwoDaysAndTheWorkThatWaits(t *testing.T) {
 	logStored(t, pool, "gym", true)
 	late, err := svc.AddTodo(ctx, service.AddTodoParams{
 		Title: "Renew the policy", DueOn: "2026-01-05",
-		Provenance: service.Provenance{Source: service.SourceManual, Verified: true},
+		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	if err != nil {
 		t.Fatal(err)

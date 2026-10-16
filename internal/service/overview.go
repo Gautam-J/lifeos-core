@@ -20,7 +20,7 @@ type DayCounts struct {
 	Date string
 	// JournalEntries is the number of entries about the day.
 	JournalEntries int
-	// HabitsDone is the number of active habits with a verified log on the
+	// HabitsDone is the number of active habits with a live log on the
 	// day.
 	HabitsDone int
 	// TodosDone is the number of todos that became done on the day.
