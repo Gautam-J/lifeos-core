@@ -13,11 +13,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Gautam-J/lifeos-core/internal/service"
+	"github.com/Gautam-J/lifeos-core/internal/version"
 )
 
 // Register adds every /api route to router.
 func Register(router chi.Router, svc *service.Service) {
-	config := huma.DefaultConfig("LifeOS API", "0.1.0")
+	config := huma.DefaultConfig("LifeOS API", version.Version)
 	config.DocsPath = "/api/docs"
 	config.OpenAPIPath = "/api/openapi"
 	config.SchemasPath = "/api/schemas"
