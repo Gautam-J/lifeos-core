@@ -1,3 +1,9 @@
+## v0.5.0 (2026-10-16)
+
+### Feat
+
+- **mcp**: context returns the journal and the todos of today and yesterday
+
 ## v0.4.0 (2026-10-16)
 
 ### Feat
