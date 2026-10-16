@@ -4,6 +4,7 @@
 package mcp
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -15,8 +16,10 @@ import (
 )
 
 // NewServer returns the MCP server named lifeos with every tool registered.
+// Its instructions hold the text of me.md as it is when NewServer is called,
+// so Handler makes a new server for each request.
 func NewServer(svc *service.Service) *sdk.Server {
-	server := sdk.NewServer(&sdk.Implementation{Name: "lifeos", Version: version.Version}, &sdk.ServerOptions{Instructions: instructions})
+	server := sdk.NewServer(&sdk.Implementation{Name: "lifeos", Version: version.Version}, &sdk.ServerOptions{Instructions: sessionInstructions(context.Background(), svc)})
 	registerItems(server, svc)
 	registerRecords(server, svc)
 	registerJournal(server, svc)
@@ -26,12 +29,15 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerSearch(server, svc)
 	registerQuery(server, svc)
 	registerWiki(server, svc)
+	registerContext(server, svc)
 	return server
 }
 
 // Handler serves the lifeos MCP server over streamable HTTP. It keeps no
-// session: each tool call is one request. A session would hold a stream
-// open, and that stream would block the shutdown of the HTTP server.
+// session: each tool call is one request, and each request gets a new
+// server, so that the instructions hold the current text of me.md. A
+// session would hold a stream open, and that stream would block the
+// shutdown of the HTTP server.
 //
 // Each request needs a token that access accepts. The MCP library refuses
 // a request to a loopback address that names a different host, as a guard
@@ -40,9 +46,8 @@ func NewServer(svc *service.Service) *sdk.Server {
 // reaches the listener has no token of Cloudflare Access. serve.go refuses
 // a request that a page of a different site sends through Access.
 func Handler(svc *service.Service, access *AccessCheck) http.Handler {
-	server := NewServer(svc)
 	return access.Require(sdk.NewStreamableHTTPHandler(
-		func(*http.Request) *sdk.Server { return server },
+		func(*http.Request) *sdk.Server { return NewServer(svc) },
 		&sdk.StreamableHTTPOptions{Stateless: true, DisableLocalhostProtection: true},
 	))
 }
