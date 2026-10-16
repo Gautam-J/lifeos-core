@@ -20,7 +20,7 @@ type addItemInput struct {
 func registerItems(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "add_item",
-		Description: "Add a movie, book, place or game to the user's lists. Use it when the user watched, read, visited or played something in their own life, or wants to, also when the message has no keyword. First use search with the title, so that the same item is not added two times. Send a rating only when the user states it, or says yes to a rating that you propose. Returns the stored item with its ID.",
+		Description: "Add a movie, book, place or game to the user's lists. Use it when the user watched, read, visited or played something in their own life, or wants to, also when the message has no keyword. When a journal entry names it, give the ID of the entry as journal_ref. First use search with the title, so that the same item is not added two times. Send a rating only when the user states it, or says yes to a rating that you propose. Returns the stored item with its ID.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in addItemInput) (*sdk.CallToolResult, service.Item, error) {
 		item, err := svc.AddItem(ctx, service.AddItemParams{
 			Kind:       in.Kind,

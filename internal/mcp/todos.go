@@ -18,7 +18,7 @@ type todoInput struct {
 func registerTodos(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "todo",
-		Description: "Add one todo. Use it when the user names something that they must do in their own life, with or without a date, also when the message has no keyword such as \"todo\". For a request that has more than one action, call this tool one time for each action. To change a todo or to mark it done, use update with the type todo. Returns the stored todo with its ID.",
+		Description: "Add one todo. Use it when the user names something that they must do in their own life, with or without a date, also when the message has no keyword such as \"todo\". When a journal entry names the task, give the ID of the entry as journal_ref. For a request that has more than one action, call this tool one time for each action. To change a todo or to mark it done, use update with the type todo. Returns the stored todo with its ID.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in todoInput) (*sdk.CallToolResult, service.Todo, error) {
 		todo, err := svc.AddTodo(ctx, service.AddTodoParams{
 			Title:      in.Title,

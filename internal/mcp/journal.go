@@ -32,6 +32,6 @@ func registerJournal(server *sdk.Server, svc *service.Service) {
 		if err != nil {
 			return nil, journalOutput{}, toToolError(err)
 		}
-		return nil, journalOutput{JournalEntry: entry, Next: journalNext(entry.ID)}, nil
+		return nil, journalOutput{JournalEntry: entry, Next: journalNext(entry)}, nil
 	})
 }

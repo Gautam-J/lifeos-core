@@ -50,19 +50,47 @@ func TestServerSendsItsInstructions(t *testing.T) {
 	}
 }
 
-func TestJournalResultNamesTheNextStep(t *testing.T) {
+// #39: the entry logs its habits and closes its todos before the wiki,
+// each with the link, and the reply names each record with its ID.
+func TestJournalResultNamesTheFlowOfAnEntry(t *testing.T) {
 	session, _ := connect(t)
 
-	entry := structured(t, call(t, session, "journal", map[string]any{"body": "Met Asha about the tunnel."}))
-
-	if entry["body"] != "Met Asha about the tunnel." {
-		t.Errorf("entry = %v, want the stored entry as before", entry)
-	}
+	entry := structured(t, call(t, session, "journal", map[string]any{"body": "Met Asha about the tunnel.", "entry_date": "2026-10-10"}))
 	next, _ := entry["next"].(string)
-	for _, part := range []string{fmt.Sprintf("(journal:%v)", entry["id"]), "wiki_search", "wiki_append"} {
+	if entry["body"] != "Met Asha about the tunnel." {
+		t.Errorf("entry = %v, want the stored entry", entry)
+	}
+	id := fmt.Sprintf("%v", entry["id"])
+	for _, part := range []string{"logged_on=2026-10-10", "journal_ref=" + id, "status=done", "(journal:" + id + ")", "wiki_append"} {
 		if !strings.Contains(next, part) {
-			t.Errorf("next = %q, want it to have %q", next, part)
+			t.Errorf("the next step does not have %q:\n%s", part, next)
 		}
+	}
+	// The steps come in this order: habits, todos, wiki, the reply.
+	at := -1
+	for _, step := range []string{"log_habit", "update", "wiki_search", "with its ID"} {
+		i := strings.Index(next, step)
+		if i <= at {
+			t.Errorf("%q is missing or comes too early:\n%s", step, next)
+		}
+		at = i
+	}
+	for _, word := range []string{"dictated", "Propose each task"} {
+		if strings.Contains(next, word) {
+			t.Errorf("the next step has %q", word)
+		}
+	}
+}
+
+func TestInstructionsNameTheFlowOfAnEntry(t *testing.T) {
+	session, _ := connect(t)
+
+	instructions := session.InitializeResult().Instructions
+	habit := strings.Index(instructions, "log_habit with journal_ref")
+	todo := strings.Index(instructions, "update the todo to done with journal_ref")
+	wiki := strings.Index(instructions, "wiki_append to the pages")
+	if habit < 0 || todo < 0 || wiki < 0 || habit > todo || todo > wiki {
+		t.Errorf("the procedure Journal entry does not name habit, todo, wiki in that order:\n%s", instructions)
 	}
 }
 

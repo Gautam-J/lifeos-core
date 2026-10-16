@@ -1,6 +1,10 @@
 package mcp
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/Gautam-J/lifeos-core/internal/service"
+)
 
 // instructions is the text that the server sends to a client when the
 // client connects. Claude Code gives it to the model. The Claude app does
@@ -33,14 +37,23 @@ Rules:
 8. "Today" and "yesterday" are days in India Standard Time.
 
 Procedures:
-- Journal entry: journal. Then wiki_search for each person, project and topic that the entry names, and add one dated line to each page found with wiki_append. Propose each task of the entry as a todo.
+- Journal entry: journal, then do the next step that it returns: log_habit with journal_ref for each habit done, update the todo to done with journal_ref for each todo finished, add_item with journal_ref for each item, then wiki_append to the pages that the entry names. Name each record that you wrote, with its ID.
 - Source to keep: capture. Tell the user in 3 to 5 lines what the source says and which pages you will change, and wait for the answer. Then put the ideas into the wiki and call mark_processed.
 - Question: wiki_search and wiki_read first, then search and query. Answer with citations. Offer to save the answer as a page only when it is hard to derive again.
 - Wiki check: wiki_lint, then read the pages, then report. Change nothing before the user says yes.`
 
-// journalNext is the next step that the result of the journal tool names.
-func journalNext(id int64) string {
-	return fmt.Sprintf("Now connect the entry to the wiki. Call wiki_search for each person, project and topic that the entry names. For each page found, add one dated line with wiki_append: say in your words what the entry adds, and cite (journal:%d). Do not copy the entry into the wiki, and make no new page without a yes of the user. Propose each task in the entry as a todo. Then add one entry to log.md. When the entry names nothing that has a page, only confirm that the entry is stored.", id)
+// journalNext is the next step that the result of the journal tool names:
+// the flow of #39. The entry has the highest weight of all data, so each
+// fact that it reports becomes a record with a link to it.
+func journalNext(entry service.JournalEntry) string {
+	return fmt.Sprintf("Now apply the entry. Find the active habits and the open todos with query (habits WHERE active; todos WHERE status = 'open'), both with deleted_at IS NULL. "+
+		"1. For each habit that the entry says was done: log_habit with logged_on=%[2]s and journal_ref=%[1]d. "+
+		"2. For each open todo that the entry says is finished: update with type todo, fields status=done and journal_ref=%[1]d. "+
+		"3. For each movie, book, place or game that the entry says was watched, read, visited or played: add_item with journal_ref=%[1]d; ask for a rating that the entry does not state. "+
+		"4. Call wiki_search for each person, project and topic that the entry names. For each page found, add one dated line with wiki_append: say in your words what the entry adds, and cite (journal:%[1]d). Do not copy the entry into the wiki, and make no new page without a yes of the user. "+
+		"5. Add a todo with journal_ref=%[1]d only for a task that the entry says is still to do. "+
+		"6. In your reply, name each habit logged, each todo closed and each record added, each with its ID, so that the user can correct a wrong match. Then add one entry to log.md. "+
+		"Match only what the entry says; when a match is not clear, ask.", entry.ID, entry.EntryDate)
 }
 
 // captureNext is the next step that the result of the capture tool names.
