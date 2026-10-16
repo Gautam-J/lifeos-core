@@ -1,3 +1,15 @@
+## v0.7.0 (2026-10-16)
+
+### Feat
+
+- **mcp**: the instructions and the journal flow give entities their rule
+- **admin**: pages for the entities
+- **service**: the entities of the day in context
+- **service**: merge two entities
+- **mcp**: tag records with entities from every write tool
+- **service**: the entity record type, links and tag
+- **db**: entities and the project of a todo
+
 ## v0.6.1 (2026-10-16)
 
 ### Refactor
