@@ -21,7 +21,7 @@ One Go binary, `lifeos`, runs on a Raspberry Pi 4 (linux/arm64) against Postgres
 ## Layout
 
 ```
-cmd/lifeos/            main package: serve, migrate, job, import-csv, version
+cmd/lifeos/            main package: serve, migrate, job, import-csv, instructions, version
 internal/service/      all logic: validation, provenance, events
 internal/store/        sqlc-generated queries, from queries/*.sql (not in git)
 internal/config/       loads config/lifeos.yaml

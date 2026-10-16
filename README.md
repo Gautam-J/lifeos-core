@@ -242,7 +242,7 @@ A record that an MCP tool writes has the source `agent`. It is verified only whe
 
 The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo` and `log_habit` take an optional `source_ref`.
 
-The rules for an agent are in the tool descriptions. The results of `journal` and `capture` have a field `next` that names the next step. The server also sends short instructions when a client connects; Claude Code reads them, the Claude app does not.
+The rules for an agent are in the tool descriptions. The results of `journal` and `capture` have a field `next` that names the next step. The server also sends short instructions when a client connects; Claude Code reads them, the Claude app does not. `lifeos instructions` prints them: paste the text into the instructions of a Claude app project. Then a plain message about your life, with no keyword such as "journal" or "todo", reaches LifeOS.
 
 ## Run it
 
@@ -299,7 +299,7 @@ Settings are in [config/lifeos.yaml](config/lifeos.yaml): the two listen address
 ## Repository layout
 
 ```
-cmd/lifeos/          main package: serve, migrate, version
+cmd/lifeos/          main package: serve, migrate, instructions, version
 internal/service/    all logic: validation, provenance, events
 internal/api/        REST handlers (chi + Huma)
 internal/mcp/        MCP tools
