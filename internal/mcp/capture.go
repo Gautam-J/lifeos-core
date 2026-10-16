@@ -28,7 +28,7 @@ type markProcessedInput struct {
 func registerCapture(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "capture",
-		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. When you take a record from a source, give the ID of the source as source_ref to add_item, todo or log_habit. Returns the stored source with its ID, and the next step: how to work the source into the wiki and the records.",
+		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. Returns the stored source with its ID, and the next step: how to work the source into the wiki.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in captureInput) (*sdk.CallToolResult, captureOutput, error) {
 		capture, err := svc.Capture(ctx, service.CaptureParams{
 			Text:      in.Text,

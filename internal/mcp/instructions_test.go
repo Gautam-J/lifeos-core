@@ -34,7 +34,7 @@ func TestServerSendsItsInstructions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	known := map[string]bool{"source_ref": true}
+	known := map[string]bool{}
 	for _, tool := range list.Tools {
 		known[tool.Name] = true
 	}
@@ -75,7 +75,7 @@ func TestCaptureResultNamesTheNextStep(t *testing.T) {
 		t.Errorf("source = %v, want the stored source as before", source)
 	}
 	next, _ := source["next"].(string)
-	for _, part := range []string{fmt.Sprintf("(src:%v)", source["id"]), "wait for the answer", "source_ref", "mark_processed"} {
+	for _, part := range []string{fmt.Sprintf("(src:%v)", source["id"]), "wait for the answer", "mark_processed"} {
 		if !strings.Contains(next, part) {
 			t.Errorf("next = %q, want it to have %q", next, part)
 		}

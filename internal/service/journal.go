@@ -20,7 +20,6 @@ type JournalEntry struct {
 	// EntryDate is the IST day that the entry is about, as YYYY-MM-DD.
 	EntryDate string    `json:"entry_date"`
 	Source    Source    `json:"source"`
-	SourceRef *int64    `json:"source_ref,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -49,9 +48,6 @@ func (s *Service) AddJournalEntry(ctx context.Context, p AddJournalEntryParams) 
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := p.checkSourceRef(ctx, q); err != nil {
-		return JournalEntry{}, err
-	}
 
 	stored, err := q.InsertJournalEntry(ctx, row)
 	if err != nil {
@@ -88,7 +84,6 @@ func (p AddJournalEntryParams) toRow(now time.Time) (store.InsertJournalEntryPar
 		Body:      p.Body,
 		EntryDate: day,
 		Source:    string(p.Source),
-		SourceRef: p.SourceRef,
 	}, nil
 }
 
@@ -98,7 +93,6 @@ func journalEntryFromRow(row store.JournalEntry) JournalEntry {
 		Body:      row.Body,
 		EntryDate: row.EntryDate.Format(time.DateOnly),
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

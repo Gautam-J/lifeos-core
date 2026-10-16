@@ -109,23 +109,3 @@ func TestCaptureRejectsBadInput(t *testing.T) {
 		t.Errorf("sources = %d, %v, want 0", n, err)
 	}
 }
-
-func TestARecordNamesTheSourceThatItComesFrom(t *testing.T) {
-	session, pool := connect(t)
-	addHabit(t, pool, "gym")
-	source := structured(t, call(t, session, "capture", map[string]any{"text": "Read Dune. Renew the policy. Went to the gym."}))
-
-	item := structured(t, call(t, session, "add_item", map[string]any{"kind": "book", "title": "Dune", "source_ref": source["id"]}))
-	todo := structured(t, call(t, session, "todo", map[string]any{"title": "Renew the policy", "source_ref": source["id"]}))
-	log := structured(t, call(t, session, "log_habit", map[string]any{"habit": "gym", "source_ref": source["id"]}))
-	for name, record := range map[string]map[string]any{"add_item": item, "todo": todo, "log_habit": log} {
-		if record["source_ref"] != source["id"] {
-			t.Errorf("%s: source_ref = %v, want %v", name, record["source_ref"], source["id"])
-		}
-	}
-
-	unknown := call(t, session, "todo", map[string]any{"title": "Call the agent", "source_ref": 9999})
-	if !unknown.IsError || !strings.Contains(text(unknown), "source_ref: must be the ID of a source that exists") {
-		t.Errorf("a todo with an unknown source_ref = %q, want it refused", text(unknown))
-	}
-}

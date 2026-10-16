@@ -69,14 +69,13 @@ func TestServeTakesACaptureThroughEveryAdapter(t *testing.T) {
 	}
 	link := hits[1].(map[string]any)
 
-	// 4. MCP: the agent reads the note, and proposes a book that names
-	// the note as its source. REST shows the book with its source.
+	// 4. MCP: the agent reads the note, and adds the book. REST search
+	// finds the book and the note.
 	if got := tool("get", map[string]any{"type": "source", "id": note["id"]}); got["content"] != "Read Dune on the train to Lonavala." {
 		t.Fatalf("get of the note: %v", got)
 	}
-	book := tool("add_item", map[string]any{"kind": "book", "title": "Dune", "source_ref": note["id"]})
-	if book["source_ref"] != note["id"] {
-		t.Fatalf("add_item: %v, want a proposed book with the source_ref of the note", book)
+	if book := tool("add_item", map[string]any{"kind": "book", "title": "Dune"}); book["title"] != "Dune" {
+		t.Fatalf("add_item: %v, want the book", book)
 	}
 	status, body = send(t, "GET", rest+"/api/search?query=dune", "", "")
 	if status != 200 || !strings.Contains(body, `"summary":"book: Dune"`) || !strings.Contains(body, "Trip note") {

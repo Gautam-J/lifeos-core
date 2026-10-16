@@ -29,7 +29,6 @@ type Item struct {
 	OccurredOn string         `json:"occurred_on,omitempty"`
 	Attrs      map[string]any `json:"attrs"`
 	Source     Source         `json:"source"`
-	SourceRef  *int64         `json:"source_ref,omitempty"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 }
@@ -61,9 +60,6 @@ func (s *Service) AddItem(ctx context.Context, p AddItemParams) (Item, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := p.checkSourceRef(ctx, q); err != nil {
-		return Item{}, err
-	}
 
 	stored, err := q.InsertCatalogItem(ctx, row)
 	if err != nil {
@@ -138,7 +134,6 @@ func (p AddItemParams) toRow(now time.Time) (store.InsertCatalogItemParams, erro
 		OccurredOn: occurredOn,
 		Attrs:      attrsJSON,
 		Source:     string(p.Source),
-		SourceRef:  p.SourceRef,
 	}, nil
 }
 
@@ -185,7 +180,6 @@ func itemFromRow(row store.CatalogItem) (Item, error) {
 		Title:     row.Title,
 		Rating:    row.Rating,
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

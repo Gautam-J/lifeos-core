@@ -39,7 +39,7 @@ type SearchHit struct {
 	Type string `json:"type"`
 	ID   int64  `json:"id"`
 	// Summary is one line that says what the record holds.
-	Summary string `json:"summary"`
+	Summary   string    `json:"summary"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

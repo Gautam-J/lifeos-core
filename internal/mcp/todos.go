@@ -9,10 +9,9 @@ import (
 )
 
 type todoInput struct {
-	Title     string `json:"title" jsonschema:"One action, in a few words"`
-	DueOn     string `json:"due_on,omitempty" jsonschema:"The day that the todo is due, as YYYY-MM-DD in India Standard Time. Leave it out when the user gave no date."`
-	Project   string `json:"project,omitempty" jsonschema:"The project of the todo, such as lifeos. Leave it out when it is not clear."`
-	SourceRef *int64 `json:"source_ref,omitempty" jsonschema:"The ID of the source that this todo comes from, when you took the todo from a capture"`
+	Title   string `json:"title" jsonschema:"One action, in a few words"`
+	DueOn   string `json:"due_on,omitempty" jsonschema:"The day that the todo is due, as YYYY-MM-DD in India Standard Time. Leave it out when the user gave no date."`
+	Project string `json:"project,omitempty" jsonschema:"The project of the todo, such as lifeos. Leave it out when it is not clear."`
 }
 
 func registerTodos(server *sdk.Server, svc *service.Service) {
@@ -24,7 +23,7 @@ func registerTodos(server *sdk.Server, svc *service.Service) {
 			Title:      in.Title,
 			DueOn:      in.DueOn,
 			Project:    in.Project,
-			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef},
+			Provenance: service.Provenance{Source: service.SourceAgent},
 		})
 		if err != nil {
 			return nil, service.Todo{}, toToolError(err)

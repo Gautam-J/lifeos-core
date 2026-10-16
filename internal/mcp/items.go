@@ -14,7 +14,6 @@ type addItemInput struct {
 	Rating     *float64       `json:"rating,omitempty" jsonschema:"The user's rating, 0 to 5 in steps of 0.5"`
 	OccurredOn string         `json:"occurred_on,omitempty" jsonschema:"Day watched, read, visited or played, as YYYY-MM-DD in India Standard Time"`
 	Attrs      map[string]any `json:"attrs,omitempty" jsonschema:"More fields for this kind, such as author, director or year"`
-	SourceRef  *int64         `json:"source_ref,omitempty" jsonschema:"The ID of the source that this item comes from, when you took the item from a capture"`
 }
 
 func registerItems(server *sdk.Server, svc *service.Service) {
@@ -28,7 +27,7 @@ func registerItems(server *sdk.Server, svc *service.Service) {
 			Rating:     in.Rating,
 			OccurredOn: in.OccurredOn,
 			Attrs:      in.Attrs,
-			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef},
+			Provenance: service.Provenance{Source: service.SourceAgent},
 		})
 		if err != nil {
 			return nil, service.Item{}, toToolError(err)

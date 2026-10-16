@@ -31,7 +31,6 @@ type Todo struct {
 	// DoneAt is the moment that the status became done.
 	DoneAt    *time.Time `json:"done_at,omitempty"`
 	Source    Source     `json:"source"`
-	SourceRef *int64     `json:"source_ref,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
@@ -108,16 +107,12 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := p.checkSourceRef(ctx, q); err != nil {
-		return Todo{}, err
-	}
 
 	stored, err := q.InsertTodo(ctx, store.InsertTodoParams{
-		Title:     v.title,
-		DueOn:     v.dueOn,
-		Project:   v.project,
-		Source:    string(p.Source),
-		SourceRef: p.SourceRef,
+		Title:   v.title,
+		DueOn:   v.dueOn,
+		Project: v.project,
+		Source:  string(p.Source),
 	})
 	if err != nil {
 		return Todo{}, fmt.Errorf("add todo: %w", err)
@@ -138,7 +133,6 @@ func todoFromRow(row store.Todo) Todo {
 		Title:     row.Title,
 		Status:    row.Status,
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

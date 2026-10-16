@@ -131,7 +131,7 @@ func (p UpdateItemParams) applyTo(old Item) AddItemParams {
 		Rating:     old.Rating,
 		OccurredOn: old.OccurredOn,
 		Attrs:      old.Attrs,
-		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef},
+		Provenance: Provenance{Source: old.Source},
 	}
 	if p.Kind != nil {
 		next.Kind = *p.Kind

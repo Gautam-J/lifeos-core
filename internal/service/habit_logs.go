@@ -21,7 +21,6 @@ type HabitLog struct {
 	// LoggedOn is the IST day, as YYYY-MM-DD.
 	LoggedOn  string    `json:"logged_on"`
 	Source    Source    `json:"source"`
-	SourceRef *int64    `json:"source_ref,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -59,9 +58,6 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := p.checkSourceRef(ctx, q); err != nil {
-		return HabitLog{}, err
-	}
 
 	habit, err := q.GetActiveHabitByName(ctx, name)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -72,10 +68,9 @@ func (s *Service) LogHabit(ctx context.Context, p LogHabitParams) (HabitLog, err
 	}
 
 	row, err := q.InsertHabitLog(ctx, store.InsertHabitLogParams{
-		HabitID:   habit.ID,
-		LoggedOn:  day,
-		Source:    string(p.Source),
-		SourceRef: p.SourceRef,
+		HabitID:  habit.ID,
+		LoggedOn: day,
+		Source:   string(p.Source),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// The habit has a log for this day already.
@@ -126,7 +121,6 @@ func habitLogFromRow(row store.HabitLog, habit string) HabitLog {
 		Habit:     habit,
 		LoggedOn:  row.LoggedOn.Format(time.DateOnly),
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

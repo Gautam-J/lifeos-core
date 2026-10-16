@@ -113,31 +113,9 @@ func TestPurgeRecordShowsAMessageWhenTheRecordIsNotDeleted(t *testing.T) {
 }
 
 func TestPurgeRecordShowsWhyTheServiceRefused(t *testing.T) {
-	h, pool := newTestAdmin(t)
-	svc := service.New(pool)
-	source, err := svc.Capture(t.Context(), service.CaptureParams{Text: "Renew the policy.", Source: service.SourceManual})
-	if err != nil {
-		t.Fatalf("Capture: %v", err)
-	}
-	_, err = svc.AddTodo(t.Context(), service.AddTodoParams{Title: "Renew the policy", Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: &source.ID}})
-	if err != nil {
-		t.Fatalf("AddTodo: %v", err)
-	}
-	if err := svc.DeleteCapture(t.Context(), source.ID, service.DeleteParams{Actor: service.SourceManual}); err != nil {
-		t.Fatalf("DeleteCapture: %v", err)
-	}
+	h, _ := newTestAdmin(t)
 
-	rec := postForm(h, "/admin/deleted/purge", url.Values{"type": {"source"}, "id": {fmt.Sprint(source.ID)}})
-
-	body := rec.Body.String()
-	if !strings.Contains(body, "a record in todos names this source") {
-		t.Errorf("the response does not say why the source stays:\n%s", body)
-	}
-	if !strings.Contains(body, "text: Renew the policy.") {
-		t.Errorf("the list does not show the source any more:\n%s", body)
-	}
-
-	rec = postForm(h, "/admin/deleted/purge", url.Values{"type": {"habit"}, "id": {"1"}})
+	rec := postForm(h, "/admin/deleted/purge", url.Values{"type": {"habit"}, "id": {"1"}})
 	if body := rec.Body.String(); !strings.Contains(body, "type: must be one of") {
 		t.Errorf("a wrong type does not show the reason:\n%s", body)
 	}

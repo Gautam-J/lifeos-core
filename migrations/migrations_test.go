@@ -37,7 +37,7 @@ func TestRecordTablesHaveTheProvenanceColumns(t *testing.T) {
 	ctx := context.Background()
 
 	for _, table := range []string{"catalog_items", "journal_entries", "todos", "habits", "habit_logs", "sources"} {
-		for _, column := range []string{"source", "source_ref", "created_at", "updated_at", "deleted_at"} {
+		for _, column := range []string{"source", "created_at", "updated_at", "deleted_at"} {
 			var exists bool
 			err := pool.QueryRow(ctx,
 				"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2)",
@@ -177,39 +177,6 @@ func TestSourcesRefuseARowThatDoesNotFitItsKind(t *testing.T) {
 	}
 }
 
-// source_ref on each record table names a row of sources.
-func TestSourceRefMustNameASource(t *testing.T) {
-	pool := testdb.New(t)
-	ctx := context.Background()
-
-	var source int64
-	err := pool.QueryRow(ctx, "INSERT INTO sources (kind, content, sha256, source) VALUES ('text', 'a note', 'abc', 'manual') RETURNING id").Scan(&source)
-	if err != nil {
-		t.Fatalf("add a source: %v", err)
-	}
-	// The habit of the habit log. It gets the ID 1.
-	if _, err := pool.Exec(ctx, "INSERT INTO habits (name, source) VALUES ('gym', 'manual')"); err != nil {
-		t.Fatalf("add a habit: %v", err)
-	}
-
-	inserts := map[string]string{
-		"catalog_items":   "INSERT INTO catalog_items (kind, title, source, source_ref) VALUES ('book', 'Dune', 'agent', $1)",
-		"journal_entries": "INSERT INTO journal_entries (body, entry_date, source, source_ref) VALUES ('a day', '2026-10-11', 'agent', $1)",
-		"todos":           "INSERT INTO todos (title, source, source_ref) VALUES ('Buy a domain', 'agent', $1)",
-		"habits":          "INSERT INTO habits (name, source, source_ref) VALUES ('read', 'agent', $1)",
-		"habit_logs":      "INSERT INTO habit_logs (habit_id, logged_on, source, source_ref) VALUES (1, '2026-10-11', 'agent', $1)",
-		"sources":         "INSERT INTO sources (kind, content, sha256, source, source_ref) VALUES ('text', 'a part', 'def', 'agent', $1)",
-	}
-	for table, insert := range inserts {
-		if _, err := pool.Exec(ctx, insert, source+1000); err == nil {
-			t.Errorf("%s: a row with a source_ref that names no source was stored", table)
-		}
-		if _, err := pool.Exec(ctx, insert, source); err != nil {
-			t.Errorf("%s: a row with the source_ref of a source: %v", table, err)
-		}
-	}
-}
-
 // The query tool connects as lifeos_query. That user reads every table and
 // changes none: the database refuses the change, not the Go code.
 func TestTheQueryUserCanReadAndCannotWrite(t *testing.T) {
@@ -302,5 +269,14 @@ func TestNoRecordTableHasVerified(t *testing.T) {
 
 	if tables := columnTables(t, pool, "verified"); len(tables) > 0 {
 		t.Errorf("these tables have a column verified: %v", tables)
+	}
+}
+
+// #39: no record comes from a capture.
+func TestNoRecordTableHasSourceRef(t *testing.T) {
+	pool := testdb.New(t)
+
+	if tables := columnTables(t, pool, "source_ref"); len(tables) > 0 {
+		t.Errorf("these tables have a column source_ref: %v", tables)
 	}
 }

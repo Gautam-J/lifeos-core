@@ -25,7 +25,6 @@ type Habit struct {
 	// logs stay.
 	Active    bool      `json:"active"`
 	Source    Source    `json:"source"`
-	SourceRef *int64    `json:"source_ref,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -78,14 +77,10 @@ func (s *Service) AddHabit(ctx context.Context, p AddHabitParams) (Habit, error)
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
-	if err := p.checkSourceRef(ctx, q); err != nil {
-		return Habit{}, err
-	}
 
 	stored, err := q.InsertHabit(ctx, store.InsertHabitParams{
-		Name:      name,
-		Source:    string(p.Source),
-		SourceRef: p.SourceRef,
+		Name:   name,
+		Source: string(p.Source),
 	})
 	if habitNameTaken(err) {
 		return Habit{}, invalid("name", habitNameTakenMessage)
@@ -109,7 +104,6 @@ func habitFromRow(row store.Habit) Habit {
 		Name:      row.Name,
 		Active:    row.Active,
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

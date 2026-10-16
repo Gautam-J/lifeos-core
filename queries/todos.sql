@@ -1,6 +1,6 @@
 -- name: InsertTodo :one
-INSERT INTO todos (title, due_on, project, source, source_ref)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO todos (title, due_on, project, source)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetTodo :one

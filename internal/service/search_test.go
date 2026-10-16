@@ -202,4 +202,3 @@ func TestSearchShowsAFileByItsName(t *testing.T) {
 		t.Errorf("summary = %q", hits[0].Summary)
 	}
 }
-

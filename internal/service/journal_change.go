@@ -55,7 +55,7 @@ func (s *Service) UpdateJournalEntry(ctx context.Context, id int64, p UpdateJour
 	next := AddJournalEntryParams{
 		Body:       old.Body,
 		EntryDate:  old.EntryDate,
-		Provenance: Provenance{Source: old.Source, SourceRef: old.SourceRef},
+		Provenance: Provenance{Source: old.Source},
 	}
 	if p.Body != nil {
 		next.Body = *p.Body

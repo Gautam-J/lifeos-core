@@ -102,42 +102,6 @@ func TestPurgeRemovesATextSourceFromTheTableAndFromTheEvents(t *testing.T) {
 	}
 }
 
-func TestPurgeRefusesASourceThatARecordNames(t *testing.T) {
-	s, pool := newTestService(t)
-	ctx := context.Background()
-	source := captureText(t, s, "Renew the policy before March.")
-	todo, err := s.AddTodo(ctx, AddTodoParams{Title: "Renew the policy", Provenance: Provenance{Source: SourceAgent, SourceRef: &source.ID}})
-	if err != nil {
-		t.Fatalf("AddTodo: %v", err)
-	}
-	deleteByHand(t, s, "source", source.ID)
-
-	err = s.Purge(ctx, "source", source.ID)
-
-	var invalid *ValidationError
-	if !errors.As(err, &invalid) || invalid.Field != "id" {
-		t.Fatalf("error = %v, want a ValidationError for id", err)
-	}
-	if !strings.Contains(invalid.Message, "todos") {
-		t.Errorf("the message %q does not name the table todos", invalid.Message)
-	}
-	if n := countRows(t, pool, "sources"); n != 1 {
-		t.Errorf("sources has %d rows, want 1: a refused purge removes nothing", n)
-	}
-	if events := allEvents(t, pool); events[0].New["content"] != "Renew the policy before March." {
-		t.Errorf("a refused purge emptied the create event: %v", events[0].New)
-	}
-
-	// After the record is gone, the source can go.
-	deleteByHand(t, s, "todo", todo.ID)
-	if err := s.Purge(ctx, "todo", todo.ID); err != nil {
-		t.Fatalf("Purge the todo: %v", err)
-	}
-	if err := s.Purge(ctx, "source", source.ID); err != nil {
-		t.Errorf("Purge the source after the todo: %v", err)
-	}
-}
-
 func TestPurgeOfASourceWhoseFileIsGoneAlreadyRemovesTheRow(t *testing.T) {
 	s, pool := newFileService(t)
 	source := captureUpload(t, s, "policy.pdf")

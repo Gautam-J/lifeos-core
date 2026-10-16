@@ -59,9 +59,9 @@ func TestUpdateChangesTheNamedFields(t *testing.T) {
 	}
 
 	got, err := s.Update(ctx, "item", added.ID, UpdateParams{
-		Fields:   map[string]any{"title": "Dune 2", "attrs": map[string]any{"year": 2024}},
-		Clear:    []string{"rating"},
-		Actor:    SourceAgent,
+		Fields: map[string]any{"title": "Dune 2", "attrs": map[string]any{"year": 2024}},
+		Clear:  []string{"rating"},
+		Actor:  SourceAgent,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)

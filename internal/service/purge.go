@@ -22,9 +22,8 @@ import (
 // earlier events of the record and appends a purge event that has no
 // value. The events stay, so the log shows that the record was there.
 //
-// A source that a record names in its source_ref cannot go: Purge returns
-// a ValidationError that names the table of that record. The file of a
-// file source leaves the file store, unless a different source uses it.
+// The file of a file source leaves the file store, unless a different
+// source uses it.
 func (s *Service) Purge(ctx context.Context, recordType string, id int64) error {
 	if err := checkRecordType(recordType); err != nil {
 		return err
@@ -45,7 +44,7 @@ func (s *Service) Purge(ctx context.Context, recordType string, id int64) error 
 	// to the row.
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-		return invalid("id", "a record in "+pgErr.TableName+" names this source in its source_ref: delete that record forever first")
+		return invalid("id", "another record names this record: delete that record forever first")
 	}
 	if err != nil {
 		return fmt.Errorf("purge from %s: %w", table, err)

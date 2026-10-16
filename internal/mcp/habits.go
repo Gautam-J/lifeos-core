@@ -9,9 +9,8 @@ import (
 )
 
 type logHabitInput struct {
-	Habit     string `json:"habit" jsonschema:"The name of one of the user's habits, such as gym. If no habit has this name, the error lists the habits: ask the user which one they mean."`
-	LoggedOn  string `json:"logged_on,omitempty" jsonschema:"The day that the user did the habit, as YYYY-MM-DD in India Standard Time. Leave it out for today."`
-	SourceRef *int64 `json:"source_ref,omitempty" jsonschema:"The ID of the source that this log comes from, when you took the log from a capture"`
+	Habit    string `json:"habit" jsonschema:"The name of one of the user's habits, such as gym. If no habit has this name, the error lists the habits: ask the user which one they mean."`
+	LoggedOn string `json:"logged_on,omitempty" jsonschema:"The day that the user did the habit, as YYYY-MM-DD in India Standard Time. Leave it out for today."`
 }
 
 func registerHabits(server *sdk.Server, svc *service.Service) {
@@ -22,7 +21,7 @@ func registerHabits(server *sdk.Server, svc *service.Service) {
 		log, err := svc.LogHabit(ctx, service.LogHabitParams{
 			Habit:      in.Habit,
 			LoggedOn:   in.LoggedOn,
-			Provenance: service.Provenance{Source: service.SourceAgent, SourceRef: in.SourceRef},
+			Provenance: service.Provenance{Source: service.SourceAgent},
 		})
 		if err != nil {
 			return nil, service.HabitLog{}, toToolError(err)

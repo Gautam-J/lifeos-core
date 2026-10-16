@@ -43,7 +43,6 @@ type Capture struct {
 	// ProcessedAt is nil until the inbox job reads the capture.
 	ProcessedAt *time.Time `json:"processed_at,omitempty"`
 	Source      Source     `json:"source"`
-	SourceRef   *int64     `json:"source_ref,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -222,7 +221,6 @@ func captureFromRow(row store.Source) Capture {
 		MediaType: text(row.MediaType),
 		SHA256:    row.Sha256,
 		Source:    Source(row.Source),
-		SourceRef: row.SourceRef,
 		CreatedAt: row.CreatedAt.UTC(),
 		UpdatedAt: row.UpdatedAt.UTC(),
 	}

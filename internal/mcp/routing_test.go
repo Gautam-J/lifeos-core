@@ -120,3 +120,27 @@ func TestNoToolTakesDictated(t *testing.T) {
 		t.Error("the instructions name dictated")
 	}
 }
+
+// #39: no record comes from a capture, so no tool takes source_ref, and
+// the next step of capture does not ask for records.
+func TestNoToolTakesSourceRef(t *testing.T) {
+	session, _ := connect(t)
+
+	list, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range list.Tools {
+		schema, _ := json.Marshal(tool.InputSchema)
+		if strings.Contains(string(schema), "source_ref") || strings.Contains(tool.Description, "source_ref") {
+			t.Errorf("%s names source_ref", tool.Name)
+		}
+	}
+	if strings.Contains(session.InitializeResult().Instructions, "source_ref") {
+		t.Error("the instructions name source_ref")
+	}
+	captured := structured(t, call(t, session, "capture", map[string]any{"text": "A note to keep."}))
+	if next, _ := captured["next"].(string); strings.Contains(next, "source_ref") || strings.Contains(next, "record") {
+		t.Errorf("the next step of capture asks for records: %s", next)
+	}
+}
