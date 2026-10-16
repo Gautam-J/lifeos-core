@@ -149,6 +149,10 @@ func TestOverviewShowsTheActivityOfTheTwoDays(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE events SET occurred_at = $1 WHERE record_type = 'todos'", ist(10, 0, 0)); err != nil {
 		t.Fatal(err)
 	}
+	// The project of the todo is new: its create event is out of the span.
+	if _, err := pool.Exec(ctx, "UPDATE events SET occurred_at = $1 WHERE record_type = 'entities'", ist(9, 23, 59)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := pool.Exec(ctx, `INSERT INTO events (occurred_at, action, record_type, source, new_value)
 		VALUES ($1, 'append', 'wiki', 'agent', '{"path": "projects/lifeos.md", "hash": "abc"}')`, ist(11, 1, 0)); err != nil {
 		t.Fatal(err)

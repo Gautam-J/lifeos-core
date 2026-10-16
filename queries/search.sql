@@ -17,10 +17,11 @@ ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg(max_rows);
 
 -- name: SearchTodos :many
-SELECT * FROM todos
-WHERE deleted_at IS NULL
-  AND (title || ' ' || coalesce(project, '')) ILIKE ALL (sqlc.arg(patterns)::text[])
-ORDER BY created_at DESC, id DESC
+SELECT todos.* FROM todos
+LEFT JOIN entities project ON project.id = todos.project_id
+WHERE todos.deleted_at IS NULL
+  AND (todos.title || ' ' || coalesce(project.name, '')) ILIKE ALL (sqlc.arg(patterns)::text[])
+ORDER BY todos.created_at DESC, todos.id DESC
 LIMIT sqlc.arg(max_rows);
 
 -- name: SearchSources :many

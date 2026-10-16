@@ -181,8 +181,8 @@ func TestPatchTodoRejectsBadRequests(t *testing.T) {
 	if got["status"] != "open" || got["title"] != "Buy a Cloudflare domain" || got["due_on"] != "2026-10-20" {
 		t.Errorf("a refused PATCH changed the todo: %s", raw)
 	}
-	if n := countEvents(t, pool); n != 1 {
-		t.Errorf("events = %d after refused requests, want 1 (the create)", n)
+	if n := countEvents(t, pool); n != 2 {
+		t.Errorf("events = %d after refused requests, want 2 (the project and the todo)", n)
 	}
 }
 
@@ -206,8 +206,8 @@ func TestDeleteTodo(t *testing.T) {
 			t.Errorf("DELETE %s: status = %d, want 404\n%s", target, status, raw)
 		}
 	}
-	if n := countEvents(t, pool); n != 2 {
-		t.Errorf("events = %d, want 2 (create, one delete)", n)
+	if n := countEvents(t, pool); n != 3 {
+		t.Errorf("events = %d, want 3 (the project, the todo, one delete)", n)
 	}
 }
 

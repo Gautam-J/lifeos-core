@@ -89,9 +89,8 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	if err != nil {
 		return Overview{}, fmt.Errorf("overview: next todos: %w", err)
 	}
-	view.Next = make([]Todo, 0, len(next))
-	for _, row := range next {
-		view.Next = append(view.Next, todoFromRow(row))
+	if view.Next, err = todosFromStore(ctx, q, next); err != nil {
+		return Overview{}, fmt.Errorf("overview: next todos: %w", err)
 	}
 
 	entries, err := q.ListJournalEntriesSince(ctx, store.ListJournalEntriesSinceParams{Day: yesterday, MaxRows: defaultListLimit})

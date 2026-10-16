@@ -125,8 +125,8 @@ func TestMarkTodoDone(t *testing.T) {
 
 	// A second click, for example from a page that was open in two tabs.
 	postForm(h, path, nil)
-	if n := countEvents(t, pool); n != 2 {
-		t.Errorf("events = %d, want 2 (create, one update)", n)
+	if n := countEvents(t, pool); n != 3 {
+		t.Errorf("events = %d, want 3 (the project, the todo, one update)", n)
 	}
 	gone := postForm(h, "/admin/todos/9999/done", nil)
 	if gone.Code != http.StatusOK || !strings.Contains(gone.Body.String(), "Todo 9999 is not in the list") {
@@ -230,8 +230,8 @@ func TestSaveTodoWithNoChangeWritesNoEvent(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303\n%s", rec.Code, rec.Body)
 	}
-	if n := countEvents(t, pool); n != 1 {
-		t.Errorf("events = %d, want 1 (the create)", n)
+	if n := countEvents(t, pool); n != 2 {
+		t.Errorf("events = %d, want 2 (the project and the todo)", n)
 	}
 }
 
@@ -258,8 +258,8 @@ func TestDeleteTodoRemovesTheTodoFromTheList(t *testing.T) {
 	if again.Code != http.StatusOK || !strings.Contains(again.Body.String(), fmt.Sprintf("Todo %d is not in the list", gone.ID)) {
 		t.Errorf("second delete: status = %d, want 200 with a message\n%s", again.Code, again.Body)
 	}
-	if n := countEvents(t, pool); n != 3 {
-		t.Errorf("events = %d, want 3 (two creates, one delete)", n)
+	if n := countEvents(t, pool); n != 4 {
+		t.Errorf("events = %d, want 4 (the project, two todos, one delete)", n)
 	}
 }
 

@@ -117,10 +117,14 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 		return Todo{}, err
 	}
 
+	project, err := projectOf(ctx, q, v.project, p.Source)
+	if err != nil {
+		return Todo{}, err
+	}
 	stored, err := q.InsertTodo(ctx, store.InsertTodoParams{
 		Title:      v.title,
 		DueOn:      v.dueOn,
-		Project:    v.project,
+		ProjectID:  project.id,
 		Source:     string(p.Source),
 		JournalRef: journalRefParam(p.JournalRef),
 	})
@@ -128,6 +132,7 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 		return Todo{}, fmt.Errorf("add todo: %w", err)
 	}
 	todo := todoFromRow(stored)
+	todo.Project = project.name
 	if err := recordEvent(ctx, q, "create", "todos", todo.ID, p.Source, nil, todo); err != nil {
 		return Todo{}, fmt.Errorf("add todo: %w", err)
 	}
@@ -137,6 +142,8 @@ func (s *Service) AddTodo(ctx context.Context, p AddTodoParams) (Todo, error) {
 	return todo, nil
 }
 
+// todoFromRow does not know the name of the project: the caller sets
+// Project, or uses todoFromStore.
 func todoFromRow(row store.Todo) Todo {
 	todo := Todo{
 		ID:         row.ID,
@@ -150,14 +157,62 @@ func todoFromRow(row store.Todo) Todo {
 	if row.DueOn != nil {
 		todo.DueOn = row.DueOn.Format(time.DateOnly)
 	}
-	if row.Project != nil {
-		todo.Project = *row.Project
-	}
 	if row.DoneAt != nil {
 		doneAt := row.DoneAt.UTC()
 		todo.DoneAt = &doneAt
 	}
 	return todo
+}
+
+// todoFromStore converts a row and looks up the name of its project.
+func todoFromStore(ctx context.Context, q *store.Queries, row store.Todo) (Todo, error) {
+	todos, err := todosFromStore(ctx, q, []store.Todo{row})
+	if err != nil {
+		return Todo{}, err
+	}
+	return todos[0], nil
+}
+
+// todosFromStore converts rows and looks up the names of their projects
+// with one query.
+func todosFromStore(ctx context.Context, q *store.Queries, rows []store.Todo) ([]Todo, error) {
+	var ids []int64
+	for _, row := range rows {
+		if row.ProjectID != nil {
+			ids = append(ids, *row.ProjectID)
+		}
+	}
+	names, err := entityNames(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	todos := make([]Todo, len(rows))
+	for i, row := range rows {
+		todos[i] = todoFromRow(row)
+		if row.ProjectID != nil {
+			todos[i].Project = names[*row.ProjectID]
+		}
+	}
+	return todos, nil
+}
+
+// project is the project of a todo after the checks: its ID and its name.
+type project struct {
+	id   *int64
+	name string
+}
+
+// projectOf returns the project entity that has this name or alias, and
+// makes it when there is none. nil means that the todo has no project.
+func projectOf(ctx context.Context, q *store.Queries, name *string, actor Source) (project, error) {
+	if name == nil {
+		return project{}, nil
+	}
+	e, _, err := ensureEntity(ctx, q, "project", *name, actor)
+	if err != nil {
+		return project{}, err
+	}
+	return project{id: &e.ID, name: e.Name}, nil
 }
 
 // GetTodo returns the todo with this ID. It returns ErrNotFound when there
@@ -170,7 +225,7 @@ func (s *Service) GetTodo(ctx context.Context, id int64) (Todo, error) {
 	if err != nil {
 		return Todo{}, fmt.Errorf("get todo: %w", err)
 	}
-	return todoFromRow(row), nil
+	return todoFromStore(ctx, store.New(s.pool), row)
 }
 
 // ListTodosParams is the input of ListTodos.
@@ -196,13 +251,10 @@ func (s *Service) ListTodos(ctx context.Context, p ListTodosParams) ([]Todo, err
 		arg.Status = &p.Status
 	}
 
-	rows, err := store.New(s.pool).ListTodos(ctx, arg)
+	q := store.New(s.pool)
+	rows, err := q.ListTodos(ctx, arg)
 	if err != nil {
 		return nil, fmt.Errorf("list todos: %w", err)
 	}
-	todos := make([]Todo, 0, len(rows))
-	for _, row := range rows {
-		todos = append(todos, todoFromRow(row))
-	}
-	return todos, nil
+	return todosFromStore(ctx, q, rows)
 }

@@ -111,6 +111,7 @@ func TestServeTakesADayOfRecordsThroughEveryAdapter(t *testing.T) {
 	}
 	want := []string{
 		"create journal_entries by agent",
+		"create entities by agent",
 		"create todos by agent",
 		"update todos by manual",
 		"create todos by manual",

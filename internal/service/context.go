@@ -133,7 +133,15 @@ func (s *Service) loadContext(ctx context.Context, day time.Time) (contextData, 
 	if err != nil {
 		return data, fmt.Errorf("context: done todos: %w", err)
 	}
-	data.due, data.morrow, data.done = contextTodos(due), contextTodos(next), contextTodos(done)
+	if data.due, err = contextTodos(ctx, q, due); err != nil {
+		return data, fmt.Errorf("context: due todos: %w", err)
+	}
+	if data.morrow, err = contextTodos(ctx, q, next); err != nil {
+		return data, fmt.Errorf("context: todos of tomorrow: %w", err)
+	}
+	if data.done, err = contextTodos(ctx, q, done); err != nil {
+		return data, fmt.Errorf("context: done todos: %w", err)
+	}
 
 	habits, err := q.ListHabitsOnDay(ctx, day)
 	if err != nil {
@@ -147,17 +155,20 @@ func (s *Service) loadContext(ctx context.Context, day time.Time) (contextData, 
 	return data, nil
 }
 
-func contextTodos(rows []store.Todo) []ContextTodo {
+func contextTodos(ctx context.Context, q *store.Queries, rows []store.Todo) ([]ContextTodo, error) {
 	var todos []ContextTodo
-	for _, row := range rows {
-		todo := todoFromRow(row)
+	stored, err := todosFromStore(ctx, q, rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, todo := range stored {
 		item := ContextTodo{Ref: fmt.Sprintf("todo:%d", todo.ID), ID: todo.ID, Title: todo.Title, DueOn: todo.DueOn, Project: todo.Project}
 		if todo.DoneAt != nil {
 			item.DoneOn = todo.DoneAt.In(IST).Format(time.DateOnly)
 		}
 		todos = append(todos, item)
 	}
-	return todos
+	return todos, nil
 }
 
 // contextCounts is the line of counts, or "" when it has nothing to say.

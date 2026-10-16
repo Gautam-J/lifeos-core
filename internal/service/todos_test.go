@@ -48,11 +48,15 @@ func TestAddTodoStoresAnOpenTodo(t *testing.T) {
 	if got.Source != SourceAgent {
 		t.Errorf("source = %q", got.Source)
 	}
+	// The project lifeos is new: its create event comes first.
 	events := allEvents(t, pool)
-	if len(events) != 1 {
-		t.Fatalf("events = %d, want 1", len(events))
+	if len(events) != 2 {
+		t.Fatalf("events = %d, want 2 (the project, the todo)", len(events))
 	}
-	e := events[0]
+	if p := events[0]; p.Action != "create" || p.RecordType != "entities" || p.Source != "agent" || p.New["kind"] != "project" || p.New["name"] != "lifeos" {
+		t.Errorf("first event = %+v, want a create of the project lifeos by agent", p)
+	}
+	e := events[1]
 	if e.Action != "create" || e.RecordType != "todos" || e.RecordID != got.ID || e.Source != "agent" || e.Old != nil {
 		t.Errorf("event = %+v, want a create of the todo by agent", e)
 	}

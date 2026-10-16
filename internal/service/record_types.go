@@ -55,7 +55,7 @@ var recordTypes = []recordType{
 			_, err := q.PurgeCatalogItem(ctx, id)
 			return nil, err
 		},
-		listDeleted: deletedList("item", (*store.Queries).ListDeletedCatalogItems, func(row store.CatalogItem) (int64, string, *time.Time, error) {
+		listDeleted: deletedList("item", (*store.Queries).ListDeletedCatalogItems, func(_ context.Context, _ *store.Queries, row store.CatalogItem) (int64, string, *time.Time, error) {
 			item, err := itemFromRow(row)
 			return row.ID, item.summary(), row.DeletedAt, err
 		}),
@@ -99,7 +99,7 @@ var recordTypes = []recordType{
 			_, err := q.PurgeJournalEntry(ctx, id)
 			return nil, err
 		},
-		listDeleted: deletedList("journal", (*store.Queries).ListDeletedJournalEntries, func(row store.JournalEntry) (int64, string, *time.Time, error) {
+		listDeleted: deletedList("journal", (*store.Queries).ListDeletedJournalEntries, func(_ context.Context, _ *store.Queries, row store.JournalEntry) (int64, string, *time.Time, error) {
 			return row.ID, journalEntryFromRow(row).summary(), row.DeletedAt, nil
 		}),
 		live: func(ctx context.Context, q *store.Queries, _ string, id int64) (bool, error) {
@@ -134,8 +134,9 @@ var recordTypes = []recordType{
 			_, err := q.PurgeTodo(ctx, id)
 			return nil, err
 		},
-		listDeleted: deletedList("todo", (*store.Queries).ListDeletedTodos, func(row store.Todo) (int64, string, *time.Time, error) {
-			return row.ID, todoFromRow(row).summary(), row.DeletedAt, nil
+		listDeleted: deletedList("todo", (*store.Queries).ListDeletedTodos, func(ctx context.Context, q *store.Queries, row store.Todo) (int64, string, *time.Time, error) {
+			todo, err := todoFromStore(ctx, q, row)
+			return row.ID, todo.summary(), row.DeletedAt, err
 		}),
 		live: func(ctx context.Context, q *store.Queries, _ string, id int64) (bool, error) {
 			return q.LiveTodoExists(ctx, id)
@@ -145,9 +146,12 @@ var recordTypes = []recordType{
 			if err != nil {
 				return nil, err
 			}
+			todos, err := todosFromStore(ctx, q, rows)
+			if err != nil {
+				return nil, err
+			}
 			var hits []SearchHit
-			for _, row := range rows {
-				todo := todoFromRow(row)
+			for _, todo := range todos {
 				hits = append(hits, SearchHit{"todo", todo.ID, todo.summary(), todo.CreatedAt})
 			}
 			return hits, nil
@@ -165,7 +169,7 @@ var recordTypes = []recordType{
 			_, err := q.PurgeHabitLog(ctx, id)
 			return nil, err
 		},
-		listDeleted: deletedList("habit_log", (*store.Queries).ListDeletedHabitLogs, func(row store.ListDeletedHabitLogsRow) (int64, string, *time.Time, error) {
+		listDeleted: deletedList("habit_log", (*store.Queries).ListDeletedHabitLogs, func(_ context.Context, _ *store.Queries, row store.ListDeletedHabitLogsRow) (int64, string, *time.Time, error) {
 			log := habitLogFromRow(row.HabitLog, row.Habit)
 			return log.ID, log.summary(), row.HabitLog.DeletedAt, nil
 		}),
@@ -185,7 +189,7 @@ var recordTypes = []recordType{
 			row, err := q.PurgeSource(ctx, id)
 			return row.FilePath, err
 		},
-		listDeleted: deletedList("source", (*store.Queries).ListDeletedSources, func(row store.Source) (int64, string, *time.Time, error) {
+		listDeleted: deletedList("source", (*store.Queries).ListDeletedSources, func(_ context.Context, _ *store.Queries, row store.Source) (int64, string, *time.Time, error) {
 			return row.ID, captureFromRow(row).summary(), row.DeletedAt, nil
 		}),
 		live: func(ctx context.Context, q *store.Queries, _ string, id int64) (bool, error) {
@@ -284,7 +288,7 @@ func recordTypeOfPrefix(prefix string) (*recordType, bool) {
 func deletedList[R any](
 	name string,
 	list func(*store.Queries, context.Context, int32) ([]R, error),
-	describe func(R) (id int64, summary string, deletedAt *time.Time, err error),
+	describe func(context.Context, *store.Queries, R) (id int64, summary string, deletedAt *time.Time, err error),
 ) func(context.Context, *store.Queries, int32) ([]DeletedRecord, error) {
 	return func(ctx context.Context, q *store.Queries, limit int32) ([]DeletedRecord, error) {
 		rows, err := list(q, ctx, limit)
@@ -293,7 +297,7 @@ func deletedList[R any](
 		}
 		records := make([]DeletedRecord, 0, len(rows))
 		for _, row := range rows {
-			id, summary, deletedAt, err := describe(row)
+			id, summary, deletedAt, err := describe(ctx, q, row)
 			if err != nil {
 				return nil, err
 			}

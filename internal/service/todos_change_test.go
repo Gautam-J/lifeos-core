@@ -93,10 +93,10 @@ func TestUpdateTodoAppendsAnUpdateEventWithTheOldValue(t *testing.T) {
 	}
 
 	events := allEvents(t, pool)
-	if len(events) != 2 {
-		t.Fatalf("events = %d, want 2 (create, update)", len(events))
+	if len(events) != 3 {
+		t.Fatalf("events = %d, want 3 (the project, the todo, update)", len(events))
 	}
-	e := events[1]
+	e := events[2]
 	if e.Action != "update" || e.RecordType != "todos" || e.RecordID != added.ID || e.Source != "manual" {
 		t.Errorf("event = %s %s %d by %s", e.Action, e.RecordType, e.RecordID, e.Source)
 	}
@@ -139,8 +139,8 @@ func TestUpdateTodoRejectsBadInput(t *testing.T) {
 	if !errors.As(err, &invalid) || invalid.Field != "source" {
 		t.Errorf("unknown actor: error = %v, want a ValidationError on source", err)
 	}
-	if n := countRows(t, pool, "events"); n != 1 {
-		t.Errorf("events = %d, want 1 (the create): refused input appended an event", n)
+	if n := countRows(t, pool, "events"); n != 2 {
+		t.Errorf("events = %d, want 2 (the project and the todo): refused input appended an event", n)
 	}
 }
 
@@ -172,8 +172,8 @@ func TestUpdateTodoWritesNothingWhenNoValueChanges(t *testing.T) {
 	if err != nil || got != added {
 		t.Errorf("UpdateTodo = %+v, %v, want the stored todo and no error", got, err)
 	}
-	if n := countRows(t, pool, "events"); n != 1 {
-		t.Errorf("events = %d, want 1 (the create)", n)
+	if n := countRows(t, pool, "events"); n != 2 {
+		t.Errorf("events = %d, want 2 (the project and the todo)", n)
 	}
 }
 
@@ -201,10 +201,10 @@ func TestDeleteTodo(t *testing.T) {
 		t.Errorf("todos has %d rows, want 1: a delete keeps the row", n)
 	}
 	events := allEvents(t, pool)
-	if len(events) != 2 {
-		t.Fatalf("events = %d, want 2 (create, delete)", len(events))
+	if len(events) != 3 {
+		t.Fatalf("events = %d, want 3 (the project, the todo, delete)", len(events))
 	}
-	if e := events[1]; e.Action != "delete" || e.RecordType != "todos" || e.RecordID != added.ID || e.Old["title"] != "Buy a domain" || e.New != nil {
+	if e := events[2]; e.Action != "delete" || e.RecordType != "todos" || e.RecordID != added.ID || e.Old["title"] != "Buy a domain" || e.New != nil {
 		t.Errorf("event = %+v, want a delete with the old todo", e)
 	}
 

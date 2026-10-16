@@ -57,7 +57,10 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 	if err != nil {
 		return Todo{}, fmt.Errorf("update todo: %w", err)
 	}
-	old := todoFromRow(current)
+	old, err := todoFromStore(ctx, q, current)
+	if err != nil {
+		return Todo{}, err
+	}
 	if p.JournalRef != nil {
 		if _, err := checkJournalRef(ctx, q, *p.JournalRef); err != nil {
 			return Todo{}, err
@@ -71,6 +74,15 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 		return Todo{}, err
 	}
 	next.Title = v.title
+	// A name that differs only in case from the project that is stored
+	// is the same project: it is no change.
+	if v.project != nil {
+		if e, found, err := findEntity(ctx, q, "project", *v.project); err != nil {
+			return Todo{}, err
+		} else if found {
+			next.Project = e.Name
+		}
+	}
 	if next == old {
 		return old, nil
 	}
@@ -84,12 +96,16 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 		now := s.now().UTC()
 		doneAt = &now
 	}
+	project, err := projectOf(ctx, q, v.project, p.Actor)
+	if err != nil {
+		return Todo{}, err
+	}
 	stored, err := q.UpdateTodo(ctx, store.UpdateTodoParams{
 		ID:         id,
 		Title:      v.title,
 		Status:     v.status,
 		DueOn:      v.dueOn,
-		Project:    v.project,
+		ProjectID:  project.id,
 		DoneAt:     doneAt,
 		JournalRef: journalRefParam(next.JournalRef),
 	})
@@ -97,6 +113,7 @@ func (s *Service) UpdateTodo(ctx context.Context, id int64, p UpdateTodoParams) 
 		return Todo{}, fmt.Errorf("update todo: %w", err)
 	}
 	todo := todoFromRow(stored)
+	todo.Project = project.name
 	if err := recordEvent(ctx, q, "update", "todos", id, p.Actor, old, todo); err != nil {
 		return Todo{}, fmt.Errorf("update todo: %w", err)
 	}
@@ -177,7 +194,7 @@ func (s *Service) DeleteTodo(ctx context.Context, id int64, p DeleteParams) erro
 		if err != nil {
 			return nil, err
 		}
-		return todoFromRow(row), nil
+		return todoFromStore(ctx, q, row)
 	})
 }
 
