@@ -1,3 +1,9 @@
+## v0.6.1 (2026-10-16)
+
+### Refactor
+
+- **service**: one registry for the record types
+
 ## v0.6.0 (2026-10-16)
 
 ### Feat
