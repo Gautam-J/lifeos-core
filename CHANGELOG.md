@@ -1,3 +1,10 @@
+## v0.4.0 (2026-10-16)
+
+### Feat
+
+- **mcp**: the context tool, and me.md in the instructions of a session
+- **wiki**: me.md, a short page about the user with a cap of 2000 characters
+
 ## v0.3.1 (2026-10-16)
 
 ### Fix
