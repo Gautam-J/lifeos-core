@@ -9,19 +9,19 @@ import (
 )
 
 type getInput struct {
-	Type string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
+	Type string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source, entity"`
 	ID   int64  `json:"id" jsonschema:"Record ID"`
 }
 
 type updateInput struct {
-	Type   string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
+	Type   string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source, entity"`
 	ID     int64          `json:"id" jsonschema:"Record ID"`
-	Fields map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: entry_date only. For a todo: title, status (open, done or dropped), due_on, project, journal_ref (the ID of the journal entry that reports the change, such as the entry that says that the todo is done). A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. Leave out a field to keep its value. attrs replaces every attr."`
-	Clear  []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. A journal has none."`
+	Fields map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: entry_date only. For a todo: title, status (open, done or dropped), due_on, project, journal_ref (the ID of the journal entry that reports the change, such as the entry that says that the todo is done). A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. For an entity: name, aliases (replaces the list), add_aliases (adds to the list), wiki_path, archived (true or false); the kind never changes. Leave out a field to keep its value. attrs replaces every attr."`
+	Clear  []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. For an entity: wiki_path. A journal has none."`
 }
 
 type deleteInput struct {
-	Type      string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
+	Type      string `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source, entity"`
 	ID        int64  `json:"id" jsonschema:"Record ID"`
 	Confirmed bool   `json:"confirmed,omitempty" jsonschema:"true only after you showed the record to the user and the user said yes to the delete"`
 }

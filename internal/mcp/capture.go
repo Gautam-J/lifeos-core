@@ -13,11 +13,13 @@ type captureInput struct {
 	URL   string `json:"url,omitempty" jsonschema:"A link that starts with http:// or https://. LifeOS stores the link; it does not get the page."`
 	Path  string `json:"path,omitempty" jsonschema:"The path of a file in the inbox folder on the Pi. LifeOS moves the file into its file store."`
 	Title string `json:"title,omitempty" jsonschema:"A short label for the capture. A file with no title gets its file name."`
+	entitiesInput
 }
 
 // captureOutput is the stored source and the next step of the agent.
 type captureOutput struct {
 	service.Capture
+	entitiesOutput
 	Next string `json:"next" jsonschema:"What you do after this call."`
 }
 
@@ -28,7 +30,7 @@ type markProcessedInput struct {
 func registerCapture(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "capture",
-		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. Returns the stored source with its ID, and the next step: how to work the source into the wiki.",
+		Description: "Keep a text, a link or a file exactly as it is, as a source. Give one of text, url and path. Use it for material that the user wants to keep, such as an article, a note or a document. Do not use it for a journal entry (use journal) or for one fact (use add_item, todo or log_habit). Never send a password, a card number or an ID number: LifeOS refuses them. The same content a second time returns the source that exists. Returns the stored source with its ID, and the next step: how to work the source into the wiki." + entitiesHelp,
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in captureInput) (*sdk.CallToolResult, captureOutput, error) {
 		capture, err := svc.Capture(ctx, service.CaptureParams{
 			Text:      in.Text,
@@ -40,7 +42,7 @@ func registerCapture(server *sdk.Server, svc *service.Service) {
 		if err != nil {
 			return nil, captureOutput{}, toToolError(err)
 		}
-		return nil, captureOutput{Capture: capture, Next: captureNext(capture.ID, capture.ProcessedAt != nil)}, nil
+		return nil, captureOutput{Capture: capture, entitiesOutput: linkEntities(ctx, svc, "source", capture.ID, in.Entities), Next: captureNext(capture.ID, capture.ProcessedAt != nil)}, nil
 	})
 
 	sdk.AddTool(server, &sdk.Tool{

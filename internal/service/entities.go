@@ -224,7 +224,7 @@ func checkNamesFree(ctx context.Context, q *store.Queries, kind string, selfID i
 		}
 		for _, row := range rows {
 			if row.ID != selfID {
-				return invalid(field, fmt.Sprintf("%q is the name or an alias of the %s %q (entity:%d) already; use that entity", value, kind, row.Name, row.ID))
+				return invalid(field, fmt.Sprintf("%q is the name or an alias of the %s %q (entity:%d) already; use that entity, and to add an alias to it, update it with add_aliases", value, kind, row.Name, row.ID))
 			}
 		}
 		return nil

@@ -15,13 +15,20 @@ type addItemInput struct {
 	OccurredOn string         `json:"occurred_on,omitempty" jsonschema:"Day watched, read, visited or played, as YYYY-MM-DD in India Standard Time"`
 	Attrs      map[string]any `json:"attrs,omitempty" jsonschema:"More fields for this kind, such as author, director or year"`
 	JournalRef int64          `json:"journal_ref,omitempty" jsonschema:"The ID of the journal entry that reports this, when you take it from an entry"`
+	entitiesInput
+}
+
+// itemOutput is the stored item and the links that the call made.
+type itemOutput struct {
+	service.Item
+	entitiesOutput
 }
 
 func registerItems(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "add_item",
-		Description: "Add a movie, book, place or game to the user's lists. Use it when the user watched, read, visited or played something in their own life, or wants to, also when the message has no keyword. When a journal entry names it, give the ID of the entry as journal_ref. First use search with the title, so that the same item is not added two times. Send a rating only when the user states it, or says yes to a rating that you propose. Returns the stored item with its ID.",
-	}, func(ctx context.Context, _ *sdk.CallToolRequest, in addItemInput) (*sdk.CallToolResult, service.Item, error) {
+		Description: "Add a movie, book, place or game to the user's lists. Use it when the user watched, read, visited or played something in their own life, or wants to, also when the message has no keyword. When a journal entry names it, give the ID of the entry as journal_ref. First use search with the title, so that the same item is not added two times. Send a rating only when the user states it, or says yes to a rating that you propose. Returns the stored item with its ID." + entitiesHelp,
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, in addItemInput) (*sdk.CallToolResult, itemOutput, error) {
 		item, err := svc.AddItem(ctx, service.AddItemParams{
 			Kind:       in.Kind,
 			Title:      in.Title,
@@ -32,8 +39,8 @@ func registerItems(server *sdk.Server, svc *service.Service) {
 			Provenance: service.Provenance{Source: service.SourceAgent},
 		})
 		if err != nil {
-			return nil, service.Item{}, toToolError(err)
+			return nil, itemOutput{}, toToolError(err)
 		}
-		return nil, item, nil
+		return nil, itemOutput{Item: item, entitiesOutput: linkEntities(ctx, svc, "item", item.ID, in.Entities)}, nil
 	})
 }

@@ -30,6 +30,7 @@ func NewServer(svc *service.Service) *sdk.Server {
 	registerQuery(server, svc)
 	registerWiki(server, svc)
 	registerContext(server, svc)
+	registerEntities(server, svc)
 	return server
 }
 
