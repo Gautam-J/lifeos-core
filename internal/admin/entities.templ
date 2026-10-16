@@ -1,0 +1,235 @@
+package admin
+
+import "strconv"
+
+// kindNames are the plural words of the kinds, for the filter.
+var kindNames = []struct{ Kind, Name string }{
+	{"person", "People"},
+	{"place", "Places"},
+	{"project", "Projects"},
+	{"topic", "Topics"},
+}
+
+templ entitiesPage(view entitiesView) {
+	@page("Entities", "Entities") {
+		<header class="page-head">
+			<h1>Entities</h1>
+			<p>The people, places, projects and topics that your records are about. The agent links each record to them.</p>
+		</header>
+		<section class="panel" aria-label="Add an entity">
+			<form class="form" hx-post="/admin/entities" hx-target="#list" hx-swap="outerHTML" hx-on:entity-added="this.reset()">
+				<label class="field">
+					Kind
+					<select name="kind" required>
+						for _, k := range kindNames {
+							<option value={ k.Kind }>{ k.Kind }</option>
+						}
+					</select>
+				</label>
+				<label class="field field-wide">
+					Name
+					<input type="text" name="name" required maxlength="100"/>
+				</label>
+				<label class="field">
+					Other names
+					<input type="text" name="aliases" placeholder="separated by commas"/>
+				</label>
+				<label class="field">
+					Wiki page
+					<input type="text" name="wiki_path" placeholder="people/ravi-kumar.md"/>
+				</label>
+				<button class="btn btn-primary" type="submit">Add entity</button>
+			</form>
+		</section>
+		@entitiesList(view, "")
+	}
+}
+
+// entitiesList is the part of the page that a form post replaces.
+templ entitiesList(view entitiesView, errorMessage string) {
+	<div id="list">
+		if errorMessage != "" {
+			<p class="error" role="alert">{ errorMessage }</p>
+		}
+		<nav class="filter" aria-label="Kind">
+			if view.Kind == "" {
+				<a class="pill" href={ templ.URL(entitiesFilter("", view.Archived)) } aria-current="true">All</a>
+			} else {
+				<a class="pill pill-plain" href={ templ.URL(entitiesFilter("", view.Archived)) }>All</a>
+			}
+			for _, k := range kindNames {
+				if view.Kind == k.Kind {
+					<a class="pill" href={ templ.URL(entitiesFilter(k.Kind, view.Archived)) } aria-current="true">{ k.Name }</a>
+				} else {
+					<a class="pill pill-plain" href={ templ.URL(entitiesFilter(k.Kind, view.Archived)) }>{ k.Name }</a>
+				}
+			}
+			if view.Archived {
+				<a class="link link-quiet" href={ templ.URL(entitiesFilter(view.Kind, false)) }>Hide archived</a>
+			} else {
+				<a class="link link-quiet" href={ templ.URL(entitiesFilter(view.Kind, true)) }>Show archived</a>
+			}
+		</nav>
+		if len(view.Entities) == 0 {
+			<p class="empty">No entities yet. The agent makes one when you tell it about a person, a place, a project or a topic.</p>
+		} else {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Name</th>
+							<th>Kind</th>
+							<th class="col-lo">Other names</th>
+							<th class="col-lo">Page</th>
+							<th class="col-lo">From</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, e := range view.Entities {
+							<tr>
+								<td class="id" data-label="ID">{ strconv.FormatInt(e.ID, 10) }</td>
+								<td class="title"><a class="link" href={ templ.URL(entityPath(e.ID)) }>{ e.Name }</a></td>
+								<td data-label="Kind"><span class="pill pill-plain">{ e.Kind }</span></td>
+								<td class="col-lo" data-label="Other names">{ joinNames(e.Aliases) }</td>
+								<td class="col-lo" data-label="Page">{ e.WikiPath }</td>
+								<td class="col-lo" data-label="From">{ string(e.Source) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+templ entityPage(view entityView) {
+	@page(view.Detail.Name, "Entities") {
+		<header class="page-head">
+			<h1>{ view.Detail.Name }</h1>
+			<p>{ view.Detail.Kind }, entity:{ strconv.FormatInt(view.Detail.ID, 10) }. The wiki cites it as (entity:{ strconv.FormatInt(view.Detail.ID, 10) }).</p>
+		</header>
+		if view.Message != "" {
+			<p class="error" role="alert">{ view.Message }</p>
+		}
+		<section class="panel panel-narrow" aria-label="Edit the entity">
+			<form class="form form-stack" method="post" action={ templ.URL(entityPath(view.Detail.ID)) }>
+				<label class="field">
+					Name
+					<input type="text" name="name" required maxlength="100" value={ view.Form.Name }/>
+				</label>
+				<label class="field">
+					Other names
+					<input type="text" name="aliases" placeholder="separated by commas" value={ view.Form.Aliases }/>
+				</label>
+				<label class="field">
+					Wiki page
+					<input type="text" name="wiki_path" placeholder="people/ravi-kumar.md" value={ view.Form.WikiPath }/>
+				</label>
+				<label class="check">
+					<input type="checkbox" name="archived" value="true" checked?={ view.Form.Archived }/>
+					archived: the agent still finds it, and the session start leaves it out
+				</label>
+				<div class="form-actions">
+					<button class="btn btn-primary" type="submit">Save changes</button>
+					<a class="btn btn-secondary" href="/admin/entities">Back to the list</a>
+				</div>
+			</form>
+		</section>
+		<div class="section-head">
+			<h2 class="serif-sm">Records</h2>
+		</div>
+		if len(view.Detail.Records) == 0 {
+			<p class="empty">No record links to this entity yet.</p>
+		} else {
+			<div class="table-wrap">
+				<table class="cards">
+					<thead>
+						<tr>
+							<th>Ref</th>
+							<th>Record</th>
+							<th class="col-lo">Linked</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, rec := range view.Detail.Records {
+							<tr>
+								<td class="id" data-label="Ref">{ rec.Ref }</td>
+								<td class="title">
+									if href := recordHref(rec.Type, rec.ID); href != "" {
+										<a class="link" href={ templ.URL(href) }>{ rec.Summary }</a>
+									} else {
+										{ rec.Summary }
+									}
+								</td>
+								<td class="when col-lo" data-label="Linked">{ stamp(rec.LinkedAt) }</td>
+								<td class="cell-actions">
+									<div class="actions">
+										<form method="post" action={ templ.URL(entityPath(view.Detail.ID) + "/unlink") }>
+											<input type="hidden" name="type" value={ rec.Type }/>
+											<input type="hidden" name="id" value={ strconv.FormatInt(rec.ID, 10) }/>
+											<button class="link link-danger" type="submit">Remove link</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+		if len(view.Others) > 0 {
+			<div class="section-head">
+				<h2 class="serif-sm">Merge</h2>
+			</div>
+			<section class="panel panel-narrow" aria-label="Merge an entity into this one">
+				<p>Pick a { view.Detail.Kind } that is the same as { view.Detail.Name }. Its records and its names move here, and it goes to the deleted records.</p>
+				<form class="form" method="post" action={ templ.URL(entityPath(view.Detail.ID) + "/merge") }>
+					<label class="field">
+						Merge into { view.Detail.Name }
+						<select name="drop" required>
+							for _, other := range view.Others {
+								<option value={ strconv.FormatInt(other.ID, 10) }>{ other.Name }</option>
+							}
+						</select>
+					</label>
+					<button class="btn btn-secondary" type="submit">Merge</button>
+				</form>
+			</section>
+		}
+		<div class="section-head">
+			<h2 class="serif-sm">Delete</h2>
+		</div>
+		<section class="panel panel-narrow" aria-label="Delete the entity">
+			<p>The entity goes to the deleted records. Its links stay until you delete it forever there.</p>
+			<form method="post" action={ templ.URL(entityPath(view.Detail.ID) + "/delete") }>
+				<button class="btn btn-secondary" type="submit">Delete entity</button>
+			</form>
+		</section>
+	}
+}
+
+func joinNames(names []string) string {
+	out := ""
+	for i, name := range names {
+		if i > 0 {
+			out += ", "
+		}
+		out += name
+	}
+	return out
+}
+
+func entitiesFilter(kind string, archived bool) string {
+	path := "/admin/entities"
+	sep := "?"
+	if kind != "" {
+		path += sep + "kind=" + kind
+		sep = "&"
+	}
+	if archived {
+		path += sep + "archived=1"
+	}
+	return path
+}

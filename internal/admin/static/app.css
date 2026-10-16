@@ -693,6 +693,15 @@ input[type="checkbox"] {
 	color: var(--error);
 }
 
+/* The row of links that filter a list. */
+.filter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--s-sm);
+	margin: 0 0 var(--s-md);
+}
+
 .dot {
 	display: inline-block;
 	width: 0.5rem;

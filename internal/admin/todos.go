@@ -15,7 +15,12 @@ func (h *handlers) todosPage(w http.ResponseWriter, r *http.Request) {
 		internalError(w, err)
 		return
 	}
-	render(w, r, todosPage(todos))
+	projects, err := h.projectNames(r)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	render(w, r, todosPage(todos, projects))
 }
 
 // showTodosList renders the list again, with message above it.
@@ -97,13 +102,18 @@ func (h *handlers) editTodoPage(w http.ResponseWriter, r *http.Request) {
 		internalError(w, err)
 		return
 	}
+	projects, err := h.projectNames(r)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
 	render(w, r, editTodoPage(todoForm{
 		ID:      todo.ID,
 		Title:   todo.Title,
 		Status:  todo.Status,
 		Project: todo.Project,
 		DueOn:   todo.DueOn,
-	}, ""))
+	}, projects, ""))
 }
 
 // saveTodo stores the edit form and goes back to the list. When the
@@ -132,7 +142,12 @@ func (h *handlers) saveTodo(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		http.Redirect(w, r, "/admin/todos", http.StatusSeeOther)
 	case errors.As(err, &invalid):
-		render(w, r, editTodoPage(form, invalid.Error()))
+		projects, listErr := h.projectNames(r)
+		if listErr != nil {
+			internalError(w, listErr)
+			return
+		}
+		render(w, r, editTodoPage(form, projects, invalid.Error()))
 	case errors.Is(err, service.ErrNotFound):
 		http.NotFound(w, r)
 	default:

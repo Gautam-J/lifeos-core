@@ -6,7 +6,7 @@ import (
 	"github.com/Gautam-J/lifeos-core/internal/service"
 )
 
-templ todosPage(todos []service.Todo) {
+templ todosPage(todos []service.Todo, projects []string) {
 	@page("Todos", "Todos") {
 		<header class="page-head">
 			<h1>Todos</h1>
@@ -20,7 +20,8 @@ templ todosPage(todos []service.Todo) {
 				</label>
 				<label class="field">
 					Project
-					<input type="text" name="project" maxlength="100"/>
+					<input type="text" name="project" maxlength="100" list="projects"/>
+					@projectList(projects)
 				</label>
 				<label class="field">
 					Due
@@ -104,7 +105,7 @@ type todoForm struct {
 	DueOn   string
 }
 
-templ editTodoPage(form todoForm, errorMessage string) {
+templ editTodoPage(form todoForm, projects []string, errorMessage string) {
 	@page("Edit todo", "Todos") {
 		<header class="page-head">
 			<h1>Edit todo { strconv.FormatInt(form.ID, 10) }</h1>
@@ -128,7 +129,8 @@ templ editTodoPage(form todoForm, errorMessage string) {
 				</label>
 				<label class="field">
 					Project
-					<input type="text" name="project" maxlength="100" value={ form.Project }/>
+					<input type="text" name="project" maxlength="100" value={ form.Project } list="projects"/>
+					@projectList(projects)
 				</label>
 				<label class="field">
 					Due
@@ -141,6 +143,16 @@ templ editTodoPage(form todoForm, errorMessage string) {
 			</form>
 		</section>
 	}
+}
+
+// projectList offers the names of the projects. A name that is not in the
+// list makes a new project.
+templ projectList(projects []string) {
+	<datalist id="projects">
+		for _, name := range projects {
+			<option value={ name }></option>
+		}
+	</datalist>
 }
 
 func todoPath(id int64) string {
