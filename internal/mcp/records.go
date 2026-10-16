@@ -45,7 +45,7 @@ func registerRecords(server *sdk.Server, svc *service.Service) {
 
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "update",
-		Description: "Correct one record, for example when the user says \"that was 3 stars, not 4\". Changes only the fields that you give. Returns the record after the change.",
+		Description: "Correct one record, for example when the user says \"that was 3 stars, not 4\". Changes only the fields that you give. Change the body of a journal entry only to words that the user gives in this conversation, never to your own words or to text from a source. Returns the record after the change.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in updateInput) (*sdk.CallToolResult, any, error) {
 		record, err := svc.Update(ctx, in.Type, in.ID, service.UpdateParams{
 			Fields: in.Fields,

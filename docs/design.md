@@ -564,7 +564,7 @@ Gautam: "use Codex instead"
 | E1 | Same link or file captured twice | SHA-256 is unique; `capture` returns the existing source ID and writes nothing new |
 | E2 | Ambiguous input ("add Dune") | The skill asks book or movie; it never guesses a `kind` |
 | E3 | Invalid value (rating 7, a date in 2099) | The service layer rejects it; the tool returns the error and the agent asks Gautam |
-| E4 | Agent rewords a journal entry | The skill passes the text unchanged and the tool stores exactly what it receives; analysis goes to the wiki, never into the entry |
+| E4 | Agent rewords a journal entry | The `journal` tool stores exactly what it receives, and the `update` description allows a new body only in words that Gautam gives in the conversation; since #40 the service does not refuse it, and `events` keeps the old text; analysis goes to the wiki, never into the entry |
 | E5 | New fact contradicts the wiki (moved city) | `wiki_write` keeps both with dates; lint flags the page for review |
 | E6 | Two sessions edit the same page | `wiki_write` needs the hash of the version it read; the second write is rejected, and that agent re-reads and merges |
 | E7 | GitHub unreachable | The commit stays local; the push retries on the next write and hourly |

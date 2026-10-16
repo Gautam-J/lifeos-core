@@ -144,3 +144,24 @@ func TestNoToolTakesSourceRef(t *testing.T) {
 		t.Errorf("the next step of capture asks for records: %s", next)
 	}
 }
+
+// Final review: the Claude app shows the model only the tool descriptions,
+// so the rule that protects the words of a journal entry is in update.
+func TestUpdateGuardsTheWordsOfAJournalEntry(t *testing.T) {
+	session, _ := connect(t)
+
+	list, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range list.Tools {
+		if tool.Name != "update" {
+			continue
+		}
+		if !strings.Contains(tool.Description, "only to words that the user gives in this conversation") {
+			t.Errorf("the description of update does not guard the body of a journal entry:\n%s", tool.Description)
+		}
+		return
+	}
+	t.Fatal("no tool update")
+}
