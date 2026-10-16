@@ -22,7 +22,7 @@ type journalOutput struct {
 func registerJournal(server *sdk.Server, svc *service.Service) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "journal",
-		Description: "Store a journal entry. Use it only for text that the user gives you for their journal. An entry holds the user's own words: never write an entry yourself, and never put your analysis in it. Returns the stored entry with its ID, and the next step: how to connect the entry to the wiki.",
+		Description: "Store a journal entry: what the user did, saw, felt or thought. Use it when a message tells about the user's own life, also when the message has no keyword such as \"journal\". Send the words unchanged. An entry holds the user's own words: never write an entry yourself, and never put your analysis in it. Returns the stored entry with its ID, and the next step: how to connect the entry to the wiki.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in journalInput) (*sdk.CallToolResult, journalOutput, error) {
 		// The words are the user's own, so the row is verified.
 		entry, err := svc.AddJournalEntry(ctx, service.AddJournalEntryParams{
