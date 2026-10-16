@@ -154,10 +154,11 @@ A password in plain words and a bank account number have no pattern, so the serv
 
 The wiki holds your analysis and your insights: what the facts mean and how they connect. A fact is a record in the database, and a wiki page cites the row, as `(journal:57)` or `(src:12)`. A page is a Markdown file in the git repository of `wiki_dir`, and each write is one commit there.
 
+- **me.md.** A short page about you at the top of the wiki, not in the index. Each session starts with it: the server puts its text into the instructions, and the `context` tool returns it. It has at most 2,000 characters. A line that you only said ends with `(stated)`, which no other page accepts. A line with `(until 2026-10-31)` is left out after that day, and `wiki_lint` reports it. An agent writes it only after your yes.
 - **Page types.** The folder gives the type: `people/`, `projects/`, `topics/` and `reviews/`. `index.md` lists each page with its summary; LifeOS writes it. `log.md` is the timeline of the work on the wiki.
 - **One writer.** Only the MCP tools change a page. The server sets the dates, checks the text for secrets, and refuses a new citation of a row that is not there.
 - **No lost change.** A change of a page needs the hash of the version that the agent read. When a different session changed the page, the write is refused, and the agent reads the page again and merges.
-- **Lint.** `wiki_lint` reports a file that is not a valid page, a citation of a deleted record, a broken link, a page that is marked as contested, a page that no other page links to, a page with no change for 90 days and a page of more than 150 lines. It changes nothing.
+- **Lint.** `wiki_lint` reports a file that is not a valid page, a citation of a deleted record, a broken link, a page that is marked as contested, a line of `me.md` that is past its day, a page that no other page links to, a page with no change for 90 days and a page of more than 150 lines. It changes nothing.
 - **Sources.** `mark_processed` records that the work on a source is complete.
 - **History.** The git history of the wiki keeps each version of each page, also of a deleted page.
 - **Copy on GitHub.** Each hour, `deploy/wiki-push.sh` copies the new commits to the private GitHub repository of the wiki. The server has no key and does not push. A clone of that repository on a different computer is for reading. A commit from there, or a change on github.com, stops the push, and ntfy gets a message. Then run `deploy/wiki-push-repair.sh`: it keeps your commit on a branch `from-github-<time>` on GitHub and puts the history of the Pi on `main`. Give the change to the agent after that, so that the server writes it.
@@ -231,8 +232,9 @@ A record that an MCP tool writes has the source `agent`.
 | `update` | Corrects one record. |
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
 | `mark_processed` | Records that the work on a source is complete. |
+| `context` | Returns `me.md`, the page about you, or says how to make it. The first call of a conversation. |
 | `wiki_search` | Finds wiki pages by their words, or lists each page. |
-| `wiki_read` | Reads one page, `index.md` or `log.md`, with its hash. |
+| `wiki_read` | Reads one page, `index.md`, `log.md` or `me.md`, with its hash. |
 | `wiki_write` | Creates a page, or replaces its text when the call has the hash of the stored page. |
 | `wiki_append` | Adds text at the end of a page or of `log.md`. |
 | `wiki_delete` | Deletes one page after you said yes (`confirmed: true`). |
