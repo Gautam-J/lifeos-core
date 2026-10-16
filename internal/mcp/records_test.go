@@ -210,3 +210,28 @@ func TestUpdateRejectsANullValueAndAnEmptyUpdate(t *testing.T) {
 		t.Errorf("events = %d after refused calls, want 1 (the create)", events)
 	}
 }
+
+// #51: the MCP update reaches the service as an agent, which does not
+// change the body of an entry.
+func TestUpdateRefusesTheBodyOfAJournalEntry(t *testing.T) {
+	session, _ := connect(t)
+	entry := structured(t, call(t, session, "journal", map[string]any{"body": "went for a run"}))
+
+	refused := call(t, session, "update", map[string]any{
+		"type": "journal", "id": entry["id"], "fields": map[string]any{"body": "went for a long run"},
+	})
+	if !refused.IsError || !strings.Contains(text(refused), "an agent does not change the words of a journal entry") {
+		t.Errorf("update of the body: IsError = %v, text = %q", refused.IsError, text(refused))
+	}
+	got := structured(t, call(t, session, "get", map[string]any{"type": "journal", "id": entry["id"]}))
+	if got["body"] != "went for a run" {
+		t.Errorf("body = %v, want it unchanged", got["body"])
+	}
+
+	fixed := structured(t, call(t, session, "update", map[string]any{
+		"type": "journal", "id": entry["id"], "fields": map[string]any{"entry_date": "2026-10-01"},
+	}))
+	if fixed["entry_date"] != "2026-10-01" {
+		t.Errorf("update of the date: %v", fixed)
+	}
+}

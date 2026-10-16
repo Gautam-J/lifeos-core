@@ -128,7 +128,7 @@ Agents get instructions only in open formats, so Claude Code, Codex, Gemini CLI 
 | Skill | Does |
 | --- | --- |
 | `ingest` | Capture a source, extract facts into records or wiki pages with citations, log it |
-| `journal` | Store the entry unchanged, then turn it into wiki updates and proposed todos |
+| `journal` | Store the entry unchanged, then turn it into wiki updates and todos |
 | `todo` | Turn a request into one todo per action, with project and due date |
 | `log` | Add list items and habit check-ins; ask when the kind is ambiguous |
 | `ask` | Answer from the wiki first, then the database; offer to save a good answer as a page |
@@ -564,7 +564,7 @@ Gautam: "use Codex instead"
 | E1 | Same link or file captured twice | SHA-256 is unique; `capture` returns the existing source ID and writes nothing new |
 | E2 | Ambiguous input ("add Dune") | The skill asks book or movie; it never guesses a `kind` |
 | E3 | Invalid value (rating 7, a date in 2099) | The service layer rejects it; the tool returns the error and the agent asks Gautam |
-| E4 | Agent rewords a journal entry | The `journal` tool stores exactly what it receives, and the `update` description allows a new body only in words that Gautam gives in the conversation; since #40 the service does not refuse it, and `events` keeps the old text; analysis goes to the wiki, never into the entry |
+| E4 | Agent rewords a journal entry | The `journal` tool stores exactly what it receives. The service refuses a change of `body` by an agent (#51): the error tells the agent to ask the user to change the words in the admin page. An agent may still change `entry_date`. The REST API and the admin pages change the body, and `events` keeps the old text. Analysis goes to the wiki, never into the entry |
 | E5 | New fact contradicts the wiki (moved city) | `wiki_write` keeps both with dates; lint flags the page for review |
 | E6 | Two sessions edit the same page | `wiki_write` needs the hash of the version it read; the second write is rejected, and that agent re-reads and merges |
 | E7 | GitHub unreachable | The commit stays local; the push retries on the next write and hourly |

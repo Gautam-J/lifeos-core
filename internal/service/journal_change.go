@@ -31,6 +31,11 @@ func (s *Service) UpdateJournalEntry(ctx context.Context, id int64, p UpdateJour
 	if p.Body == nil && p.EntryDate == nil {
 		return JournalEntry{}, invalid("fields", "must name at least one field to change")
 	}
+	// The words are Gautam's own (rule 10). The refusal comes before the
+	// no-change shortcut, so it does not depend on the old text.
+	if p.Body != nil && p.Actor == SourceAgent {
+		return JournalEntry{}, invalid("body", "an agent does not change the words of a journal entry; ask the user to change them in the admin page")
+	}
 	if p.EntryDate != nil && *p.EntryDate == "" {
 		return JournalEntry{}, invalid("entry_date", "must be a date as YYYY-MM-DD")
 	}

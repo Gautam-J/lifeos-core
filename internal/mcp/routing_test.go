@@ -158,7 +158,7 @@ func TestUpdateGuardsTheWordsOfAJournalEntry(t *testing.T) {
 		if tool.Name != "update" {
 			continue
 		}
-		if !strings.Contains(tool.Description, "only to words that the user gives in this conversation") {
+		if !strings.Contains(tool.Description, "You cannot change the body of a journal entry") {
 			t.Errorf("the description of update does not guard the body of a journal entry:\n%s", tool.Description)
 		}
 		return

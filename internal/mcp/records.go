@@ -16,7 +16,7 @@ type getInput struct {
 type updateInput struct {
 	Type   string         `json:"type" jsonschema:"Record type. One of: item, journal, todo, habit_log, source"`
 	ID     int64          `json:"id" jsonschema:"Record ID"`
-	Fields map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: body, entry_date. For a todo: title, status (open, done or dropped), due_on, project, journal_ref (the ID of the journal entry that reports the change, such as the entry that says that the todo is done). A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. Leave out a field to keep its value. attrs replaces every attr."`
+	Fields map[string]any `json:"fields,omitempty" jsonschema:"The fields to change, with their new values. For an item: kind, title, rating, occurred_on, attrs. For a journal: entry_date only. For a todo: title, status (open, done or dropped), due_on, project, journal_ref (the ID of the journal entry that reports the change, such as the entry that says that the todo is done). A habit_log has no field to change: delete it, then log the habit again. A source has no field to change: delete it, then capture again. Leave out a field to keep its value. attrs replaces every attr."`
 	Clear  []string       `json:"clear,omitempty" jsonschema:"Names of optional fields to empty. For an item: rating, occurred_on. For a todo: due_on, project. A journal has none."`
 }
 
@@ -45,7 +45,7 @@ func registerRecords(server *sdk.Server, svc *service.Service) {
 
 	sdk.AddTool(server, &sdk.Tool{
 		Name:        "update",
-		Description: "Correct one record, for example when the user says \"that was 3 stars, not 4\". Changes only the fields that you give. Change the body of a journal entry only to words that the user gives in this conversation, never to your own words or to text from a source. Returns the record after the change.",
+		Description: "Correct one record, for example when the user says \"that was 3 stars, not 4\". Changes only the fields that you give. You cannot change the body of a journal entry: the service refuses it, and the user changes the words in the admin page. You can change entry_date. Returns the record after the change.",
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in updateInput) (*sdk.CallToolResult, any, error) {
 		record, err := svc.Update(ctx, in.Type, in.ID, service.UpdateParams{
 			Fields: in.Fields,

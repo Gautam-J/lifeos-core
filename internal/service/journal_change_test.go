@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -108,7 +109,7 @@ func TestUpdateJournalEntryWritesNothingWhenNoValueChanges(t *testing.T) {
 	added := addJournal(t, s, "a day", "2026-10-09")
 
 	got, err := s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{
-		Body: ptr("a day"), EntryDate: ptr("2026-10-09"), Actor: SourceAgent,
+		Body: ptr("a day"), EntryDate: ptr("2026-10-09"), Actor: SourceManual,
 	})
 
 	if err != nil || got != added {
@@ -159,5 +160,53 @@ func TestDeleteJournalEntry(t *testing.T) {
 	}
 	if n := countRows(t, pool, "events"); n != 2 {
 		t.Errorf("events = %d after a second delete, want 2", n)
+	}
+}
+
+// #51: the service keeps rule 10 for an agent. The words of an entry are
+// the words of Gautam, so an agent does not change them.
+func TestUpdateJournalEntryRefusesABodyChangeByAnAgent(t *testing.T) {
+	s, pool := newTestService(t)
+	added := addJournal(t, s, "a day", "2026-10-09")
+
+	_, err := s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{Body: ptr("a better day"), Actor: SourceAgent})
+	var invalid *ValidationError
+	if !errors.As(err, &invalid) || invalid.Field != "body" || !strings.Contains(err.Error(), "an agent does not change the words of a journal entry") {
+		t.Fatalf("error = %v, want a ValidationError on body that says an agent does not change the words", err)
+	}
+	stored, err := s.GetJournalEntry(context.Background(), added.ID)
+	if err != nil || stored != added {
+		t.Errorf("stored = %+v, %v, want the entry unchanged", stored, err)
+	}
+	if n := len(allEvents(t, pool)); n != 1 {
+		t.Errorf("events = %d, want 1 (create only)", n)
+	}
+
+	// The refusal does not depend on the old text: the same body is refused too.
+	_, err = s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{Body: ptr("a day"), Actor: SourceAgent})
+	if !errors.As(err, &invalid) || invalid.Field != "body" {
+		t.Errorf("same body: error = %v, want a ValidationError on body", err)
+	}
+	// A body with a date is refused as a whole.
+	_, err = s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{Body: ptr("x"), EntryDate: ptr("2026-10-08"), Actor: SourceAgent})
+	if !errors.As(err, &invalid) {
+		t.Errorf("body and date: error = %v, want a ValidationError", err)
+	}
+	if got, _ := s.GetJournalEntry(context.Background(), added.ID); got.EntryDate != "2026-10-09" {
+		t.Errorf("entry_date = %s, want it unchanged after a refused call", got.EntryDate)
+	}
+}
+
+func TestUpdateJournalEntryLetsAnAgentChangeTheDate(t *testing.T) {
+	s, pool := newTestService(t)
+	added := addJournal(t, s, "a day", "2026-10-09")
+
+	got, err := s.UpdateJournalEntry(context.Background(), added.ID, UpdateJournalEntryParams{EntryDate: ptr("2026-10-08"), Actor: SourceAgent})
+	if err != nil || got.EntryDate != "2026-10-08" || got.Body != "a day" {
+		t.Fatalf("UpdateJournalEntry = %+v, %v, want the new date and the same body", got, err)
+	}
+	events := allEvents(t, pool)
+	if len(events) != 2 || events[1].Action != "update" || events[1].Source != "agent" {
+		t.Errorf("events = %+v, want create and one update by agent", events)
 	}
 }
