@@ -91,7 +91,7 @@ API handlers, MCP tools and CLI subcommands are thin adapters over the service f
 | Run a read-only SQL query | `query` | none, agents only | none |
 | Search the wiki | `wiki_search` | none, agents only | none |
 | Read a wiki page | `wiki_read` | none, agents only | none |
-| Read me.md at the start of a conversation | `context` | none, agents only | none |
+| Read me.md, today and yesterday at the start of a conversation | `context` | none, agents only | none |
 | Create or update a wiki page | `wiki_write` | none, agents only | Markdown file, then `git commit` and `git push` |
 | Fetch the latest brief | `brief` | `GET /api/briefs/latest` | none |
 

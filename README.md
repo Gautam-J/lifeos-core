@@ -232,7 +232,7 @@ A record that an MCP tool writes has the source `agent`.
 | `update` | Corrects one record. |
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
 | `mark_processed` | Records that the work on a source is complete. |
-| `context` | Returns `me.md`, the page about you, or says how to make it. The first call of a conversation. |
+| `context` | The first call of a conversation. Returns `me.md` (or says how to make it), the journal entries of today and yesterday, the open todos due today or before, the open todos due tomorrow, the todos done today and yesterday, and a line of counts. At most 8,000 characters: a long day loses journal bodies first, then the oldest done todos, and the result says what it cut. |
 | `wiki_search` | Finds wiki pages by their words, or lists each page. |
 | `wiki_read` | Reads one page, `index.md`, `log.md` or `me.md`, with its hash. |
 | `wiki_write` | Creates a page, or replaces its text when the call has the hash of the stored page. |
