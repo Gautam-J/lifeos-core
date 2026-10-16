@@ -32,7 +32,7 @@ templ itemsPage(items []service.Item) {
 				</label>
 				<label class="field">
 					Date
-					@dayField("occurred_on", "", "", "", false)
+					<input type="date" name="occurred_on"/>
 				</label>
 				<button class="btn btn-primary" type="submit">Add item</button>
 			</form>
@@ -145,7 +145,7 @@ templ editItemPage(form itemForm, errorMessage string) {
 				</label>
 				<label class="field">
 					Date
-					@dayField("occurred_on", form.OccurredOn, "", "", false)
+					<input type="date" name="occurred_on" value={ form.OccurredOn }/>
 				</label>
 				<div class="form-actions">
 					<button class="btn btn-primary" type="submit">Save changes</button>

@@ -149,7 +149,7 @@ func TestEditTodoPageShowsTheStoredValuesAsText(t *testing.T) {
 		`value="Buy &#34;a&#34; &lt;b&gt;domain"`,
 		`<option value="open" selected>`,
 		`value="lifeos"`,
-		`value="20-10-2026"`,
+		`value="2026-10-20"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not contain %s", want)
@@ -208,7 +208,7 @@ func TestSaveTodoShowsWhyTheServiceRefusedTheInput(t *testing.T) {
 	if !strings.Contains(body, "status: must be one of open, done, dropped") {
 		t.Errorf("the page does not show the reason:\n%s", body)
 	}
-	for _, want := range []string{`value="Typed title"`, `value="typed project"`, `value="01-11-2026"`} {
+	for _, want := range []string{`value="Typed title"`, `value="typed project"`, `value="2026-11-01"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the form lost the typed input %s", want)
 		}

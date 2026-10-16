@@ -145,7 +145,7 @@ func (h *handlers) addItem(w http.ResponseWriter, r *http.Request) {
 		// htmx turns this header into an event; the form resets on it.
 		w.Header().Set("HX-Trigger", "item-added")
 	case errors.As(err, &invalid):
-		message = reason(invalid)
+		message = invalid.Error()
 	default:
 		listFailure(w, r, err, "The item was not stored: internal error. Try again.")
 		return
@@ -165,7 +165,7 @@ func itemFromForm(r *http.Request) (service.AddItemParams, error) {
 	params := service.AddItemParams{
 		Kind:       r.PostForm.Get("kind"),
 		Title:      r.PostForm.Get("title"),
-		OccurredOn: dayIn(r.PostForm.Get("occurred_on")),
+		OccurredOn: r.PostForm.Get("occurred_on"),
 		Provenance: service.Provenance{Source: service.SourceManual},
 	}
 	if raw := r.PostForm.Get("rating"); raw != "" {

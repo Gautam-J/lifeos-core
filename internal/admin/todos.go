@@ -43,7 +43,7 @@ func (h *handlers) addTodo(w http.ResponseWriter, r *http.Request) {
 	_, err := h.svc.AddTodo(r.Context(), service.AddTodoParams{
 		Title:      r.PostForm.Get("title"),
 		Project:    r.PostForm.Get("project"),
-		DueOn:      dayIn(r.PostForm.Get("due_on")),
+		DueOn:      r.PostForm.Get("due_on"),
 		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	var invalid *service.ValidationError
@@ -52,7 +52,7 @@ func (h *handlers) addTodo(w http.ResponseWriter, r *http.Request) {
 		// htmx turns this header into an event; the form resets on it.
 		w.Header().Set("HX-Trigger", "todo-added")
 	case errors.As(err, &invalid):
-		message = reason(invalid)
+		message = invalid.Error()
 	default:
 		listFailure(w, r, err, "The todo was not stored: internal error. Try again.")
 		return
@@ -124,7 +124,7 @@ func (h *handlers) saveTodo(w http.ResponseWriter, r *http.Request) {
 		Title:   r.PostForm.Get("title"),
 		Status:  r.PostForm.Get("status"),
 		Project: r.PostForm.Get("project"),
-		DueOn:   dayIn(r.PostForm.Get("due_on")),
+		DueOn:   r.PostForm.Get("due_on"),
 	}
 	_, err := h.svc.UpdateTodo(r.Context(), id, form.params())
 	var invalid *service.ValidationError
@@ -132,7 +132,7 @@ func (h *handlers) saveTodo(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		http.Redirect(w, r, "/admin/todos", http.StatusSeeOther)
 	case errors.As(err, &invalid):
-		render(w, r, editTodoPage(form, reason(invalid)))
+		render(w, r, editTodoPage(form, invalid.Error()))
 	case errors.Is(err, service.ErrNotFound):
 		http.NotFound(w, r)
 	default:

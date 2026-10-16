@@ -143,7 +143,7 @@ func TestJournalPagesShowTheEntryAsText(t *testing.T) {
 		fmt.Sprintf(`action="/admin/journal/%d"`, entry.ID),
 		// The line break after the start tag is the one that a browser drops.
 		`rows="12">` + "\n" + escaped + `</textarea>`,
-		`value="05-01-2026"`,
+		`value="2026-01-05"`,
 		fmt.Sprintf(`href="/admin/journal/%d/edit"`, entry.ID),
 	} {
 		if !strings.Contains(list+edit.Body.String(), want) {
@@ -205,7 +205,7 @@ func TestSaveJournalEntryShowsWhyTheServiceRefusedTheInput(t *testing.T) {
 	if !strings.Contains(page, "entry_date: must not be in the future") {
 		t.Errorf("the page does not show the reason:\n%s", page)
 	}
-	if !strings.Contains(page, ">\ntyped text</textarea>") || !strings.Contains(page, `value="01-01-2999"`) {
+	if !strings.Contains(page, ">\ntyped text</textarea>") || !strings.Contains(page, `value="2999-01-01"`) {
 		t.Error("the form lost the typed input")
 	}
 	if got, _ := service.New(pool).GetJournalEntry(t.Context(), entry.ID); got.Body != "a day" {

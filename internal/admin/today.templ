@@ -65,7 +65,7 @@ templ todayPart(view service.Overview, errorMessage string) {
 					<div class="composer-bar">
 						<label>
 							Day
-							@dayField("entry_date", "", view.Today.Date, "", false)
+							<input type="date" name="entry_date" max={ view.Today.Date }/>
 						</label>
 						<button class="btn btn-primary" type="submit">Add entry</button>
 					</div>
@@ -128,7 +128,7 @@ templ todayPart(view service.Overview, errorMessage string) {
 					</div>
 					<form class="quick-todo" id="todo-form" hx-preserve="true" hx-post="/admin/todos" hx-target="#today" hx-swap="outerHTML" hx-on:todo-added="this.reset()">
 						<input type="text" name="title" required maxlength="300" placeholder="Add a todo" aria-label="Todo"/>
-						@dayField("due_on", "", "", "Due", false)
+						<input type="date" name="due_on" aria-label="Due"/>
 						<button class="btn btn-secondary" type="submit">Add todo</button>
 					</form>
 					if len(view.Next) == 0 {
