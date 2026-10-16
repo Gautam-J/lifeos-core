@@ -28,11 +28,15 @@ func (s *Service) WithWiki(wiki Wiki) *Service {
 	return s
 }
 
-// The two files of the wiki that are not pages. WikiWrite keeps the index.
-// The log gets a new entry at its end and no other change.
+// The three files of the wiki that are not in a page folder. WikiWrite
+// keeps the index. The log gets a new entry at its end and no other change.
+// me.md is a page that an agent writes with a yes of Gautam.
 const (
 	wikiIndexPath = "index.md"
 	wikiLogPath   = "log.md"
+	// wikiMePath is the short page about Gautam that each session starts
+	// with (#35). It is at the top of the wiki and not in the index.
+	wikiMePath = "me.md"
 )
 
 // WikiPage is one file of the wiki: a page, the index or the log.
@@ -104,10 +108,12 @@ func wikiFileType(path string) (string, error) {
 		return "index", nil
 	case wikiLogPath:
 		return "log", nil
+	case wikiMePath:
+		return "me", nil
 	}
 	pageType, err := wikiPageType(path)
 	if err != nil {
-		return "", invalid("path", wikiPathRule+"; or index.md or log.md")
+		return "", invalid("path", wikiPathRule+"; or index.md, log.md or me.md")
 	}
 	return pageType, nil
 }

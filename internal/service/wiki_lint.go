@@ -24,7 +24,8 @@ const (
 type WikiFinding struct {
 	Path string `json:"path"`
 	// Check is the kind of the problem: not_a_page, dead_citation,
-	// broken_link, contested, orphan, stale or long.
+	// broken_link, contested, orphan, stale, long, stray_stated or
+	// expired_line.
 	Check  string `json:"check"`
 	Detail string `json:"detail"`
 }
@@ -45,6 +46,9 @@ var wikiLinkPattern = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 //     for a project that is done
 //   - long: more than 150 lines
 //
+// me.md is checked for dead_citation and for expired_line: a line with
+// (until YYYY-MM-DD) whose day is past.
+//
 // A statement with no citation and two pages that contradict each other
 // need a reader: the agent looks for them.
 func (s *Service) WikiLint(ctx context.Context) ([]WikiFinding, error) {
@@ -62,7 +66,7 @@ func (s *Service) WikiLint(ctx context.Context) ([]WikiFinding, error) {
 	for _, file := range bad {
 		findings = append(findings, WikiFinding{Path: file.Path, Check: "not_a_page", Detail: file.Reason})
 	}
-	isPage := map[string]bool{wikiIndexPath: true, wikiLogPath: true}
+	isPage := map[string]bool{wikiIndexPath: true, wikiLogPath: true, wikiMePath: true}
 	for _, page := range pages {
 		isPage[page.Path] = true
 	}
@@ -78,6 +82,9 @@ func (s *Service) WikiLint(ctx context.Context) ([]WikiFinding, error) {
 			if !live {
 				findings = append(findings, WikiFinding{Path: page.Path, Check: "dead_citation", Detail: cite + " names no live record"})
 			}
+		}
+		if strings.Contains(page.Body, statedMark) {
+			findings = append(findings, WikiFinding{Path: page.Path, Check: "stray_stated", Detail: statedMark + " is for me.md only: cite the record of the fact, or move the line to me.md"})
 		}
 		for _, target := range wikiLinks(page) {
 			switch {
@@ -100,6 +107,11 @@ func (s *Service) WikiLint(ctx context.Context) ([]WikiFinding, error) {
 			findings = append(findings, WikiFinding{Path: page.Path, Check: "stale", Detail: fmt.Sprintf("the last change was on %s, more than %d days ago", page.Updated, wikiStaleDays)})
 		}
 	}
+	meFindings, err := s.lintMe(ctx, root, q, day)
+	if err != nil {
+		return nil, err
+	}
+	findings = append(findings, meFindings...)
 	for _, page := range pages {
 		if inbound[page.Path] == 0 {
 			findings = append(findings, WikiFinding{Path: page.Path, Check: "orphan", Detail: "no other page links to this page"})

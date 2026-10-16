@@ -76,9 +76,12 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 	case wikiLogPath:
 		return WikiPage{}, invalid("path", "must not be log.md: the log takes a new entry at its end and no other change")
 	}
-	pageType, err := wikiPageType(p.Path)
-	if err != nil {
-		return WikiPage{}, err
+	pageType := "me"
+	if p.Path != wikiMePath {
+		var err error
+		if pageType, err = wikiPageType(p.Path); err != nil {
+			return WikiPage{}, invalid("path", wikiPathRule+"; or me.md")
+		}
 	}
 	page := WikiPage{
 		Path:      p.Path,
@@ -142,6 +145,9 @@ func (s *Service) WikiWrite(ctx context.Context, p WikiWriteParams) (WikiPage, e
 	if err := checkNewCitations(ctx, store.New(s.pool), "body", oldBody, page.Body); err != nil {
 		return WikiPage{}, err
 	}
+	if err := checkStated(p.Path, "body", oldBody, page.Body); err != nil {
+		return WikiPage{}, err
+	}
 
 	newRaw, err := composeWikiFile(page)
 	if err != nil {
@@ -184,6 +190,9 @@ func (page *WikiPage) check() error {
 		return invalid("body", "must be at most "+sizeText(maxWikiBodyBytes)+": split the page")
 	}
 	if err := checkText("body", page.Body); err != nil {
+		return err
+	}
+	if err := checkMeLength(page.Path, "body", page.Body); err != nil {
 		return err
 	}
 	switch {

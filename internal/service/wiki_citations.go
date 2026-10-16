@@ -84,3 +84,17 @@ func citationIsLive(ctx context.Context, q *store.Queries, cite string) (bool, e
 	}
 	return live, nil
 }
+
+// statedMark ends a line of me.md that Gautam stated in a conversation and
+// that no record holds.
+const statedMark = "(stated)"
+
+// checkStated refuses a new statedMark in a page that is not me.md: a
+// fact in any other page cites its record. field is the name of the input
+// field, for the error.
+func checkStated(path, field, oldText, newText string) error {
+	if path != wikiMePath && strings.Contains(newText, statedMark) && !strings.Contains(oldText, statedMark) {
+		return invalid(field, statedMark+" is for me.md only: cite the record of the fact, such as (journal:57)")
+	}
+	return nil
+}

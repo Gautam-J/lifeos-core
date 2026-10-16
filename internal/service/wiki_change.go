@@ -73,9 +73,15 @@ func (s *Service) WikiAppend(ctx context.Context, p WikiAppendParams) (WikiPage,
 	if err := checkNewCitations(ctx, store.New(s.pool), "text", page.Body, text); err != nil {
 		return WikiPage{}, err
 	}
+	if err := checkStated(p.Path, "text", page.Body, text); err != nil {
+		return WikiPage{}, err
+	}
 	separator := "\n"
 	if strings.HasPrefix(text, "#") {
 		separator = "\n\n"
+	}
+	if err := checkMeLength(p.Path, "text", page.Body+separator+text); err != nil {
+		return WikiPage{}, err
 	}
 	page.Body += separator + text
 	page.Updated = day
