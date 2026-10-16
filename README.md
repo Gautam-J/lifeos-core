@@ -28,7 +28,7 @@ A box with a dashed border shows a part that is not built yet.
 | Phase | State |
 | --- | --- |
 | 1 · Foundation | Done: Docker, Postgres, ntfy, nightly backup, restore test. |
-| 2 · Core data | Built: lists, journal, todos, habits, the review queue, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are [issues](https://github.com/Gautam-J/lifeos-core/issues). |
+| 2 · Core data | Built: lists, journal, todos, habits, capture, search, the read-only query, permanent delete, the three interfaces, the service unit and the public hostnames. The week of daily use is now the gate of Phase 3. Money tables and imports are [issues](https://github.com/Gautam-J/lifeos-core/issues). |
 | 3 · Agents and phone | Built: the wiki tools, the public hostname of the MCP server with the login of Cloudflare Access, and the push of the wiki to GitHub. The gate is open: one week of daily use from the phone through the agent. |
 | 4 to 5 | Not started. |
 
@@ -64,39 +64,41 @@ A habit is a name, such as `gym`. A habit log records that you did the habit on 
 
 - You add, rename and retire a habit in `/admin/habits` only. To retire a habit, clear its **active** box. An agent cannot add a habit.
 - A log for an unknown or retired habit is refused. The error lists the active habits.
-- "Done" for a day means a verified log.
+- "Done" for a day means a live log, also a log that the agent wrote.
 
 **Use case.** You add the habits `gym` and `read` one time. Each evening you open `/admin/habits` and press the button for each habit of today. Or you say "I went to the gym"; the agent calls `log_habit`.
 
-### 5. Review queue
+### 5. Provenance and the journal link
 
-Each record has a `source` (`manual`, `import`, `connector` or `agent`) and a `verified` flag. A record that you write or dictate is verified. A record that an agent infers is not verified, and it waits in the review queue until you approve it.
+Each record has a `source` (`manual`, `import`, `connector` or `agent`), `created_at` and `updated_at`. A record that an agent writes is a record at once: nothing waits for approval. The agent names each record that it wrote, with its ID, and the events keep each old value, so a wrong record is easy to correct or delete.
 
-**Use case.** The agent reads your journal entry "finished Project Hail Mary" and proposes a book with `dictated` set to false. The book shows in `/admin/review`. You press **Approve**, or you correct the record first.
+A habit log, a todo and an item that a journal entry reports name the entry in `journal_ref`. The lists of the admin pages show it as `journal:57`, with a link to the entry.
+
+**Use case.** You write "went for a run, and booked the bike service". The agent stores the entry, logs the habit `run` for the day of the entry, closes the todo "Book the bike service", and gives both the link to the entry. Its reply names the log and the todo with their IDs.
 
 ### 6. Corrections and deletes
 
-- **Update.** A change sets only the fields that you give. An agent cannot apply an inferred change to a verified record: it asks you first, then sends the change as dictated.
+- **Update.** A change sets only the fields that you give. The event of the change keeps the old value.
 - **Delete.** A delete is soft: the row gets a `deleted_at` time and leaves every list. An agent can delete a record only after you said yes.
-- **Delete forever.** The page `/admin/deleted` lists the deleted records. "Delete forever" removes the row, empties the old and the new value of each event of that record, and removes the file of a file source unless a different source uses it. Only this page can do it: no agent tool and no REST route can. A source that a record names in `source_ref` stays until that record is gone. The backups and the deploy dumps that were made before keep the record.
+- **Delete forever.** The page `/admin/deleted` lists the deleted records. "Delete forever" removes the row, empties the old and the new value of each event of that record, and removes the file of a file source unless a different source uses it. Only this page can do it: no agent tool and no REST route can. A journal entry that a record names in `journal_ref` stays until that record is gone. The backups and the deploy dumps that were made before keep the record.
 - A habit log has no field that you can change. Delete the log, then log the habit for the correct day.
 
 **Use case.** You say "that was 3 stars, not 4". The agent calls `update` with the type `item`, the ID and `rating: 3`.
 
 ### 7. Event log
 
-Each write appends one row to the `events` table in the same transaction: the action (such as `create`, `update`, `delete`, `verify`, `purge` or `process`), the source, the old value and the new value. A write of a wiki page appends a row too: its value is the path and the hash of the page, and the text is in the git history of the wiki. A call that changes no value appends nothing. The log only grows, with one exception: a permanent delete empties the values of the events of its record.
+Each write appends one row to the `events` table in the same transaction: the action (such as `create`, `update`, `delete`, `purge` or `process`; rows from before #40 can have `verify`), the source, the old value and the new value. A write of a wiki page appends a row too: its value is the path and the hash of the page, and the text is in the git history of the wiki. A call that changes no value appends nothing. The log only grows, with one exception: a permanent delete empties the values of the events of its record.
 
 **Use case.** A rating looks wrong. Read the `events` rows of that record to see who changed the rating, when, and what the value was before.
 
 ### 8. Capture: sources
 
-A source is a text, a link or a file that LifeOS keeps exactly as it comes. The same content a second time gives the source that exists. A source is always verified, and it has no field that you can change.
+A source is a text, a link or a file that LifeOS keeps exactly as it comes. The same content a second time gives the source that exists. A source has no field that you can change.
 
 - **Text:** stored as it is written, 1 MB at most.
 - **Link:** LifeOS stores the URL. It does not get the page.
 - **File:** stored in the file store, with its name, its type and its SHA-256. The limit is `max_file_mb` (50 MB). LifeOS does not read the text of a PDF.
-- A record that an agent takes from a source names the source in `source_ref`.
+- No record comes from a source. The agent puts its ideas into the wiki and cites `(src:N)`.
 
 **Use case.** You share an article link from the phone; a Shortcut posts it to `/api/ingest`. In a Claude Code session on the Pi you put a policy PDF in the inbox folder and say "ingest this"; the agent calls `capture` with the path.
 
@@ -177,22 +179,21 @@ LifeOS has no login of its own. The admin pages, the REST API and the MCP server
 
 | Page | What you do there |
 | --- | --- |
-| `/admin` | The summary of today and yesterday: write a journal entry, add a todo, log a habit, mark a todo done, approve a record, and see each write of the two days. |
+| `/admin` | The summary of today and yesterday: write a journal entry, add a todo, log a habit, mark a todo done, and see each write of the two days. |
 | `/admin/items` | Add a list item, see the list, edit or delete an item. |
 | `/admin/journal` | Write an entry, see the entries, edit or delete an entry. |
 | `/admin/todos` | Add a todo, mark it done, edit or delete it. |
 | `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
 | `/admin/sources` | Capture a text or a link, see the sources, delete a source. |
-| `/admin/review` | See the records that wait, and approve them. |
 | `/admin/deleted` | See the deleted records, and remove one for good. |
 
-A record that the admin pages write is `manual` and verified.
+A record that the admin pages write is `manual`. The lists of todos, habit logs and items link each record that a journal entry reports to that entry.
 
 The pages have a light and a dark theme. They follow the setting of your system. To set one, use **System**, **Light** or **Dark** at the bottom of a page; the browser keeps the choice, and the server stores nothing.
 
 ### REST API
 
-The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/openapi.json`. A record that the REST API writes is `manual` and verified.
+The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/openapi.json`. A record that the REST API writes is `manual`.
 
 | Record | Routes |
 | --- | --- |
@@ -202,7 +203,6 @@ The interactive documentation is at `/api/docs`. The OpenAPI spec is at `/api/op
 | Habits | `POST /api/habits/log`, `GET /api/habits/today`, `GET`, `DELETE /api/habits/logs/{id}` |
 | Sources | `POST /api/ingest` (a text or a link), `POST /api/ingest/file?name=` (the file is the body), `GET`, `DELETE /api/sources/{id}` |
 | Search | `GET /api/search?query=&types=&limit=` |
-| Review | `GET /api/review?limit=`, `POST /api/review/verify` |
 
 A list returns 50 rows by default; the maximum is 200.
 
@@ -216,22 +216,20 @@ curl -s -X POST http://127.0.0.1:8200/api/todos \
 
 To connect the Claude app, add a custom connector at <https://claude.ai/customize/connectors> with the URL `https://<LIFEOS_MCP_HOST>/mcp`, and log in with the email code of Cloudflare Access. Claude Code that has the same claude.ai login gets the connector with no second login.
 
-A record that an MCP tool writes has the source `agent`. It is verified only when the tool input says that you dictated it.
+A record that an MCP tool writes has the source `agent`.
 
 | Tool | What it does |
 | --- | --- |
 | `add_item` | Adds a movie, book, place or game. |
-| `journal` | Stores a journal entry, word for word. The entry is always verified. |
+| `journal` | Stores a journal entry, word for word. Its result names the next step: log the habits, close the todos and add the items that the entry reports, each with `journal_ref`, then the wiki. |
 | `todo` | Adds one todo. |
-| `log_habit` | Logs a habit for a day. A second call with `dictated: true` approves a proposed log. |
+| `log_habit` | Logs a habit for a day. A second call for the same day returns the stored log. |
 | `capture` | Keeps a text, a link or a file from the inbox folder as a source. |
 | `search` | Finds records by their words, the newest first. |
 | `query` | Runs one read-only SQL statement. |
 | `get` | Reads one record by type and ID. |
 | `update` | Corrects one record. |
 | `delete` | Deletes one record after you said yes (`confirmed: true`). |
-| `review_queue` | Lists the records that wait for approval, oldest first. |
-| `verify` | Approves records that you approved in the conversation. |
 | `mark_processed` | Records that the work on a source is complete. |
 | `wiki_search` | Finds wiki pages by their words, or lists each page. |
 | `wiki_read` | Reads one page, `index.md` or `log.md`, with its hash. |
@@ -240,7 +238,7 @@ A record that an MCP tool writes has the source `agent`. It is verified only whe
 | `wiki_delete` | Deletes one page after you said yes (`confirmed: true`). |
 | `wiki_lint` | Reports the problems of the wiki that code can find. |
 
-The record types for `get`, `update`, `delete` and `verify` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo` and `log_habit` take an optional `source_ref`.
+The record types for `get`, `update` and `delete` are `item`, `journal`, `todo`, `habit_log` and `source`. `add_item`, `todo`, `log_habit` and `update` of a todo take an optional `journal_ref`: the ID of the journal entry that reports the record.
 
 The rules for an agent are in the tool descriptions. The results of `journal` and `capture` have a field `next` that names the next step. The server also sends short instructions when a client connects; Claude Code reads them, the Claude app does not. `lifeos instructions` prints them: paste the text into the instructions of a Claude app project. Then a plain message about your life, with no keyword such as "journal" or "todo", reaches LifeOS.
 

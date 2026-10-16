@@ -90,7 +90,7 @@
     <text x="100" y="797" class="h">Admin pages</text>
     <text x="100" y="820"><tspan class="m">internal/admin</tspan></text>
     <text x="100" y="840">templ + htmx, rendered on the server</text>
-    <text x="100" y="860">Writes manual, verified rows</text>
+    <text x="100" y="860">Writes manual rows</text>
     <text x="100" y="880">The only place for a permanent delete</text>
     <path d="M240 904L240 1008" class="a ad" marker-end="url(#head-dark)"/>
     <path d="M640 740L640 768" class="a ad" marker-end="url(#head-dark)"/>
@@ -98,7 +98,7 @@
     <text x="500" y="797" class="h">REST API</text>
     <text x="500" y="820"><tspan class="m">internal/api</tspan></text>
     <text x="500" y="840">chi + Huma, validation from Go types</text>
-    <text x="500" y="860">Writes manual, verified rows</text>
+    <text x="500" y="860">Writes manual rows</text>
     <text x="500" y="880">OpenAPI spec at <tspan class="m">/api/openapi.json</tspan></text>
     <path d="M640 904L640 1008" class="a ad" marker-end="url(#head-dark)"/>
     <path d="M1040 740L1040 768" class="a ad" marker-end="url(#head-dark)"/>
@@ -106,7 +106,7 @@
     <text x="900" y="797" class="h">MCP server</text>
     <text x="900" y="820"><tspan class="m">internal/mcp</tspan></text>
     <text x="900" y="840">Official MCP Go SDK, 19 tools</text>
-    <text x="900" y="860">Writes agent rows, verified if dictated</text>
+    <text x="900" y="860">Writes agent rows</text>
     <text x="900" y="880"><tspan class="m">AccessCheck</tspan>: 403 with no valid token</text>
     <path d="M1040 904L1040 1008" class="a ad" marker-end="url(#head-dark)"/>
     <rect x="270" y="924" width="340" height="58" rx="8" fill="none" stroke="#6c6a64" stroke-width="1.5" stroke-dasharray="5 4"/>
@@ -132,7 +132,7 @@
     <text x="476" y="1093" class="q">refuses a card number, an ID number, a key</text>
     <rect x="828" y="1058" width="352" height="44" rx="8" fill="#faf9f5"/>
     <text x="840" y="1076" class="hs">Provenance</text>
-    <text x="840" y="1093" class="q"><tspan class="m">source</tspan>, <tspan class="m">source_ref</tspan>, <tspan class="m">verified</tspan> on each row</text>
+    <text x="840" y="1093" class="q"><tspan class="m">source</tspan> and the two times on each row</text>
     <rect x="100" y="1110" width="352" height="44" rx="8" fill="#faf9f5"/>
     <text x="112" y="1128" class="hs">Event log</text>
     <text x="112" y="1145" class="q">one row in <tspan class="m">events</tspan> for each write</text>
@@ -140,8 +140,8 @@
     <text x="476" y="1128" class="hs">Soft delete</text>
     <text x="476" y="1145" class="q">sets <tspan class="m">deleted_at</tspan>; a purge needs the admin pages</text>
     <rect x="828" y="1110" width="352" height="44" rx="8" fill="#faf9f5"/>
-    <text x="840" y="1128" class="hs">Review queue</text>
-    <text x="840" y="1145" class="q">a row that an agent inferred waits for approval</text>
+    <text x="840" y="1128" class="hs">Journal link</text>
+    <text x="840" y="1145" class="q">a log, a todo or an item names its <tspan class="m">journal_ref</tspan></text>
     <rect x="100" y="1162" width="352" height="44" rx="8" fill="#faf9f5"/>
     <text x="112" y="1180" class="hs">Search</text>
     <text x="112" y="1197" class="q">words in items, journal, todos and sources</text>
