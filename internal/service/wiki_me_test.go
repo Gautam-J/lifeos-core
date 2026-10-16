@@ -102,28 +102,28 @@ func TestWikiLintChecksMe(t *testing.T) {
 	}
 }
 
-func TestContext(t *testing.T) {
+func TestMe(t *testing.T) {
 	s, _ := newWikiService(t)
 	ctx := context.Background()
 
-	missing, err := s.Context(ctx)
+	missing, err := s.Me(ctx)
 	if err != nil || missing.Me != "" || !strings.Contains(missing.Note, "me.md") || !strings.Contains(missing.Note, "wiki_write") {
 		t.Errorf("with no page: %+v, %v, want a note that names me.md and wiki_write", missing, err)
 	}
 
 	putPage(t, s, "me.md", "---\ntype: me\ntitle: About Gautam\nsummary: S.\ncreated: 2026-10-01\nupdated: 2026-10-01\n---\n\n"+
 		"## Now\n\n- Ships #31 (until 2026-10-10)\n- Ships #35 (until 2026-10-11)\n- No expiry\n")
-	got, err := s.Context(ctx)
+	got, err := s.Me(ctx)
 	if err != nil {
-		t.Fatalf("Context: %v", err)
+		t.Fatalf("Me: %v", err)
 	}
 	if strings.Contains(got.Me, "#31") || !strings.Contains(got.Me, "#35") || !strings.Contains(got.Me, "No expiry") || got.Note != "" {
-		t.Errorf("Context = %+v, want the page without the expired line", got)
+		t.Errorf("Me = %+v, want the page without the expired line", got)
 	}
 
 	// The service has no wiki folder: the caller gets an error.
 	bare, _ := newTestService(t)
-	if _, err := bare.Context(ctx); err == nil || errors.Is(err, ErrNotFound) {
+	if _, err := bare.Me(ctx); err == nil || errors.Is(err, ErrNotFound) {
 		t.Errorf("with no wiki folder: error = %v, want an error", err)
 	}
 }

@@ -2,6 +2,7 @@ package mcp_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,5 +94,32 @@ func TestInstructionsOfANewSessionHoldMe(t *testing.T) {
 	// The first session keeps what it got at its start.
 	if strings.Contains(before, "Gautam builds LifeOS.") {
 		t.Error("an old session changed")
+	}
+}
+
+// #37: the tool returns the journal and the todos of today and yesterday,
+// each row with its ref, so the agent can cite and update it at once.
+func TestContextToolReturnsTheJournalAndTheTodos(t *testing.T) {
+	session := connectTo(t, wikiService(t))
+
+	entry := structured(t, call(t, session, "journal", map[string]any{"body": "went for a run"}))
+	todo := structured(t, call(t, session, "todo", map[string]any{"title": "call the plumber", "due_on": "2000-01-01"}))
+
+	got := structured(t, call(t, session, "context", map[string]any{}))
+	journal, _ := got["journal"].([]any)
+	if len(journal) != 1 {
+		t.Fatalf("journal = %v, want the one entry", got["journal"])
+	}
+	first, _ := journal[0].(map[string]any)
+	if first["body"] != "went for a run" || first["ref"] != fmt.Sprintf("journal:%v", entry["id"]) {
+		t.Errorf("entry = %v, want the body and its ref", first)
+	}
+	due, _ := got["due"].([]any)
+	if len(due) != 1 {
+		t.Fatalf("due = %v, want the overdue todo", got["due"])
+	}
+	row, _ := due[0].(map[string]any)
+	if row["title"] != "call the plumber" || row["ref"] != fmt.Sprintf("todo:%v", todo["id"]) {
+		t.Errorf("todo = %v, want the title and its ref", row)
 	}
 }

@@ -68,18 +68,11 @@ func (s *Service) lintMe(ctx context.Context, root *os.Root, q *store.Queries, d
 	return findings, nil
 }
 
-// SessionContext is what each session starts with.
-type SessionContext struct {
-	// Me is the body of me.md without the lines that are past their day.
-	Me string `json:"me,omitempty"`
-	// Note says what is missing and how to make it.
-	Note string `json:"note,omitempty"`
-}
-
-// Context returns the text that each session starts with: the body of
-// me.md, without the lines that are past their day. When the page is not
-// there, Note says how to make it.
-func (s *Service) Context(ctx context.Context) (SessionContext, error) {
+// Me returns the body of me.md without the lines that are past their day,
+// as the Me field of a SessionContext. When the page is not there, Note
+// says how to make it. The instructions of a session use Me, because they
+// need no other part of Context.
+func (s *Service) Me(ctx context.Context) (SessionContext, error) {
 	page, err := s.WikiRead(ctx, wikiMePath)
 	if errors.Is(err, ErrNotFound) {
 		return SessionContext{Note: "The page me.md does not exist yet. Offer to draft it from the wiki and the records, ask the user to approve the text, then call wiki_write with path me.md. Keep it at most 2000 characters. End a line that the user only said with (stated)."}, nil

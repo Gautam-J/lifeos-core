@@ -21,7 +21,7 @@ Routing:
 - Decide the kind of each part of the message: journal, todo, item (add_item), habit (log_habit), source (capture) or question.
 - A message with several kinds gets one call for each kind.
 - Ask one short question only when the kind is not clear.
-- Call context first in each conversation with the user about their own life. It returns me.md, a short text about the user.
+- Call context first in each conversation with the user about their own life. It returns me.md, a short text about the user, and the journal and the todos of today and yesterday, with IDs.
 
 Where each thing goes:
 - A fact (a date, an amount, a rating, an event, a task, a habit that is done) is a record in the database: add_item, todo, log_habit, journal.
@@ -70,7 +70,7 @@ func captureNext(id int64, processed bool) string {
 // instructions, then the text of me.md as it is now (#35). When the wiki
 // has no me.md, or cannot be read, the session gets the fixed text.
 func sessionInstructions(ctx context.Context, svc *service.Service) string {
-	got, err := svc.Context(ctx)
+	got, err := svc.Me(ctx)
 	if err != nil || got.Me == "" {
 		return instructions
 	}
