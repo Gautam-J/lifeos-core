@@ -246,7 +246,7 @@ The rules for an agent are in the tool descriptions. The results of `journal` an
 
 ## Run it
 
-You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD`, `NTFY_BASE_URL`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. Docker Compose also needs `GRAFANA_ADMIN_PASSWORD` and `LIFEOS_DASH_HOST` for Grafana, and `OTEL_BEARER_TOKEN` for the OTel collector ([docs/telemetry.md](docs/telemetry.md)). The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
+You need Go 1.26, Docker, and a `deploy/.env` file with `POSTGRES_PASSWORD`, `LIFEOS_QUERY_PASSWORD`, `NTFY_BASE_URL`, and `CF_ACCESS_TEAM` and `LIFEOS_MCP_AUD` for the token check of the MCP server. Docker Compose also needs `GRAFANA_ADMIN_PASSWORD`, `LIFEOS_DASH_HOST` and `LIFEOS_DASH_AUD` for Grafana, and `OTEL_BEARER_TOKEN` for the OTel collector ([docs/telemetry.md](docs/telemetry.md)). The file is not in git. The backup scripts also need `RESTIC_PASSWORD`, the B2 settings and `NTFY_TOKEN`. You also need the two folders of the file store, `files_dir` and `inbox_dir` in `config/lifeos.yaml`, and the wiki folder `wiki_dir`, which is in a clone of the wiki repository.
 
 ```sh
 docker compose -f deploy/docker-compose.yml up -d   # Postgres, the Postgres server of the tests, ntfy and the monitoring services

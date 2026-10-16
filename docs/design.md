@@ -274,7 +274,7 @@ Each hostname gets two locks where possible: Cloudflare checks the visitor first
 | Hostname | Points to | Cloudflare check | App check |
 | --- | --- | --- | --- |
 | `admin.` | lifeos `:8200`, `/admin` only | Access login (email code or GitHub) | None: Access is the one login |
-| `dash.` | Grafana `:3000` | Access login | None: Access is the one login |
+| `dash.` | Grafana `:3000` | Access login | Grafana checks the token of Access and logs in the user of the email; no second login |
 | `ssh.` | `ssh://localhost:22` | Access login, via `cloudflared access ssh` | SSH key |
 | `api.` | lifeos `:8200`, `/api` only | Access service token in request headers | None: Access is the one lock |
 | `mcp.` | lifeos MCP `:8100`, `/mcp` only | Access login through OAuth (managed OAuth), which the Claude app and Claude Code can do | The server checks the token of Access |
@@ -490,7 +490,7 @@ Claude app, Code tab, Pi session: "reorganise my reading notes into one page per
 
 **S17 · Dashboard in a browser**
 
-1. Gautam opens `dash.<domain>`; Cloudflare Access asks for the email code; Grafana has no login of its own.
+1. Gautam opens `dash.<domain>`; Cloudflare Access asks for the email code; Grafana logs Gautam in from the token of Access, with no login of its own.
 2. Panels query Postgres live as the read-only user; no model is involved.
 
 **S18 · Kindle e-ink dashboard**
