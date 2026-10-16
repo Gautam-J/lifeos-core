@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	lifeosmcp "github.com/Gautam-J/lifeos-core/internal/mcp"
 	"github.com/Gautam-J/lifeos-core/internal/version"
 )
 
@@ -25,6 +26,7 @@ var commands = []command{
 	{"migrate", "migrate", "apply goose migrations", migrate},
 	{"job", "job <name>", "run one scheduled job", job},
 	{"import-csv", "import-csv <importer> <file>", "import a CSV export", importCSV},
+	{"instructions", "instructions", "print the MCP server instructions, to paste into a client", printInstructions},
 	{"version", "version", "print the release of this binary", printVersion},
 }
 
@@ -63,6 +65,15 @@ func printVersion(args []string) error {
 
 func writeVersion(w io.Writer) {
 	fmt.Fprintln(w, "lifeos", version.Version)
+}
+
+func printInstructions(args []string) error {
+	writeInstructions(os.Stdout)
+	return nil
+}
+
+func writeInstructions(w io.Writer) {
+	fmt.Fprintln(w, lifeosmcp.Instructions())
 }
 
 func job(args []string) error       { return errNotImplemented }
