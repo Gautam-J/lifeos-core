@@ -34,7 +34,7 @@ func TestServerSendsItsInstructions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	known := map[string]bool{"journal_ref": true, "entry_date": true, "logged_on": true}
+	known := map[string]bool{"journal_ref": true, "entry_date": true, "logged_on": true, "new_entity": true}
 	for _, tool := range list.Tools {
 		known[tool.Name] = true
 	}
@@ -134,5 +134,39 @@ func TestToolsWithANextStepDeclareItInTheirOutput(t *testing.T) {
 				t.Errorf("the output schema of %s does not have the field %s", tool.Name, field)
 			}
 		}
+	}
+}
+
+// #41: the agent links without a question. The text says so, and says
+// that this is the one exception to the rule that it never guesses.
+func TestInstructionsGiveEntitiesTheirOwnRule(t *testing.T) {
+	session, _ := connect(t)
+
+	instructions := session.InitializeResult().Instructions
+	for _, part := range []string{"Entities:", "Ask no question about an entity", "merge_entities", "tag", "new_entity"} {
+		if !strings.Contains(instructions, part) {
+			t.Errorf("the instructions do not have %q", part)
+		}
+	}
+	if strings.Contains(instructions, "date, an amount or a person. Ask") {
+		t.Error("rule 3 still says that the agent asks about a person")
+	}
+}
+
+func TestJournalResultNamesTheEntitiesOfAnEntry(t *testing.T) {
+	session, _ := connect(t)
+
+	entry := structured(t, call(t, session, "journal", map[string]any{"body": "Met Asha about the tunnel."}))
+
+	next, _ := entry["next"].(string)
+	for _, part := range []string{"tag", "entities", "wiki_path"} {
+		if !strings.Contains(next, part) {
+			t.Errorf("the next step does not have %q:\n%s", part, next)
+		}
+	}
+	// A link in the result names the page of its entity.
+	linked := structured(t, call(t, session, "journal", map[string]any{"body": "Met Asha", "entities": []any{map[string]any{"kind": "person", "name": "Asha"}}}))
+	if list, _ := linked["entities"].([]any); len(list) != 1 {
+		t.Errorf("entities = %v", linked["entities"])
 	}
 }

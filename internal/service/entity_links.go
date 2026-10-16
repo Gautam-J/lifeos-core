@@ -44,10 +44,16 @@ type EntityLink struct {
 	NewEntity bool `json:"new_entity,omitempty"`
 	// AlreadyLinked says that the link existed: this call wrote nothing.
 	AlreadyLinked bool `json:"already_linked,omitempty"`
+	// WikiPath is the page of the entity, when it has one: append to it.
+	WikiPath string `json:"wiki_path,omitempty"`
 }
 
 func entityLinkOf(e store.Entity) EntityLink {
-	return EntityLink{Ref: fmt.Sprintf("entity:%d", e.ID), Kind: e.Kind, Name: e.Name}
+	link := EntityLink{Ref: fmt.Sprintf("entity:%d", e.ID), Kind: e.Kind, Name: e.Name}
+	if e.WikiPath != nil {
+		link.WikiPath = *e.WikiPath
+	}
+	return link
 }
 
 // LinkedRecord is one record that links to an entity.
