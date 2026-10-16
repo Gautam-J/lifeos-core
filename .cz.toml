@@ -3,7 +3,7 @@
 # Run `cz bump`. AGENTS.md has the steps.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.5.0"
+version = "0.5.1"
 version_scheme = "semver"
 tag_format = "v$version"
 annotated_tag = true

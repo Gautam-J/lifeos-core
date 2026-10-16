@@ -1,3 +1,9 @@
+## v0.5.1 (2026-10-16)
+
+### Fix
+
+- **admin**: a day is a text field that reads DD-MM-YYYY
+
 ## v0.5.0 (2026-10-16)
 
 ### Feat
