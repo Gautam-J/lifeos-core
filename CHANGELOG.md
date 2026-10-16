@@ -1,3 +1,9 @@
+## v0.3.1 (2026-10-16)
+
+### Fix
+
+- **service**: an agent does not change the body of a journal entry
+
 ## v0.3.0 (2026-10-16)
 
 ### BREAKING CHANGE
