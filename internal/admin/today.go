@@ -85,6 +85,9 @@ func activityRecord(a service.Activity) (name, href string) {
 	case a.RecordType == "habits":
 		// A habit is a definition, not a record type.
 		word = "habit"
+	case a.RecordType == "record_entities":
+		// A link has no page of its own.
+		word = "entity link"
 	case !ok:
 		word = a.RecordType
 	}

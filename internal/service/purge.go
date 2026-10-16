@@ -40,6 +40,11 @@ func (s *Service) Purge(ctx context.Context, recordType string, id int64) error 
 	q := store.New(tx)
 
 	table := t.table
+	if t.link != nil {
+		if err := removeLinksOf(ctx, q, t, id); err != nil {
+			return err
+		}
+	}
 	file, err := t.purge(ctx, q, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
@@ -48,7 +53,11 @@ func (s *Service) Purge(ctx context.Context, recordType string, id int64) error 
 	// to the row.
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-		return invalid("id", "a record in "+pgErr.TableName+" names this journal entry in its journal_ref: delete that record forever first")
+		message := t.purgeRefused
+		if message == "" {
+			message = "a record in %s still names this record: delete that record forever first"
+		}
+		return invalid("id", fmt.Sprintf(message, pgErr.TableName))
 	}
 	if err != nil {
 		return fmt.Errorf("purge from %s: %w", table, err)

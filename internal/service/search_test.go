@@ -69,7 +69,8 @@ func TestSearchFindsARecordOfEachType(t *testing.T) {
 	wantHits(t, "the kind and a word", search(t, s, "movie dune"), recordRef{"item", item.ID})
 	wantHits(t, "a word of a body", search(t, s, "rained"), recordRef{"journal", entry.ID})
 	wantHits(t, "the day of an entry", search(t, s, "2026-10-09"), recordRef{"journal", entry.ID})
-	wantHits(t, "a project", search(t, s, "home"), recordRef{"todo", todo.ID})
+	// The project of the todo is an entity too: search finds both.
+	wantHits(t, "a project", search(t, s, "home"), recordRef{"todo", todo.ID}, recordRef{"entity", 1})
 	wantHits(t, "a word of a text", search(t, s, "renews"), recordRef{"source", text.ID})
 	wantHits(t, "a part of a link", search(t, s, "example.com"), recordRef{"source", link.ID})
 
