@@ -33,6 +33,7 @@ templ page(title, section string) {
 			<link rel="icon" type="image/svg+xml" href={ templ.URL(asset("icon.svg")) }/>
 			<link rel="apple-touch-icon" href={ templ.URL(asset("apple-touch-icon.png")) }/>
 			<script src={ asset("htmx.min.js") } defer></script>
+			<script src={ asset("write.js") } defer></script>
 		</head>
 		<body>
 			<a class="skip" href="#main">Skip to the content</a>
@@ -53,7 +54,7 @@ templ page(title, section string) {
 						<a class="sheet-only" href="/admin/deleted">Deleted</a>
 					</nav>
 					<div class="top-right">
-						<a class="btn btn-primary" href="/admin#write">Write</a>
+						<a class="btn btn-primary" href="/admin#write" data-write>Write</a>
 						<!-- A phone restores a check box when the page comes back. The menu must start closed. -->
 						<input class="menu-toggle" type="checkbox" aria-label="Menu" autocomplete="off"/>
 					</div>
