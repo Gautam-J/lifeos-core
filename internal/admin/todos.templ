@@ -24,7 +24,7 @@ templ todosPage(todos []service.Todo) {
 				</label>
 				<label class="field">
 					Due
-					<input type="date" name="due_on"/>
+					@dayField("due_on", "", "", "", false)
 				</label>
 				<button class="btn btn-primary" type="submit">Add todo</button>
 			</form>
@@ -132,7 +132,7 @@ templ editTodoPage(form todoForm, errorMessage string) {
 				</label>
 				<label class="field">
 					Due
-					<input type="date" name="due_on" value={ form.DueOn }/>
+					@dayField("due_on", form.DueOn, "", "", false)
 				</label>
 				<div class="form-actions">
 					<button class="btn btn-primary" type="submit">Save changes</button>

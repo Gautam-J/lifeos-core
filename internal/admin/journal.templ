@@ -20,7 +20,7 @@ templ journalPage(entries []service.JournalEntry) {
 				</label>
 				<label class="field">
 					<span>Day <span class="hint">(empty means today)</span></span>
-					<input type="date" name="entry_date"/>
+					@dayField("entry_date", "", "", "", false)
 				</label>
 				<button class="btn btn-primary" type="submit">Add entry</button>
 			</form>
@@ -96,7 +96,7 @@ templ editJournalPage(form journalForm, errorMessage string) {
 				</label>
 				<label class="field">
 					Day
-					<input type="date" name="entry_date" required value={ form.EntryDate }/>
+					@dayField("entry_date", form.EntryDate, "", "", true)
 				</label>
 				<div class="form-actions">
 					<button class="btn btn-primary" type="submit">Save changes</button>

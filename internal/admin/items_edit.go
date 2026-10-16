@@ -60,7 +60,7 @@ func (h *handlers) saveItem(w http.ResponseWriter, r *http.Request) {
 		Kind:       r.PostForm.Get("kind"),
 		Title:      r.PostForm.Get("title"),
 		Rating:     r.PostForm.Get("rating"),
-		OccurredOn: r.PostForm.Get("occurred_on"),
+		OccurredOn: dayIn(r.PostForm.Get("occurred_on")),
 	}
 	params, err := form.params()
 	if err == nil {
@@ -71,7 +71,7 @@ func (h *handlers) saveItem(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		http.Redirect(w, r, "/admin/items", http.StatusSeeOther)
 	case errors.As(err, &invalid):
-		render(w, r, editItemPage(form, invalid.Error()))
+		render(w, r, editItemPage(form, reason(invalid)))
 	case errors.Is(err, service.ErrNotFound):
 		http.NotFound(w, r)
 	default:

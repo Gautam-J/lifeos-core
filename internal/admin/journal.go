@@ -50,7 +50,7 @@ func (h *handlers) addJournalEntry(w http.ResponseWriter, r *http.Request) {
 	message := ""
 	_, err := h.svc.AddJournalEntry(r.Context(), service.AddJournalEntryParams{
 		Body:       formText(r, "body"),
-		EntryDate:  r.PostForm.Get("entry_date"),
+		EntryDate:  dayIn(r.PostForm.Get("entry_date")),
 		Provenance: service.Provenance{Source: service.SourceManual},
 	})
 	var invalid *service.ValidationError
@@ -59,7 +59,7 @@ func (h *handlers) addJournalEntry(w http.ResponseWriter, r *http.Request) {
 		// htmx turns this header into an event; the form resets on it.
 		w.Header().Set("HX-Trigger", "entry-added")
 	case errors.As(err, &invalid):
-		message = invalid.Error()
+		message = reason(invalid)
 	default:
 		listFailure(w, r, err, "The entry was not stored: internal error. Try again.")
 		return
@@ -97,7 +97,7 @@ func (h *handlers) saveJournalEntry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	form := journalForm{ID: id, Body: formText(r, "body"), EntryDate: r.PostForm.Get("entry_date")}
+	form := journalForm{ID: id, Body: formText(r, "body"), EntryDate: dayIn(r.PostForm.Get("entry_date"))}
 	_, err := h.svc.UpdateJournalEntry(r.Context(), id, service.UpdateJournalEntryParams{
 		Body:      &form.Body,
 		EntryDate: &form.EntryDate,
@@ -108,7 +108,7 @@ func (h *handlers) saveJournalEntry(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		http.Redirect(w, r, "/admin/journal", http.StatusSeeOther)
 	case errors.As(err, &invalid):
-		render(w, r, editJournalPage(form, invalid.Error()))
+		render(w, r, editJournalPage(form, reason(invalid)))
 	case errors.Is(err, service.ErrNotFound):
 		http.NotFound(w, r)
 	default:

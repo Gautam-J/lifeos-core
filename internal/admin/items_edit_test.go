@@ -69,7 +69,7 @@ func TestEditPageShowsTheStoredValuesAsText(t *testing.T) {
 		`value="Dune &#34;2&#34; &lt;b&gt;"`,
 		`<option value="movie" selected>`,
 		`value="4.5"`,
-		`value="2024-03-01"`,
+		`value="01-03-2024"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not contain %s", want)
