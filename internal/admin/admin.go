@@ -55,6 +55,7 @@ func Register(router chi.Router, svc *service.Service) {
 	router.Post("/admin/habits/logs/{id}/delete", h.deleteHabitLog)
 	router.Get("/admin/sources", h.sourcesPage)
 	router.Post("/admin/sources", h.addSource)
+	router.Get("/admin/sources/{id}", h.sourcePage)
 	router.Post("/admin/sources/{id}/delete", h.deleteSource)
 	router.Get("/admin/deleted", h.deletedPage)
 	router.Post("/admin/deleted/purge", h.purgeRecord)

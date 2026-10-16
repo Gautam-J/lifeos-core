@@ -164,3 +164,77 @@ func TestDeleteSourceRemovesItFromTheList(t *testing.T) {
 		t.Errorf("delete with a bad ID: status = %d, want 404", rec.Code)
 	}
 }
+
+// #9: the list cuts a long text, so a source has a page that shows all of
+// it. A source is verbatim (rule 12), so the page has no edit form.
+func TestSourcePageShowsTheWholeText(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	svc := service.New(pool)
+	long := "  Start of the article. <b>bold</b>\n\n" + strings.Repeat("word ", 100) + "THE END  \n"
+	capture, err := svc.Capture(t.Context(), service.CaptureParams{Text: long, Title: "Article", Source: service.SourceAgent})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	list := get(h, "/admin/sources").Body.String()
+	rec := get(h, fmt.Sprintf("/admin/sources/%d", capture.ID))
+
+	if !strings.Contains(list, fmt.Sprintf(`href="/admin/sources/%d"`, capture.ID)) {
+		t.Error("the list has no link to the page of the source")
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	page := rec.Body.String()
+	escaped := "  Start of the article. &lt;b&gt;bold&lt;/b&gt;\n\n" + strings.Repeat("word ", 100) + "THE END  \n"
+	for _, want := range []string{`<div class="prose">` + escaped + `</div>`, "Article", "agent", capture.SHA256, `href="/admin/sources"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page does not contain %q", want)
+		}
+	}
+	if strings.Contains(page, "<form") || strings.Contains(page, "<textarea") {
+		t.Error("the page of a source has a form: a source is verbatim and has no edit")
+	}
+}
+
+func TestSourcePageShowsALinkAndAFile(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	svc := service.New(pool).WithFiles(service.Files{Dir: t.TempDir(), Inbox: t.TempDir(), MaxBytes: 4096})
+	link, err := svc.Capture(t.Context(), service.CaptureParams{URL: "https://example.com/a?b=1", Source: service.SourceManual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := svc.Capture(t.Context(), service.CaptureParams{Upload: bytes.NewReader([]byte("%PDF-1.7\n")), FileName: "policy.pdf", Source: service.SourceManual})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkPage := get(h, fmt.Sprintf("/admin/sources/%d", link.ID)).Body.String()
+	filePage := get(h, fmt.Sprintf("/admin/sources/%d", file.ID)).Body.String()
+
+	if !strings.Contains(linkPage, `href="https://example.com/a?b=1"`) {
+		t.Error("the page of a link has no link")
+	}
+	for _, want := range []string{"policy.pdf", "application/pdf", "9 bytes"} {
+		if !strings.Contains(filePage, want) {
+			t.Errorf("the page of a file does not contain %q", want)
+		}
+	}
+}
+
+func TestSourcePageReturns404ForASourceThatIsNotThere(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	deleted, err := service.New(pool).Capture(t.Context(), service.CaptureParams{Text: "gone", Source: service.SourceManual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.New(pool).DeleteCapture(t.Context(), deleted.ID, service.DeleteParams{Actor: service.SourceManual}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{"/admin/sources/9999", "/admin/sources/abc", fmt.Sprintf("/admin/sources/%d", deleted.ID)} {
+		if rec := get(h, path); rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s: status = %d, want 404", path, rec.Code)
+		}
+	}
+}

@@ -75,6 +75,7 @@ templ sourcesList(captures []service.Capture, errorMessage string) {
 								<td class="when" data-label="Captured">{ stamp(capture.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">
+										<a class="link" href={ templ.URL(sourcePath(capture.ID)) }>View</a>
 										<button
 											class="link link-danger"
 											hx-post={ sourcePath(capture.ID) + "/delete" }
@@ -95,4 +96,46 @@ templ sourcesList(captures []service.Capture, errorMessage string) {
 
 func sourcePath(id int64) string {
 	return "/admin/sources/" + strconv.FormatInt(id, 10)
+}
+
+// sourceDetailPage shows one source whole: the list cuts a long text. A
+// source is verbatim (rule 12), so the page has no form to change it.
+templ sourceDetailPage(capture service.Capture) {
+	@page("Source "+strconv.FormatInt(capture.ID, 10), "Sources") {
+		<header class="page-head">
+			<h1>Source { strconv.FormatInt(capture.ID, 10) }</h1>
+			<p>A source stays exactly as it was captured, so it has no edit.</p>
+		</header>
+		<section class="panel panel-narrow">
+			<dl class="facts">
+				<dt>Kind</dt>
+				<dd>{ capture.Kind }</dd>
+				if capture.Title != "" {
+					<dt>Title</dt>
+					<dd>{ capture.Title }</dd>
+				}
+				<dt>From</dt>
+				<dd>{ string(capture.Source) }</dd>
+				<dt>Captured</dt>
+				<dd>{ stamp(capture.CreatedAt) }</dd>
+				if capture.ProcessedAt != nil {
+					<dt>Processed</dt>
+					<dd>{ stamp(*capture.ProcessedAt) }</dd>
+				}
+				if capture.Kind == "file" {
+					<dt>File</dt>
+					<dd>{ capture.MediaType }, { fileSize(capture.SizeBytes) }</dd>
+				}
+				<dt>SHA-256</dt>
+				<dd class="wrap-any">{ capture.SHA256 }</dd>
+			</dl>
+			switch capture.Kind {
+				case "link":
+					<p class="wrap-any"><a href={ templ.URL(capture.URL) } rel="noreferrer">{ capture.URL }</a></p>
+				case "text":
+					<div class="prose">{ capture.Content }</div>
+			}
+			<p><a class="link" href="/admin/sources">All sources</a></p>
+		</section>
+	}
 }

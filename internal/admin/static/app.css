@@ -846,6 +846,23 @@ td.wrap-any {
 	overflow-wrap: anywhere;
 }
 
+/* The facts of one record: a label and its value in two columns. */
+.facts {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: var(--s-xs) var(--s-md);
+	margin: 0 0 var(--s-md);
+}
+
+.facts dt {
+	color: var(--muted);
+}
+
+.facts dd {
+	margin: 0;
+	color: var(--body-strong);
+}
+
 .entry-foot {
 	display: flex;
 	flex-wrap: wrap;

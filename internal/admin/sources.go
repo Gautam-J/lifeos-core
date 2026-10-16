@@ -42,6 +42,25 @@ func (h *handlers) sourcesPage(w http.ResponseWriter, r *http.Request) {
 	render(w, r, sourcesPage(captures))
 }
 
+// sourcePage shows one source with its whole text.
+func (h *handlers) sourcePage(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	capture, err := h.svc.GetCapture(r.Context(), id)
+	if errors.Is(err, service.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	render(w, r, sourceDetailPage(capture))
+}
+
 // showSourcesList renders the list again, with message above it.
 func (h *handlers) showSourcesList(w http.ResponseWriter, r *http.Request, message string) {
 	captures, err := h.svc.ListCaptures(r.Context(), 0)
