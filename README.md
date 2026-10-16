@@ -185,7 +185,7 @@ LifeOS has no login of its own. The admin pages, the REST API and the MCP server
 | `/admin/journal` | Write an entry, see the entries, edit or delete an entry. |
 | `/admin/todos` | Add a todo, mark it done, edit or delete it. |
 | `/admin/habits` | Log a habit for today, add, rename or retire a habit, delete a log. |
-| `/admin/sources` | Capture a text or a link, see the sources, delete a source. |
+| `/admin/sources` | Capture a text or a link, see the sources, open one source to read all of it, delete a source. |
 | `/admin/deleted` | See the deleted records, and remove one for good. |
 
 A record that the admin pages write is `manual`. The lists of todos, habit logs and items link each record that a journal entry reports to that entry.
