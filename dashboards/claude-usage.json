@@ -455,7 +455,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -518,7 +518,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 12,
         "y": 6,
@@ -581,7 +581,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 0,
         "y": 14,
@@ -644,7 +644,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 12,
         "y": 14,
@@ -707,7 +707,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 0,
         "y": 22,
@@ -770,7 +770,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 12,
         "y": 22,
@@ -844,7 +844,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "interval": "1h",
+      "interval": "5m",
       "gridPos": {
         "x": 0,
         "y": 30,
