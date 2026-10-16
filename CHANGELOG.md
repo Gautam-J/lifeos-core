@@ -1,3 +1,27 @@
+## v0.3.0 (2026-10-16)
+
+### BREAKING CHANGE
+
+- the column source_ref and the MCP input source_ref are
+gone.
+- the column verified and the MCP input dictated are gone.
+- the routes /api/review and /admin/review and the MCP
+tools review_queue and verify are gone.
+
+### Feat
+
+- **admin**: link each record to the journal entry that reports it
+- **mcp**: a journal entry logs its habits and closes its todos
+- link a habit log, a todo and an item to the journal entry that reports it
+- drop source_ref; no record comes from a capture
+- write each record at once, with no approval flag
+- remove the review queue and the verify step
+
+### Fix
+
+- **mcp**: update tells the agent to keep the words of a journal entry
+- a habit log from a journal entry takes the day of the entry
+
 ## v0.2.0 (2026-10-16)
 
 ### Feat
