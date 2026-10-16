@@ -286,3 +286,31 @@ func TestDatabaseFailureOnTheTodoPages(t *testing.T) {
 		}
 	}
 }
+
+// #39: a todo, a log and an item that an entry reports link to the entry.
+func TestTheListsLinkARecordToItsEntry(t *testing.T) {
+	h, pool := newTestAdmin(t)
+	svc := service.New(pool)
+	entry, err := svc.AddJournalEntry(t.Context(), service.AddJournalEntryParams{Body: "Paid it. Ran. Watched Dune.", Provenance: service.Provenance{Source: service.SourceManual}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent := service.Provenance{Source: service.SourceAgent}
+	if _, err := svc.AddTodo(t.Context(), service.AddTodoParams{Title: "Pay it", JournalRef: entry.ID, Provenance: agent}); err != nil {
+		t.Fatal(err)
+	}
+	addStoredHabit(t, pool, "run")
+	if _, err := svc.LogHabit(t.Context(), service.LogHabitParams{Habit: "run", JournalRef: entry.ID, Provenance: agent}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddItem(t.Context(), service.AddItemParams{Kind: "movie", Title: "Dune", JournalRef: entry.ID, Provenance: agent}); err != nil {
+		t.Fatal(err)
+	}
+
+	link := fmt.Sprintf(`<a href="/admin/journal/%d/edit">journal:%d</a>`, entry.ID, entry.ID)
+	for _, page := range []string{"/admin/todos", "/admin/habits", "/admin/items"} {
+		if body := get(h, page).Body.String(); !strings.Contains(body, link) {
+			t.Errorf("%s has no link %s", page, link)
+		}
+	}
+}

@@ -60,6 +60,7 @@ templ itemsList(items []service.Item, errorMessage string) {
 							<th>Rating</th>
 							<th>Date</th>
 							<th class="col-lo">Source</th>
+							<th>From</th>
 							<th class="col-lo">Added</th>
 							<th></th>
 						</tr>
@@ -73,6 +74,9 @@ templ itemsList(items []service.Item, errorMessage string) {
 								<td class="num" data-label="Rating">{ formatRating(item.Rating) }</td>
 								<td class="when" data-label="Date">{ item.OccurredOn }</td>
 								<td class="col-lo" data-label="Source">{ string(item.Source) }</td>
+								<td data-label="From">
+									@journalLink(item.JournalRef)
+								</td>
 								<td class="when col-lo" data-label="Added">{ stamp(item.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">

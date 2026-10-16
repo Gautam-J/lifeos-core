@@ -110,3 +110,11 @@ templ editJournalPage(form journalForm, errorMessage string) {
 func journalPath(id int64) string {
 	return "/admin/journal/" + strconv.FormatInt(id, 10)
 }
+
+// journalLink shows the journal entry that a record comes from, as
+// journal:57, linked to the entry. It shows nothing for 0.
+templ journalLink(ref int64) {
+	if ref != 0 {
+		<a href={ templ.URL(journalPath(ref) + "/edit") }>{ "journal:" + strconv.FormatInt(ref, 10) }</a>
+	}
+}

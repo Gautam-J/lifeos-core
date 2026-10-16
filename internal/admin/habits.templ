@@ -102,6 +102,7 @@ templ habitsList(view habitsView, errorMessage string) {
 							<th>Habit</th>
 							<th>Day</th>
 							<th class="col-lo">Source</th>
+							<th>From</th>
 							<th class="col-lo">Logged</th>
 							<th></th>
 						</tr>
@@ -113,6 +114,9 @@ templ habitsList(view habitsView, errorMessage string) {
 								<td class="title">{ log.Habit }</td>
 								<td class="when" data-label="Day">{ log.LoggedOn }</td>
 								<td class="col-lo" data-label="Source">{ string(log.Source) }</td>
+								<td data-label="From">
+									@journalLink(log.JournalRef)
+								</td>
 								<td class="when col-lo" data-label="Logged">{ stamp(log.CreatedAt) }</td>
 								<td class="cell-actions">
 									<div class="actions">
