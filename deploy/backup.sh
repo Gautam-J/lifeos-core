@@ -22,10 +22,12 @@ monitoring_dirs=(/var/lib/lifeos-monitoring/grafana /var/lib/lifeos-monitoring/p
 # Grafana downloads its plugins again at the start (about 450 MB).
 skip_plugins=(--exclude /var/lib/lifeos-monitoring/grafana/plugins)
 mkdir -p "$dump_dir"
-trap 'rm -f "$dump_dir/lifeos.dump" "$dump_dir/globals.sql"' EXIT
+trap 'rm -f "$dump_dir/lifeos.dump" "$dump_dir/canvas.dump" "$dump_dir/globals.sql"' EXIT
 
 # Dump to files first, so a failed pg_dump never becomes a snapshot.
 docker compose exec -T postgres pg_dump -U lifeos -Fc lifeos > "$dump_dir/lifeos.dump"
+# The database of excalidraw-canvas, in the same container.
+docker compose exec -T postgres pg_dump -U lifeos -Fc canvas > "$dump_dir/canvas.dump"
 # Roles and their passwords live outside the database, so pg_dump skips them.
 docker compose exec -T postgres pg_dumpall -U lifeos --globals-only > "$dump_dir/globals.sql"
 
