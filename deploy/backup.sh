@@ -28,11 +28,17 @@ trap 'rm -f "$dump_dir/lifeos.dump" "$dump_dir/canvas.dump" "$dump_dir/globals.s
 docker compose exec -T postgres pg_dump -U lifeos -Fc lifeos > "$dump_dir/lifeos.dump"
 # The database of excalidraw-canvas, in the same container. Until its
 # create-db.sh has run, the database is absent: skip it, so that the backup
-# of lifeos still runs.
-if [ -n "$(docker compose exec -T postgres psql -U lifeos -tAc "SELECT 1 FROM pg_database WHERE datname = 'canvas'")" ]; then
+# of lifeos still runs. Only an answer of the database skips it: a failed
+# check (the container down, a refused login) stops the backup, as set -e
+# does for an assignment and not for a test.
+canvas_db=$(docker compose exec -T postgres psql -U lifeos -XtAc "SELECT count(*) FROM pg_database WHERE datname = 'canvas'")
+if [ "$canvas_db" = 1 ]; then
     docker compose exec -T postgres pg_dump -U lifeos -Fc canvas > "$dump_dir/canvas.dump"
-else
+elif [ "$canvas_db" = 0 ]; then
     echo "canvas: no database, skipped"
+else
+    echo "canvas: unexpected answer of the database check: $canvas_db" >&2
+    exit 1
 fi
 # Roles and their passwords live outside the database, so pg_dump skips them.
 docker compose exec -T postgres pg_dumpall -U lifeos --globals-only > "$dump_dir/globals.sql"
