@@ -5,7 +5,8 @@
 # tunnel or of an Access application; deploy.sh runs it after each deploy.
 #
 # Needs LIFEOS_ADMIN_HOST, LIFEOS_API_HOST, LIFEOS_MCP_HOST and
-# LIFEOS_DASH_HOST in deploy/.env. With CF_ACCESS_CLIENT_ID and
+# LIFEOS_DASH_HOST in deploy/.env. CANVAS_HOST, the hostname of
+# excalidraw-canvas, is checked when it is set. With CF_ACCESS_CLIENT_ID and
 # CF_ACCESS_CLIENT_SECRET (an Access service token), it also checks that
 # the API and the MCP server answer a request that has the token, and that
 # the API hostname gives no admin page.
@@ -19,7 +20,7 @@ set -euo pipefail
 env_file=$(realpath "${1:-$(dirname "$0")/.env}")
 set -a; . "$env_file"; set +a
 
-if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ] && [ -z "${LIFEOS_MCP_HOST:-}" ] && [ -z "${LIFEOS_DASH_HOST:-}" ] && [ -z "${LIFEOS_OTEL_HOST:-}" ]; then
+if [ -z "${LIFEOS_ADMIN_HOST:-}" ] && [ -z "${LIFEOS_API_HOST:-}" ] && [ -z "${LIFEOS_MCP_HOST:-}" ] && [ -z "${LIFEOS_DASH_HOST:-}" ] && [ -z "${LIFEOS_OTEL_HOST:-}" ] && [ -z "${CANVAS_HOST:-}" ]; then
     echo "no public hostname is set in $env_file: nothing to check"
     exit 0
 fi
@@ -117,6 +118,10 @@ fi
 if [ -n "${LIFEOS_DASH_HOST:-}" ]; then
     # Grafana has no login of its own: Access is the one lock.
     guarded login "https://$LIFEOS_DASH_HOST/"
+fi
+if [ -n "${CANVAS_HOST:-}" ]; then
+    # excalidraw-canvas has no login of its own: Access is the one lock.
+    guarded login "https://$CANVAS_HOST/"
 fi
 if [ -n "${LIFEOS_OTEL_HOST:-}" ]; then
     # No Access application, as for ntfy: the 401 comes from the OTel
