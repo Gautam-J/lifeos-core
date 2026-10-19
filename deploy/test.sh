@@ -42,6 +42,7 @@ LIFEOS_ADMIN_HOST=admin.test
 LIFEOS_API_HOST=api.test
 LIFEOS_MCP_HOST=mcp.test
 LIFEOS_DASH_HOST=dash.test
+CANVAS_HOST=canvas.test
 LIFEOS_OTEL_HOST=otel.test
 OTEL_BEARER_TOKEN=tok
 CF_ACCESS_CLIENT_ID=id
@@ -71,6 +72,7 @@ token:https://api.test/api/items 200
 token:https://api.test/admin/items 404
 token:https://mcp.test/mcp 200
 https://dash.test/ 302 $login
+https://canvas.test/ 302 $login
 https://otel.test/v1/logs 401
 wrong:https://otel.test/v1/logs 401
 bearer:https://otel.test/v1/logs 200
@@ -113,6 +115,15 @@ check "the dash hostname gives 401" 1 "OPEN  https://dash.test/" "${good/dash.te
 printf 'LIFEOS_DASH_HOST=dash.test\n' > "$tmp/dash.env"
 hosts=$tmp/dash.env
 check "only the dash hostname is set" 1 "OPEN  https://dash.test/" "https://dash.test/ 200"
+hosts=$tmp/hosts.env
+
+# The canvas hostname (excalidraw-canvas): Access is the one lock. Each
+# request that has no login must get the login page of Access.
+check "the canvas hostname is guarded" 0 "ok    https://canvas.test/: Access asks for a login" "$good"
+check "the canvas hostname answers" 1 "OPEN  https://canvas.test/: status 200" "${good/canvas.test\/ 302 $login/canvas.test\/ 200}"
+printf 'CANVAS_HOST=canvas.test\n' > "$tmp/canvas.env"
+hosts=$tmp/canvas.env
+check "only the canvas hostname is set" 1 "OPEN  https://canvas.test/" "https://canvas.test/ 200"
 hosts=$tmp/hosts.env
 
 # The OTel hostname has no Access application: the OTel collector checks a
